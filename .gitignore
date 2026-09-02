@@ -1,4 +1,6 @@
 .clasprc.json
 .clasprc.*.json
+.clasp.json
+**/.clasp.json
 node_modules/
 
