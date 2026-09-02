@@ -77,8 +77,14 @@
 
   const SNAPSHOT_CACHE_KEY = "personalFinance.expenseSnapshot";
   const SNAPSHOT_UPDATED_AT_KEY = "personalFinance.expenseSnapshotUpdatedAt";
+  const WEALTH_SNAPSHOT_KEY = "personalFinance.wealthSnapshot";
+  const WEALTH_SNAPSHOT_UPDATED_AT_KEY = "personalFinance.wealthSnapshotUpdatedAt";
   const EXPENSE_CACHE_KEY = SNAPSHOT_CACHE_KEY;
   const EXPENSE_CACHE_VERSION = 1;
+
+  let currentInsightsSubView = "spending";
+  let currentWealthData = null;
+  let isFetchingWealth = false;
 
   const APP_INIT_TIMESTAMP = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
   let startupTimingLogged = false;
@@ -565,6 +571,8 @@
       closeRemoveDeviceModal();
       financeApi.clearDeviceKey();
       removeExpenseCache();
+      removeWealthCache();
+      currentWealthData = null;
       clearAuthorizedSession();
       showSetup("Device access removed. Paste your key to set up again.", "waiting");
       showToast("Device access removed.");
@@ -742,6 +750,196 @@
       window.localStorage.removeItem(SNAPSHOT_CACHE_KEY);
       window.localStorage.removeItem(SNAPSHOT_UPDATED_AT_KEY);
     } catch (_) {}
+  }
+
+  function restoreWealthFromCache() {
+    try {
+      if (typeof window === "undefined" || !window.localStorage) return false;
+      const raw = window.localStorage.getItem(WEALTH_SNAPSHOT_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (data && typeof data === "object" && data.availableCash !== undefined) {
+        currentWealthData = data;
+        renderWealthView(data);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function saveWealthToCache(data) {
+    try {
+      if (typeof window === "undefined" || !window.localStorage) return;
+      window.localStorage.setItem(WEALTH_SNAPSHOT_KEY, JSON.stringify(data));
+      window.localStorage.setItem(WEALTH_SNAPSHOT_UPDATED_AT_KEY, new Date().toISOString());
+    } catch (_) {}
+  }
+
+  function removeWealthCache() {
+    try {
+      if (typeof window === "undefined" || !window.localStorage) return;
+      window.localStorage.removeItem(WEALTH_SNAPSHOT_KEY);
+      window.localStorage.removeItem(WEALTH_SNAPSHOT_UPDATED_AT_KEY);
+    } catch (_) {}
+  }
+
+  async function fetchWealthData(forceRefresh) {
+    if (isFetchingWealth) return;
+    if (!financeApi.hasDeviceKey()) return;
+    isFetchingWealth = true;
+
+    try {
+      updateSyncStatus("updating");
+      const wealth = await financeApi.getWealth();
+      if (wealth && typeof wealth === "object") {
+        currentWealthData = wealth;
+        saveWealthToCache(wealth);
+        renderWealthView(wealth);
+        updateSyncStatus("live");
+      }
+    } catch (err) {
+      if (currentWealthData) {
+        updateSyncStatus("error", "Saved data");
+      } else {
+        updateSyncStatus("error", "Sync error");
+      }
+    } finally {
+      isFetchingWealth = false;
+    }
+  }
+
+  function renderWealthView(data) {
+    if (!data || typeof document === "undefined") return;
+
+    // Available Cash (H14)
+    const elAvailable = document.getElementById("wealthAvailableCash");
+    if (elAvailable) elAvailable.textContent = formatCurrency(data.availableCash);
+
+    // Section 1: Cash Position (I29)
+    const elTotalCash = document.getElementById("wealthTotalCash");
+    if (elTotalCash) elTotalCash.textContent = formatCurrency(data.totalCash);
+
+    const elTotalCashBadge = document.getElementById("wealthTotalCashBadge");
+    if (elTotalCashBadge) elTotalCashBadge.textContent = formatCurrency(data.totalCash) + " Total";
+
+    // Reserves: N14, O14, P14
+    const elTaxReserve = document.getElementById("wealthTaxReserve");
+    if (elTaxReserve) elTaxReserve.textContent = formatCurrency(data.taxReserve);
+
+    const elIncomeTaxCpp = document.getElementById("wealthIncomeTaxCpp");
+    if (elIncomeTaxCpp) elIncomeTaxCpp.textContent = formatCurrency(data.incomeTaxCppReserve);
+
+    const elEmergency = document.getElementById("wealthEmergencyFund");
+    if (elEmergency) elEmergency.textContent = formatCurrency(data.emergencyFund);
+
+    const totalReserves = (data.taxReserve || 0) + (data.incomeTaxCppReserve || 0) + (data.emergencyFund || 0);
+    const elTotalReserves = document.getElementById("wealthTotalReserves");
+    if (elTotalReserves) elTotalReserves.textContent = formatCurrency(totalReserves);
+
+    // Math Banner: Total Cash - Reserves = Available Cash
+    const elMathTotal = document.getElementById("wealthMathTotalCash");
+    if (elMathTotal) elMathTotal.textContent = formatCurrency(data.totalCash);
+
+    const elMathReserves = document.getElementById("wealthMathReserves");
+    if (elMathReserves) elMathReserves.textContent = formatCurrency(totalReserves);
+
+    const elMathAvail = document.getElementById("wealthMathAvailable");
+    if (elMathAvail) elMathAvail.textContent = formatCurrency(data.availableCash);
+
+    // Section 2: Investments (M14, TFSA I14, FHSA J14, RRSP K14)
+    const elInvested = document.getElementById("wealthTotalInvested");
+    if (elInvested) elInvested.textContent = formatCurrency(data.totalInvested);
+
+    const elTfsa = document.getElementById("wealthTfsa");
+    if (elTfsa) elTfsa.textContent = formatCurrency(data.tfsa);
+
+    const elFhsa = document.getElementById("wealthFhsa");
+    if (elFhsa) elFhsa.textContent = formatCurrency(data.fhsa);
+
+    const elRrsp = document.getElementById("wealthRrsp");
+    if (elRrsp) elRrsp.textContent = formatCurrency(data.rrsp);
+
+    // Section 3: Crypto (L14)
+    const elCrypto = document.getElementById("wealthCrypto");
+    if (elCrypto) elCrypto.textContent = formatCurrency(data.crypto !== undefined ? data.crypto : data.totalCrypto);
+
+    // Section 4: Accounts (H17:I28)
+    const accounts = Array.isArray(data.accounts) ? data.accounts : [];
+    const elCount = document.getElementById("wealthAccountsCount");
+    if (elCount) elCount.textContent = accounts.length + (accounts.length === 1 ? " account" : " accounts");
+
+    const cashAccounts = accounts.filter(function(a) { return a && a.type === "cash"; });
+    const investAccounts = accounts.filter(function(a) { return a && a.type !== "cash"; });
+
+    const elCashList = document.getElementById("wealthCashAccountsList");
+    if (elCashList) {
+      if (cashAccounts.length === 0) {
+        elCashList.innerHTML = '<div class="wealth-empty-row">No cash accounts found</div>';
+      } else {
+        elCashList.innerHTML = cashAccounts.map(function(a) {
+          return '<div class="wealth-account-row">' +
+            '<span class="wealth-account-name">' + escapeHtml(a.name) + '</span>' +
+            '<span class="wealth-account-balance">' + formatCurrency(a.balance) + '</span>' +
+            '</div>';
+        }).join("");
+      }
+    }
+
+    const elInvestList = document.getElementById("wealthInvestAccountsList");
+    if (elInvestList) {
+      if (investAccounts.length === 0) {
+        elInvestList.innerHTML = '<div class="wealth-empty-row">No investment accounts found</div>';
+      } else {
+        elInvestList.innerHTML = investAccounts.map(function(a) {
+          return '<div class="wealth-account-row">' +
+            '<span class="wealth-account-name">' + escapeHtml(a.name) + '</span>' +
+            '<span class="wealth-account-balance">' + formatCurrency(a.balance) + '</span>' +
+            '</div>';
+        }).join("");
+      }
+    }
+  }
+
+  function setInsightsSubView(subView) {
+    currentInsightsSubView = subView;
+    if (typeof document === "undefined") return;
+
+    const tabSpending = document.getElementById("tabSpending");
+    const tabWealth = document.getElementById("tabWealth");
+    const spendingSubView = document.getElementById("spendingSubView");
+    const wealthSubView = document.getElementById("wealthSubView");
+    const insightsTitle = document.getElementById("insightsTitle");
+
+    if (subView === "wealth") {
+      if (tabSpending) {
+        tabSpending.classList.remove("active");
+        tabSpending.setAttribute("aria-selected", "false");
+      }
+      if (tabWealth) {
+        tabWealth.classList.add("active");
+        tabWealth.setAttribute("aria-selected", "true");
+      }
+      if (spendingSubView) spendingSubView.classList.add("hidden");
+      if (wealthSubView) wealthSubView.classList.remove("hidden");
+      if (insightsTitle) insightsTitle.textContent = "Wealth";
+
+      if (!currentWealthData) {
+        restoreWealthFromCache();
+      }
+      fetchWealthData();
+    } else {
+      if (tabSpending) {
+        tabSpending.classList.add("active");
+        tabSpending.setAttribute("aria-selected", "true");
+      }
+      if (tabWealth) {
+        tabWealth.classList.remove("active");
+        tabWealth.setAttribute("aria-selected", "false");
+      }
+      if (spendingSubView) spendingSubView.classList.remove("hidden");
+      if (wealthSubView) wealthSubView.classList.add("hidden");
+      if (insightsTitle) insightsTitle.textContent = "Insights";
+    }
   }
 
 
@@ -1381,6 +1579,21 @@
         openAddExpense
       );
 
+    const tabSpending = document.getElementById("tabSpending");
+    const tabWealth = document.getElementById("tabWealth");
+
+    if (tabSpending) {
+      tabSpending.addEventListener("click", function() {
+        setInsightsSubView("spending");
+      });
+    }
+
+    if (tabWealth) {
+      tabWealth.addEventListener("click", function() {
+        setInsightsSubView("wealth");
+      });
+    }
+
   }
 
 
@@ -1478,8 +1691,12 @@
         "active"
       );
 
-
-    applyInsightFilters();
+    if (currentInsightsSubView === "wealth") {
+      setInsightsSubView("wealth");
+    } else {
+      setInsightsSubView("spending");
+      applyInsightFilters();
+    }
 
 
     window.scrollTo(
@@ -1519,6 +1736,11 @@
 
 
   function manualRefresh() {
+
+    if (currentView === "insights" && currentInsightsSubView === "wealth") {
+      fetchWealthData(true);
+      return;
+    }
 
     /*
      * If a write is currently saving,

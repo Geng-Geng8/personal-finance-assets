@@ -4618,3 +4618,523 @@ html.fast-start #authGate {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
+
+/* =========================================
+   STAGE 6 WEALTH DASHBOARD & SEGMENTED CONTROL
+========================================= */
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--surface-subtle, rgba(148, 163, 184, 0.15));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 4px;
+  margin-bottom: 20px;
+  gap: 4px;
+}
+
+.segment-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  height: 38px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.segment-btn.active {
+  background: var(--surface, #ffffff);
+  color: var(--accent, #2563eb);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* HERO CARD: AVAILABLE CASH */
+.wealth-hero-card {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+  color: #ffffff;
+  border-radius: 24px;
+  padding: 24px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 14px 28px -6px rgba(37, 99, 235, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.wealth-hero-card::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 130px;
+  height: 130px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.wealth-hero-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0 0 8px 0;
+}
+
+.wealth-hero-amount {
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 12px;
+  line-height: 1.1;
+}
+
+.wealth-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+/* GENERIC WEALTH CARDS */
+.wealth-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow);
+}
+
+.wealth-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.wealth-card-title-group h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 2px 0 0 0;
+}
+
+.wealth-section-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--accent, #2563eb);
+}
+
+.wealth-section-tag.liquidity {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.wealth-section-tag.portfolio {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+}
+
+.wealth-section-tag.crypto {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+}
+
+.wealth-section-tag.accounts {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--text-secondary);
+}
+
+.wealth-header-pill {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* CASH POSITION */
+.wealth-cash-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg);
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.wealth-stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.wealth-stat-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* PROTECTED RESERVES */
+.wealth-reserves-box {
+  background: rgba(239, 68, 68, 0.03);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.wealth-reserves-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.12);
+}
+
+.wealth-reserves-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+.wealth-reserves-total {
+  font-size: 14px;
+  font-weight: 700;
+  color: #dc2626;
+  font-variant-numeric: tabular-nums;
+}
+
+.wealth-reserve-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+}
+
+.wealth-reserve-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.wealth-reserve-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ARITHMETIC BANNER */
+.wealth-math-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  text-align: center;
+}
+
+.wealth-math-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.wealth-math-item .math-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.wealth-math-item .math-main {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wealth-math-item.highlight .math-sub {
+  color: var(--accent, #2563eb);
+  font-weight: 600;
+}
+
+.wealth-math-item.highlight .math-main {
+  color: var(--accent, #2563eb);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.wealth-math-symbol {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* INVESTMENTS */
+.wealth-invest-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  background: var(--bg);
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.wealth-invest-total {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wealth-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.wealth-mini-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.wealth-account-badge {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  margin-bottom: 6px;
+}
+
+.wealth-account-badge.tfsa {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.wealth-account-badge.fhsa {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+.wealth-account-badge.rrsp {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.wealth-mini-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.wealth-mini-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* CRYPTO */
+.wealth-crypto-card {
+  border-left: 4px solid #f59e0b;
+}
+
+.wealth-crypto-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #d97706;
+  background: #fef3c7;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.wealth-crypto-content {
+  padding: 4px 0;
+}
+
+.wealth-crypto-val {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+}
+
+.wealth-crypto-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ACCOUNTS ACCORDION */
+.wealth-accordion {
+  width: 100%;
+}
+
+.wealth-accordion-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.wealth-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.wealth-accordion-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wealth-count-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.wealth-chevron {
+  color: var(--text-secondary);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wealth-accordion[open] .wealth-chevron {
+  transform: rotate(180deg);
+}
+
+.wealth-accounts-body {
+  padding-top: 16px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.wealth-account-group {
+  margin-bottom: 18px;
+}
+
+.wealth-account-group:last-child {
+  margin-bottom: 0;
+}
+
+.wealth-group-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.wealth-group-label .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.wealth-group-label .cash-dot {
+  background: #10b981;
+}
+
+.wealth-group-label .invest-dot {
+  background: #6366f1;
+}
+
+.wealth-accounts-table {
+  background: var(--bg);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.wealth-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.wealth-account-row:last-child {
+  border-bottom: none;
+}
+
+.wealth-account-name {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.wealth-account-balance {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wealth-empty-row {
+  padding: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 360px) {
+  .wealth-hero-amount {
+    font-size: 32px;
+  }
+  .wealth-grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .wealth-math-banner {
+    flex-direction: column;
+    gap: 8px;
+  }
+}

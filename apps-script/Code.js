@@ -1210,6 +1210,84 @@ function getExpenseSheet() {
 
 }
 
+const WEALTH_SHEET_NAME = "2026-Budgets";
+
+function getWealthSheet_() {
+  const sheet = getProductionSpreadsheet_().getSheetByName(WEALTH_SHEET_NAME);
+  if (!sheet) {
+    throw new Error(WEALTH_SHEET_NAME + " was not found.");
+  }
+  return sheet;
+}
+
+function parseSheetNumber_(val) {
+  if (typeof val === "number") {
+    return isNaN(val) ? 0 : val;
+  }
+  if (!val) return 0;
+  const cleaned = String(val).replace(/[^0-9.-]/g, "");
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+function getWealth() {
+  const sheet = getWealthSheet_();
+
+  // Read H14:P14 (Row 14, Cols H to P)
+  // H14 = Available Cash
+  // I14 = Total TFSA
+  // J14 = Total FHSA
+  // K14 = Total RRSP
+  // L14 = Total Crypto
+  // M14 = Total Invested
+  // N14 = Tax Reserve
+  // O14 = Income Tax / CPP Reserve
+  // P14 = Emergency Fund
+  const row14 = sheet.getRange("H14:P14").getValues()[0] || [];
+
+  // Read I29 = Total Cash
+  const totalCashVal = sheet.getRange("I29").getValue();
+
+  // Read H17:I28 = Account names and balances
+  const accountRows = sheet.getRange("H17:I28").getValues() || [];
+
+  const accounts = accountRows
+    .map(function(row) {
+      const name = String(row[0] || "").trim();
+      if (!name) return null;
+      const balance = parseSheetNumber_(row[1]);
+      const lower = name.toLowerCase();
+      const isCash = lower.includes("cash") ||
+                     lower.includes("cheq") ||
+                     lower.includes("check") ||
+                     lower.includes("saving") ||
+                     lower.includes("hisa") ||
+                     lower.includes("deposit") ||
+                     lower.includes("bank");
+      return {
+        name: name,
+        balance: balance,
+        type: isCash ? "cash" : "investment"
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    availableCash: parseSheetNumber_(row14[0]),
+    tfsa: parseSheetNumber_(row14[1]),
+    fhsa: parseSheetNumber_(row14[2]),
+    rrsp: parseSheetNumber_(row14[3]),
+    crypto: parseSheetNumber_(row14[4]),
+    totalInvested: parseSheetNumber_(row14[5]),
+    taxReserve: parseSheetNumber_(row14[6]),
+    incomeTaxCppReserve: parseSheetNumber_(row14[7]),
+    emergencyFund: parseSheetNumber_(row14[8]),
+    totalCash: parseSheetNumber_(totalCashVal),
+    accounts: accounts,
+    updatedAt: new Date().toISOString()
+  };
+}
+
 /* =========================================
    AUTHENTICATED API ENTRY POINT (STAGE 3)
 ========================================= */
@@ -1227,6 +1305,12 @@ function apiRequest(request) {
       return {
         ok: true,
         expenses: getExpenses(Boolean(payload && payload.forceRefresh))
+      };
+
+    case "getWealth":
+      return {
+        ok: true,
+        wealth: getWealth()
       };
 
     case "addExpense":
