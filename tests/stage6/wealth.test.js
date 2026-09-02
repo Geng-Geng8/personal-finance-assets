@@ -108,6 +108,19 @@ function loadBackendContext(mockSheetData = {}) {
           }
         };
       }
+    },
+    HtmlService: {
+      createTemplateFromFile() {
+        return {
+          evaluate() {
+            return {
+              setTitle() { return this; },
+              setFaviconUrl() { return this; },
+              addMetaTag() { return this; }
+            };
+          }
+        };
+      }
     }
   };
 
@@ -226,4 +239,81 @@ test("10. app.js handles tab switching, caching, and clear on device removal", (
   assert.match(appCode, /removeWealthCache/);
   assert.match(appCode, /renderWealthView/);
   assert.match(appCode, /personalFinance\.wealthSnapshot/);
+});
+
+// 11. doGet rejects unauthenticated action=getWealth query and returns Unauthorized
+test("11. doGet rejects unauthenticated action=getWealth query and returns Unauthorized", () => {
+  const ctx = loadBackendContext();
+  const res = ctx.doGet({ parameter: { action: "getWealth" } });
+  assert.ok(res);
+  assert.ok(res.content);
+  const parsed = JSON.parse(res.content);
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error, "Unauthorized");
+  assert.equal(parsed.wealth, undefined);
+});
+
+// 12. doGet rejects unauthenticated action=getExpenses query and returns Unauthorized
+test("12. doGet rejects unauthenticated action=getExpenses query and returns Unauthorized", () => {
+  const ctx = loadBackendContext();
+  const res = ctx.doGet({ parameter: { action: "getExpenses" } });
+  assert.ok(res);
+  assert.ok(res.content);
+  const parsed = JSON.parse(res.content);
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error, "Unauthorized");
+  assert.equal(parsed.expenses, undefined);
+});
+
+// 13. doPost with valid device key and getWealth returns wealth data
+test("13. doPost with valid device key and getWealth returns wealth data", () => {
+  const ctx = loadBackendContext();
+  const validKey = "a".repeat(64);
+  const res = ctx.doPost({
+    postData: {
+      contents: JSON.stringify({
+        deviceKey: validKey,
+        action: "getWealth",
+        payload: {}
+      })
+    }
+  });
+  assert.ok(res);
+  assert.ok(res.content);
+  const parsed = JSON.parse(res.content);
+  assert.equal(parsed.ok, true);
+  assert.ok(parsed.wealth);
+  assert.equal(parsed.wealth.availableCash, 12500.50);
+});
+
+// 14. doPost without device key or invalid device key returns Unauthorized
+test("14. doPost without device key or invalid device key returns Unauthorized", () => {
+  const ctx = loadBackendContext();
+
+  // Missing key
+  const missingRes = ctx.doPost({
+    postData: {
+      contents: JSON.stringify({
+        action: "getWealth",
+        payload: {}
+      })
+    }
+  });
+  const parsedMissing = JSON.parse(missingRes.content);
+  assert.equal(parsedMissing.ok, false);
+  assert.equal(parsedMissing.error, "Unauthorized");
+
+  // Invalid key
+  const invalidRes = ctx.doPost({
+    postData: {
+      contents: JSON.stringify({
+        deviceKey: "b".repeat(64),
+        action: "getWealth",
+        payload: {}
+      })
+    }
+  });
+  const parsedInvalid = JSON.parse(invalidRes.content);
+  assert.equal(parsedInvalid.ok, false);
+  assert.equal(parsedInvalid.error, "Unauthorized");
 });

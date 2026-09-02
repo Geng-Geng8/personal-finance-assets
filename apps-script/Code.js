@@ -110,18 +110,11 @@ const EXPENSE_SERVER_CACHE_MAX_BYTES =
 ========================================= */
 
 function doGet(e) {
-  if (e && e.parameter && e.parameter.action === "getWealth") {
-    try {
-      return jsonResponse_({
-        ok: true,
-        wealth: getWealth()
-      });
-    } catch (err) {
-      return jsonResponse_({
-        ok: false,
-        error: err && err.message ? err.message : "Failed to load wealth"
-      });
-    }
+  if (e && e.parameter && (e.parameter.action || e.parameter.function)) {
+    return jsonResponse_({
+      ok: false,
+      error: "Unauthorized"
+    });
   }
 
   return HtmlService
