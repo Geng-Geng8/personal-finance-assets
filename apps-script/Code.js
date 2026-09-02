@@ -109,7 +109,20 @@ const EXPENSE_SERVER_CACHE_MAX_BYTES =
    WEB APP
 ========================================= */
 
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.action === "getWealth") {
+    try {
+      return jsonResponse_({
+        ok: true,
+        wealth: getWealth()
+      });
+    } catch (err) {
+      return jsonResponse_({
+        ok: false,
+        error: err && err.message ? err.message : "Failed to load wealth"
+      });
+    }
+  }
 
   return HtmlService
     .createTemplateFromFile('Index')
@@ -1257,17 +1270,17 @@ function getWealth() {
       if (!name) return null;
       const balance = parseSheetNumber_(row[1]);
       const lower = name.toLowerCase();
-      const isCash = lower.includes("cash") ||
-                     lower.includes("cheq") ||
-                     lower.includes("check") ||
-                     lower.includes("saving") ||
-                     lower.includes("hisa") ||
-                     lower.includes("deposit") ||
-                     lower.includes("bank");
+      const isInvestment = lower.includes("tfsa") ||
+                           lower.includes("fhsa") ||
+                           lower.includes("rrsp") ||
+                           lower.includes("invest") ||
+                           lower.includes("crypto") ||
+                           lower.includes("stock") ||
+                           lower.includes("brokerage");
       return {
         name: name,
         balance: balance,
-        type: isCash ? "cash" : "investment"
+        type: isInvestment ? "investment" : "cash"
       };
     })
     .filter(Boolean);
