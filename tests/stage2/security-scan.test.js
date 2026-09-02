@@ -36,6 +36,34 @@ test("test manifest pins MYSELF and only the required Sheets scope", () => {
   assert.equal(Object.hasOwn(manifest, "webapp"), false);
 });
 
+test("isolated configuration uses only the verified test identifiers", () => {
+  const testClasp = JSON.parse(read("test-apps-script/.clasp.json"));
+  const frontendConfig = read("poc/auth/config.js");
+  const testBackend = read("test-apps-script/Code.js");
+  const isolatedSource = `${frontendConfig}\n${testBackend}\n${read("test-apps-script/.clasp.json")}`;
+
+  assert.equal(
+    testClasp.scriptId,
+    "16A04OwMthe5OgbYBZBWbLgLgvXAooDh05S5hXsIPA7bABlubBXLq66Gz"
+  );
+  assert.match(
+    frontendConfig,
+    /581273737574-c6tv8f8jf11ivub0k47d2o0ae0jv8pg7\.apps\.googleusercontent\.com/
+  );
+  assert.match(
+    frontendConfig,
+    /AKfycbwfJNXJmThqYxaO2DkekUhjO8K10VhePin3ZkFGS65UhhJ39DtW0YwCx0kVsNio6bZA/
+  );
+  assert.match(
+    testBackend,
+    /1hM8q7JhuZbUmQjJC5Mwx78vC5YBVSOVI6hTOlYmOyDc/
+  );
+  assert.doesNotMatch(
+    isolatedSource,
+    /1RHBFF7H5Vqnlh97Gt4KuIt_NdBRYgfGCCDTK2zmkMBNbgUtLybxwR4CF/
+  );
+});
+
 test("tracked repository contains no known credential material", () => {
   const trackedFiles = execFileSync("git", ["ls-files", "-z"], {
     cwd: repositoryRoot,

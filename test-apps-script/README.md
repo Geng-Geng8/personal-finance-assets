@@ -9,13 +9,9 @@ This code must be installed only in a separate test Apps Script project linked t
 - Columns A:H: exactly the headers in `fake-transactions.csv`
 - Data: synthetic rows from `fake-transactions.csv` only
 
-The test Apps Script project must define these Script Properties:
+The backend is pinned to the verified fake spreadsheet ID in `Code.js`. It refuses to access that spreadsheet unless its actual title is exactly `Stage 2 Auth POC - Personal Finance`, the `Spending_Master2026` tab exists, and its A:H headers match the expected schema.
 
-- `TEST_SPREADSHEET_ID`: the fake spreadsheet ID
-- `TEST_SPREADSHEET_TITLE`: `Stage 2 Auth POC - Personal Finance`
-- `TEST_SHEET_NAME`: `Spending_Master2026`
-
-The backend refuses to access a spreadsheet unless its actual title exactly matches the required POC title and its A:H headers match the expected schema.
+The nested `.clasp.json` points only to the isolated test Script ID. Run any permitted test-only `clasp` command from this directory and inspect the target before pushing.
 
 ## API deployment
 

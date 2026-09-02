@@ -135,7 +135,7 @@ The POC cannot make a real `scripts.run` call until all of these isolated test r
 - An OAuth Web application client whose authorized JavaScript origin matches the GitHub Pages origin (and an explicit localhost origin if local browser testing is used).
 - A separate Apps Script project linked to the same standard Cloud project.
 - An API Executable deployment with access restricted to `MYSELF`.
-- Script Properties that contain only the fake test spreadsheet ID and expected test title.
+- Backend code pinned directly to the fake test spreadsheet ID and expected test title in `Code.js`.
 
 Google may show an unverified-app warning because the Sheets scope is sensitive. That warning is acceptable only for this owner-only testing tier; broader production use would require a separate policy and verification review.
 

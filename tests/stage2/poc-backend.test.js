@@ -104,23 +104,9 @@ function createHarness(options = {}) {
         };
       }
     },
-    PropertiesService: {
-      getScriptProperties() {
-        return {
-          getProperty(name) {
-            const properties = {
-              TEST_SPREADSHEET_ID: "fake-test-spreadsheet-id",
-              TEST_SPREADSHEET_TITLE: "Stage 2 Auth POC - Personal Finance",
-              TEST_SHEET_NAME: "Spending_Master2026"
-            };
-            return properties[name] || null;
-          }
-        };
-      }
-    },
     SpreadsheetApp: {
       openById(id) {
-        assert.equal(id, "fake-test-spreadsheet-id");
+        assert.equal(id, "1hM8q7JhuZbUmQjJC5Mwx78vC5YBVSOVI6hTOlYmOyDc");
         return spreadsheet;
       }
     },

@@ -1,5 +1,5 @@
 window.STAGE2_AUTH_POC_CONFIG = Object.freeze({
-  oauthClientId: "REPLACE_WITH_TEST_OAUTH_WEB_CLIENT_ID",
-  apiExecutableDeploymentId: "REPLACE_WITH_TEST_API_EXECUTABLE_DEPLOYMENT_ID",
+  oauthClientId: "581273737574-c6tv8f8jf11ivub0k47d2o0ae0jv8pg7.apps.googleusercontent.com",
+  apiExecutableDeploymentId: "AKfycbwfJNXJmThqYxaO2DkekUhjO8K10VhePin3ZkFGS65UhhJ39DtW0YwCx0kVsNio6bZA",
   oauthScope: "https://www.googleapis.com/auth/spreadsheets"
 });

@@ -1,6 +1,7 @@
 const FinanceApi_ = (() => {
   "use strict";
 
+  const TEST_SPREADSHEET_ID = "1hM8q7JhuZbUmQjJC5Mwx78vC5YBVSOVI6hTOlYmOyDc";
   const EXPECTED_SPREADSHEET_TITLE = "Stage 2 Auth POC - Personal Finance";
   const DEFAULT_SHEET_NAME = "Spending_Master2026";
   const HEADERS = [
@@ -270,28 +271,12 @@ const FinanceApi_ = (() => {
   }
 
   function getExpenseSheet_() {
-    const properties = PropertiesService.getScriptProperties();
-    const spreadsheetId = String(properties.getProperty("TEST_SPREADSHEET_ID") || "").trim();
-    const expectedTitle = String(
-      properties.getProperty("TEST_SPREADSHEET_TITLE") || EXPECTED_SPREADSHEET_TITLE
-    ).trim();
-    const sheetName = String(
-      properties.getProperty("TEST_SHEET_NAME") || DEFAULT_SHEET_NAME
-    ).trim();
-
-    if (!spreadsheetId) {
-      throw new Error("TEST_SPREADSHEET_ID is not configured.");
-    }
-    if (expectedTitle !== EXPECTED_SPREADSHEET_TITLE) {
-      throw new Error("The configured test spreadsheet title is not allowed.");
-    }
-
-    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    const spreadsheet = SpreadsheetApp.openById(TEST_SPREADSHEET_ID);
     if (spreadsheet.getName() !== EXPECTED_SPREADSHEET_TITLE) {
       throw new Error("Refusing to access a spreadsheet outside the Stage 2 test boundary.");
     }
 
-    const sheet = spreadsheet.getSheetByName(sheetName);
+    const sheet = spreadsheet.getSheetByName(DEFAULT_SHEET_NAME);
     if (!sheet) {
       throw new Error("The fake expense sheet was not found.");
     }
