@@ -21,8 +21,17 @@
       0 10px 30px
       rgba(30, 42, 68, 0.06);
 
+    --safe-top:
+      env(safe-area-inset-top, 0px);
+
     --safe-bottom:
       env(safe-area-inset-bottom, 0px);
+
+    --safe-left:
+      env(safe-area-inset-left, 0px);
+
+    --safe-right:
+      env(safe-area-inset-right, 0px);
 
   }
 
@@ -91,9 +100,10 @@
     margin: 0 auto;
 
     padding:
-      28px
-      18px
-      0;
+      calc(28px + var(--safe-top))
+      calc(18px + var(--safe-right))
+      0
+      calc(18px + var(--safe-left));
 
   }
 
@@ -4293,4 +4303,130 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* =========================================
+   STAGE 4A PWA & STARTUP STYLES
+========================================= */
+
+.auth-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0 12px 0;
+}
+
+.auth-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: authSpin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes authSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.auth-loading-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0 !important;
+}
+
+.auth-action-state {
+  width: 100%;
+}
+
+/* PWA Install Banner */
+.pwa-install-banner {
+  position: fixed;
+  bottom: calc(16px + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 32px rgba(23, 26, 33, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 9998;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 20px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.pwa-install-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pwa-install-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.pwa-install-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.pwa-install-text strong {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pwa-install-text span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.pwa-install-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pwa-install-actions button {
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.pwa-install-actions .primary-button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+.pwa-install-actions .ghost-button {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }

@@ -11,6 +11,7 @@ const financeApi = (() => {
   let accessToken = null;
   let accessTokenExpiresAt = 0;
   let pendingAuthResolver = null;
+  let hasExplicitlySignedOutState = false;
   const authStateListeners = [];
 
   function hasUsableConfiguration() {
@@ -22,6 +23,28 @@ const financeApi = (() => {
       !config.apiExecutableDeploymentId.includes("REPLACE") &&
       config.oauthScope === "https://www.googleapis.com/auth/spreadsheets"
     );
+  }
+
+  function waitForGoogleIdentity(timeoutMs = 3000) {
+    if (typeof window === "undefined") {
+      return Promise.resolve(false);
+    }
+    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      const interval = setInterval(() => {
+        if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+          clearInterval(interval);
+          resolve(true);
+        } else if (Date.now() - startTime >= timeoutMs) {
+          clearInterval(interval);
+          resolve(false);
+        }
+      }, 50);
+    });
   }
 
   function initGoogleIdentity() {
@@ -61,6 +84,7 @@ const financeApi = (() => {
     const expiresInSeconds = Number(response.expires_in || 0);
     accessToken = response.access_token;
     accessTokenExpiresAt = Date.now() + (expiresInSeconds * 1000);
+    hasExplicitlySignedOutState = false;
 
     if (pendingAuthResolver) {
       pendingAuthResolver.resolve(accessToken);
@@ -102,6 +126,10 @@ const financeApi = (() => {
     );
   }
 
+  function hasExplicitlySignedOut() {
+    return hasExplicitlySignedOutState;
+  }
+
   function onAuthStateChanged(listener) {
     if (typeof listener === "function") {
       authStateListeners.push(listener);
@@ -109,22 +137,88 @@ const financeApi = (() => {
   }
 
   function authorize() {
-    return new Promise((resolve, reject) => {
-      if (!initGoogleIdentity()) {
-        if (!window.google || !window.google.accounts) {
-          reject(new Error("Google Identity Services script is not loaded yet. Please try again."));
-        } else {
-          reject(new Error("Configuration invalid. Please verify config.js."));
-        }
-        return;
-      }
+    hasExplicitlySignedOutState = false;
 
-      pendingAuthResolver = { resolve, reject };
-      tokenClient.requestAccessToken({ prompt: "consent" });
+    return new Promise((resolve, reject) => {
+      waitForGoogleIdentity(3000).then((ready) => {
+        if (!ready || !initGoogleIdentity()) {
+          if (typeof window === "undefined" || !window.google || !window.google.accounts) {
+            reject(new Error("Google Identity Services script is not loaded yet. Please try again."));
+          } else {
+            reject(new Error("Configuration invalid. Please verify config.js."));
+          }
+          return;
+        }
+
+        pendingAuthResolver = { resolve, reject };
+        tokenClient.requestAccessToken({ prompt: "consent" });
+      }).catch(reject);
+    });
+  }
+
+  function trySilentAuthorize() {
+    if (hasExplicitlySignedOutState) {
+      return Promise.reject(new Error("User explicitly signed out in this session."));
+    }
+
+    if (isAuthorized()) {
+      return Promise.resolve(accessToken);
+    }
+
+    if (pendingAuthResolver) {
+      return new Promise((resolve, reject) => {
+        const checkDone = setInterval(() => {
+          if (!pendingAuthResolver) {
+            clearInterval(checkDone);
+            if (isAuthorized()) {
+              resolve(accessToken);
+            } else {
+              reject(new Error("Pending authorization finished without token."));
+            }
+          }
+        }, 50);
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      waitForGoogleIdentity(3000).then((ready) => {
+        if (!ready || !initGoogleIdentity()) {
+          reject(new Error("Google Identity Services is not available."));
+          return;
+        }
+
+        let timerId = null;
+        pendingAuthResolver = {
+          resolve: (token) => {
+            if (timerId) clearTimeout(timerId);
+            resolve(token);
+          },
+          reject: (err) => {
+            if (timerId) clearTimeout(timerId);
+            reject(err);
+          }
+        };
+
+        timerId = setTimeout(() => {
+          if (pendingAuthResolver) {
+            pendingAuthResolver = null;
+            reject(new Error("Silent authorization timed out."));
+          }
+        }, 6000);
+
+        try {
+          tokenClient.requestAccessToken({ prompt: "" });
+        } catch (err) {
+          if (timerId) clearTimeout(timerId);
+          pendingAuthResolver = null;
+          reject(err);
+        }
+      }).catch(reject);
     });
   }
 
   function signOut() {
+    hasExplicitlySignedOutState = true;
     const tokenToRevoke = accessToken;
     clearTokenState();
 
@@ -146,23 +240,40 @@ const financeApi = (() => {
     notifyAuthState(false);
   }
 
-  function requireUsableToken() {
-    const remainingLifetime = accessTokenExpiresAt - Date.now();
+  async function runApi(action, payload, isRetry = false) {
+    const isRead = action === "getExpenses";
+    let token = accessToken;
 
-    if (!accessToken || remainingLifetime <= minimumTokenLifetimeMs) {
-      clearTokenState();
-      notifyAuthState(false);
-      throw new Error("Authorization is missing or expired. Please authorize again.");
+    if (!isAuthorized()) {
+      if (isRead && !hasExplicitlySignedOutState && !isRetry) {
+        try {
+          token = await trySilentAuthorize();
+        } catch (silentErr) {
+          clearTokenState();
+          notifyAuthState(false);
+          throw new Error("Authorization is missing or expired. Please sign in again.");
+        }
+      } else {
+        clearTokenState();
+        notifyAuthState(false);
+        throw new Error(
+          isRead
+            ? "Authorization is missing or expired. Please sign in again."
+            : "Authorization is missing or expired. Please authorize again before saving changes."
+        );
+      }
     }
 
-    return accessToken;
-  }
+    const fetchFn = (typeof window !== "undefined" && window.fetch)
+      ? window.fetch
+      : (typeof fetch !== "undefined" ? fetch : null);
+    if (!fetchFn) {
+      throw new Error("fetch is not available in current environment.");
+    }
 
-  async function runApi(action, payload) {
-    const token = requireUsableToken();
     const url = `https://script.googleapis.com/v1/scripts/${encodeURIComponent(config.apiExecutableDeploymentId)}:run`;
 
-    const response = await fetch(url, {
+    const response = await fetchFn(url, {
       method: "POST",
       cache: "no-store",
       headers: {
@@ -176,13 +287,23 @@ const financeApi = (() => {
       })
     });
 
-    const operation = await response.json().catch(() => ({}));
-
     if (response.status === 401) {
       clearTokenState();
-      notifyAuthState(false);
-      throw new Error("Authorization expired or denied (HTTP 401). Please sign in again.");
+      if (isRead && !hasExplicitlySignedOutState && !isRetry) {
+        try {
+          await trySilentAuthorize();
+          return await runApi(action, payload, true);
+        } catch (retryErr) {
+          notifyAuthState(false);
+          throw new Error("Authorization expired or denied (HTTP 401). Please sign in again.");
+        }
+      } else {
+        notifyAuthState(false);
+        throw new Error("Authorization expired or denied (HTTP 401). Please sign in again.");
+      }
     }
+
+    const operation = await response.json().catch(() => ({}));
 
     if (!response.ok) {
       throw new Error(
@@ -222,16 +343,17 @@ const financeApi = (() => {
   }
 
   async function deleteExpense(id) {
-    const payload = typeof id === "object" && id !== null ? id : { id: String(id || "").trim() };
-    const response = await runApi("deleteExpense", payload);
+    const response = await runApi("deleteExpense", { id });
     return response && response.result ? response.result : response;
   }
 
   return Object.freeze({
     initGoogleIdentity,
     authorize,
+    trySilentAuthorize,
     signOut,
     isAuthorized,
+    hasExplicitlySignedOut,
     onAuthStateChanged,
     getExpenses,
     addExpense,

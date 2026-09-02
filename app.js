@@ -338,14 +338,20 @@
 
     renderExpenseFilterBuckets();
 
+    renderExpenseFilterCategories();
+
     renderExpenseFilterPayments();
+
 
     setupAuthGate();
 
+    setupPwaInstall();
+
   }
 
+
   /* =========================================
-     STAGE 2B AUTH GATE & SESSION
+     STAGE 4A AUTH GATE & SESSION RESTORE
   ========================================= */
 
   let appSessionStarted = false;
@@ -360,13 +366,11 @@
     }
 
     appSessionStarted = true;
-
-    const restoredFromCache =
-      restoreExpensesFromCache();
-
+    startExpenseSyncTimer();
+    restoreExpensesFromCache();
     loadExpenses({
-      showLoading: !restoredFromCache,
-      forceServerRefresh: restoredFromCache
+      showLoading: !hasRenderedExpenseData,
+      forceServerRefresh: false
     });
   }
 
@@ -387,27 +391,41 @@
 
   function setupAuthGate() {
     const authGate = document.getElementById("authGate");
+    const authLoadingState = document.getElementById("authLoadingState");
+    const authActionState = document.getElementById("authActionState");
     const authAuthorizeButton = document.getElementById("authAuthorizeButton");
     const authStatus = document.getElementById("authStatus");
     const signOutButtons = document.querySelectorAll(".sign-out-button");
+
+    function showLoading() {
+      if (authLoadingState) authLoadingState.classList.remove("hidden");
+      if (authActionState) authActionState.classList.add("hidden");
+    }
+
+    function showAction(statusText, state) {
+      if (authLoadingState) authLoadingState.classList.add("hidden");
+      if (authActionState) authActionState.classList.remove("hidden");
+      if (authStatus) {
+        authStatus.textContent = statusText;
+        authStatus.dataset.state = state || "waiting";
+      }
+    }
 
     function updateAuthUI(isAuth) {
       if (isAuth) {
         if (authGate) {
           authGate.classList.add("hidden");
         }
-        if (authStatus) {
-          authStatus.textContent = "Authorized.";
-          authStatus.dataset.state = "authorized";
-        }
         startAuthorizedSession();
       } else {
         if (authGate) {
           authGate.classList.remove("hidden");
         }
-        if (authStatus) {
-          authStatus.textContent = "Sign in required.";
-          authStatus.dataset.state = "waiting";
+        const explicitlySignedOut = typeof financeApi.hasExplicitlySignedOut === "function" && financeApi.hasExplicitlySignedOut();
+        if (explicitlySignedOut) {
+          showAction("Signed out. Click Continue with Google to sign in again.", "waiting");
+        } else {
+          showAction("Sign in with your authorized Google account to access your finances.", "waiting");
         }
         clearAuthorizedSession();
       }
@@ -415,17 +433,14 @@
 
     if (authAuthorizeButton) {
       authAuthorizeButton.addEventListener("click", async function() {
-        if (authStatus) {
-          authStatus.textContent = "Authorizing with Google...";
-          authStatus.dataset.state = "waiting";
-        }
+        showAction("Authorizing with Google...", "waiting");
         try {
           await financeApi.authorize();
         } catch (err) {
-          if (authStatus) {
-            authStatus.textContent = err && err.message ? err.message : "Authorization failed.";
-            authStatus.dataset.state = "error";
-          }
+          showAction(
+            err && err.message ? err.message : "Authorization failed.",
+            "error"
+          );
         }
       });
     }
@@ -441,10 +456,75 @@
 
     if (financeApi.isAuthorized()) {
       updateAuthUI(true);
-    } else {
+    } else if (typeof financeApi.hasExplicitlySignedOut === "function" && financeApi.hasExplicitlySignedOut()) {
       updateAuthUI(false);
+    } else {
+      showLoading();
+      if (typeof financeApi.trySilentAuthorize === "function") {
+        financeApi.trySilentAuthorize()
+          .then(function() {
+            updateAuthUI(true);
+          })
+          .catch(function() {
+            updateAuthUI(false);
+          });
+      } else {
+        updateAuthUI(false);
+      }
     }
   }
+
+  let pwaInstallDismissed = false;
+
+  function setupPwaInstall() {
+    const banner = document.getElementById("pwaInstallBanner");
+    const installBtn = document.getElementById("pwaInstallButton");
+    const dismissBtn = document.getElementById("pwaDismissButton");
+    let deferredPrompt = null;
+
+    const isStandalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true;
+
+    if (isStandalone) {
+      if (banner) banner.classList.add("hidden");
+      return;
+    }
+
+    window.addEventListener("beforeinstallprompt", function(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (banner && !pwaInstallDismissed) {
+        banner.classList.remove("hidden");
+      }
+    });
+
+    if (installBtn) {
+      installBtn.addEventListener("click", async function() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        try {
+          const choice = await deferredPrompt.userChoice;
+          if (choice && choice.outcome === "accepted") {
+            deferredPrompt = null;
+            if (banner) banner.classList.add("hidden");
+          }
+        } catch (_) {}
+      });
+    }
+
+    if (dismissBtn) {
+      dismissBtn.addEventListener("click", function() {
+        if (banner) banner.classList.add("hidden");
+        pwaInstallDismissed = true;
+      });
+    }
+
+    window.addEventListener("appinstalled", function() {
+      deferredPrompt = null;
+      if (banner) banner.classList.add("hidden");
+    });
+  }
+
 
 
   /* =========================================
