@@ -159,17 +159,19 @@ test("only getExpenses, addExpense, updateExpense, and deleteExpense actions are
   assert.ok(actionMatches.includes("deleteExpense"));
 });
 
-test("no doPost function exists in production Apps Script", () => {
+test("doPost function exists in production Apps Script with device-key validation", () => {
   const code = read("apps-script/Code.js");
-  assert.doesNotMatch(code, /\bfunction\s+doPost\b/);
+  assert.match(code, /\bfunction\s+doPost\b/);
+  assert.match(code, /PERSONAL_APP_DEVICE_KEY/);
 });
 
-test("executionApi access is MYSELF in production appsscript.json", () => {
+test("executionApi access is MYSELF and webapp access is configured in production appsscript.json", () => {
   const manifest = JSON.parse(read("apps-script/appsscript.json"));
 
   assert.equal(manifest.executionApi?.access, "MYSELF");
-  assert.equal(manifest.webapp?.access, "MYSELF");
+  assert.equal(manifest.webapp?.executeAs, "USER_DEPLOYING");
 });
+
 
 test("oauthScopes in production appsscript.json are restricted to spreadsheets", () => {
   const manifest = JSON.parse(read("apps-script/appsscript.json"));
@@ -211,11 +213,12 @@ test("production frontend binds the verified production API Deployment ID and re
 test("OAuth tokens remain memory-only in frontend api.js", () => {
   for (const file of ["api.js", "frontend/api.js"]) {
     const content = read(file);
-    for (const storage of ["localStorage", "sessionStorage", "indexedDB", "document.cookie"]) {
+    for (const storage of ["sessionStorage", "indexedDB", "document.cookie"]) {
       assert.equal(content.includes(storage), false, `${file} must not reference ${storage}`);
     }
   }
 });
+
 
 test("no .clasp.json is tracked in git", () => {
   const trackedFiles = execFileSync("git", ["ls-files", "-z"], {

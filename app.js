@@ -389,88 +389,107 @@
     } catch (e) {}
   }
 
+  let showDeviceSetupScreenFn = null;
+  let hideAuthGateFn = null;
+
   function setupAuthGate() {
     const authGate = document.getElementById("authGate");
     const authLoadingState = document.getElementById("authLoadingState");
-    const authActionState = document.getElementById("authActionState");
-    const authAuthorizeButton = document.getElementById("authAuthorizeButton");
-    const authStatus = document.getElementById("authStatus");
-    const signOutButtons = document.querySelectorAll(".sign-out-button");
+    const deviceSetupState = document.getElementById("deviceSetupState");
+    const deviceKeyInput = document.getElementById("deviceKeyInput");
+    const toggleKeyVisibility = document.getElementById("toggleKeyVisibility");
+    const saveDeviceKeyButton = document.getElementById("saveDeviceKeyButton");
+    const deviceSetupStatus = document.getElementById("deviceSetupStatus");
+    const signOutButtons = document.querySelectorAll(".sign-out-button, .remove-device-button");
 
-    function showLoading() {
+    function showLoading(text) {
+      if (authGate) authGate.classList.remove("hidden");
       if (authLoadingState) authLoadingState.classList.remove("hidden");
-      if (authActionState) authActionState.classList.add("hidden");
+      if (deviceSetupState) deviceSetupState.classList.add("hidden");
+      const loadingText = document.querySelector(".auth-loading-text");
+      if (loadingText && text) loadingText.textContent = text;
     }
 
-    function showAction(statusText, state) {
+    function showSetup(statusText, state) {
+      if (authGate) authGate.classList.remove("hidden");
       if (authLoadingState) authLoadingState.classList.add("hidden");
-      if (authActionState) authActionState.classList.remove("hidden");
-      if (authStatus) {
-        authStatus.textContent = statusText;
-        authStatus.dataset.state = state || "waiting";
+      if (deviceSetupState) deviceSetupState.classList.remove("hidden");
+      if (deviceKeyInput) deviceKeyInput.value = "";
+      if (saveDeviceKeyButton) saveDeviceKeyButton.disabled = true;
+      if (deviceSetupStatus) {
+        deviceSetupStatus.textContent = statusText || "Enter your private key once to link this device.";
+        deviceSetupStatus.dataset.state = state || "waiting";
       }
     }
 
-    function updateAuthUI(isAuth) {
-      if (isAuth) {
-        if (authGate) {
-          authGate.classList.add("hidden");
-        }
-        startAuthorizedSession();
-      } else {
-        if (authGate) {
-          authGate.classList.remove("hidden");
-        }
-        const explicitlySignedOut = typeof financeApi.hasExplicitlySignedOut === "function" && financeApi.hasExplicitlySignedOut();
-        if (explicitlySignedOut) {
-          showAction("Signed out. Click Continue with Google to sign in again.", "waiting");
+    function hideAuthGate() {
+      if (authGate) authGate.classList.add("hidden");
+    }
+
+    showDeviceSetupScreenFn = showSetup;
+    hideAuthGateFn = hideAuthGate;
+
+    if (deviceKeyInput) {
+      deviceKeyInput.addEventListener("input", function() {
+        const val = deviceKeyInput.value.trim();
+        if (financeApi.isValidKeyFormat(val)) {
+          saveDeviceKeyButton.disabled = false;
+          deviceSetupStatus.textContent = "Valid key format. Click Set Up Device to link.";
+          deviceSetupStatus.dataset.state = "authorized";
+        } else if (!val) {
+          saveDeviceKeyButton.disabled = true;
+          deviceSetupStatus.textContent = "Enter your private key once to link this device.";
+          deviceSetupStatus.dataset.state = "waiting";
         } else {
-          showAction("Sign in with your authorized Google account to access your finances.", "waiting");
+          saveDeviceKeyButton.disabled = true;
+          deviceSetupStatus.textContent = "Key must be 64 hexadecimal characters.";
+          deviceSetupStatus.dataset.state = "waiting";
         }
-        clearAuthorizedSession();
-      }
+      });
     }
 
-    if (authAuthorizeButton) {
-      authAuthorizeButton.addEventListener("click", async function() {
-        showAction("Authorizing with Google...", "waiting");
+    if (toggleKeyVisibility && deviceKeyInput) {
+      toggleKeyVisibility.addEventListener("click", function() {
+        if (deviceKeyInput.type === "password") {
+          deviceKeyInput.type = "text";
+          toggleKeyVisibility.textContent = "Hide";
+        } else {
+          deviceKeyInput.type = "password";
+          toggleKeyVisibility.textContent = "Show";
+        }
+      });
+    }
+
+    if (saveDeviceKeyButton) {
+      saveDeviceKeyButton.addEventListener("click", function() {
+        const key = deviceKeyInput ? deviceKeyInput.value.trim() : "";
         try {
-          await financeApi.authorize();
+          financeApi.setDeviceKey(key);
+          showLoading("Verifying device key and loading finances…");
+          startAuthorizedSession();
         } catch (err) {
-          showAction(
-            err && err.message ? err.message : "Authorization failed.",
-            "error"
-          );
+          showSetup(err && err.message ? err.message : "Invalid device key format.", "error");
         }
       });
     }
 
     signOutButtons.forEach(function(btn) {
       btn.addEventListener("click", function() {
-        financeApi.signOut();
-        showToast("Signed out. Session data cleared.");
+        const confirmed = window.confirm("Remove this device? You will need your private device key to access your finances again on this device.");
+        if (confirmed) {
+          financeApi.clearDeviceKey();
+          clearAuthorizedSession();
+          showSetup("Device access removed. Paste your key to set up again.", "waiting");
+          showToast("Device access removed.");
+        }
       });
     });
 
-    financeApi.onAuthStateChanged(updateAuthUI);
-
-    if (financeApi.isAuthorized()) {
-      updateAuthUI(true);
-    } else if (typeof financeApi.hasExplicitlySignedOut === "function" && financeApi.hasExplicitlySignedOut()) {
-      updateAuthUI(false);
+    if (financeApi.hasDeviceKey()) {
+      showLoading("Loading your finances…");
+      startAuthorizedSession();
     } else {
-      showLoading();
-      if (typeof financeApi.trySilentAuthorize === "function") {
-        financeApi.trySilentAuthorize()
-          .then(function() {
-            updateAuthUI(true);
-          })
-          .catch(function() {
-            updateAuthUI(false);
-          });
-      } else {
-        updateAuthUI(false);
-      }
+      showSetup();
     }
   }
 
@@ -1654,6 +1673,10 @@
             lastSuccessfulSyncAt
           );
 
+          if (hideAuthGateFn) {
+            hideAuthGateFn();
+          }
+
 
           if (
             !hasRenderedExpenseData
@@ -1718,6 +1741,24 @@
 
           }
 
+
+          if (
+            error &&
+            error.message &&
+            error.message.includes("Unauthorized")
+          ) {
+            clearAuthorizedSession();
+            if (typeof financeApi.clearDeviceKey === "function") {
+              financeApi.clearDeviceKey();
+            }
+            if (showDeviceSetupScreenFn) {
+              showDeviceSetupScreenFn(
+                "Unauthorized: Invalid device key. Please re-enter your key.",
+                "error"
+              );
+            }
+            return;
+          }
 
           if (
             hasRenderedExpenseData

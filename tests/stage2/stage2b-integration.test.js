@@ -27,9 +27,10 @@ test("frontend does not require or contain google.script.run", () => {
 test("OAuth token is never persisted in storage mechanisms", () => {
   const apiJs = read("frontend/api.js");
 
-  for (const storageKey of ["localStorage", "sessionStorage", "indexedDB", "document.cookie"]) {
+  for (const storageKey of ["sessionStorage", "indexedDB", "document.cookie"]) {
     assert.equal(apiJs.includes(storageKey), false, `api.js must not reference ${storageKey}`);
   }
+
 });
 
 test("frontend app.js uses localStorage ONLY for expense data caching, not auth tokens", () => {

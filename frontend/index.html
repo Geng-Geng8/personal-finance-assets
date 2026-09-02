@@ -12,7 +12,6 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="config.js" defer></script>
   <script src="api.js" defer></script>
   <script src="app.js" defer></script>
@@ -21,7 +20,7 @@
 <body>
 
   <!-- =========================================
-       STAGE 4A AUTHENTICATION GATE & STARTUP
+       STAGE 4B DEVICE-KEY SETUP & STARTUP
   ========================================== -->
   <div class="auth-gate" id="authGate">
     <div class="auth-card">
@@ -33,12 +32,17 @@
         <p class="auth-loading-text">Loading your finances…</p>
       </div>
 
-      <div id="authActionState" class="auth-action-state hidden">
-        <p>Sign in with your authorized Google account to access and manage your finances securely.</p>
-        <button class="primary-button" id="authAuthorizeButton" type="button">
-          Continue with Google
+      <div id="deviceSetupState" class="auth-action-state hidden">
+        <p class="auth-desc">Set up this device with your private Personal Finance key.</p>
+        <div class="device-key-input-group">
+          <input type="password" id="deviceKeyInput" class="device-key-input" placeholder="Paste 64-character device key" autocomplete="off" spellcheck="false">
+          <button type="button" id="toggleKeyVisibility" class="key-toggle-btn" aria-label="Toggle key visibility">Show</button>
+        </div>
+        <button class="primary-button" id="saveDeviceKeyButton" type="button" disabled>
+          Set Up Device
         </button>
-        <p class="auth-status" id="authStatus" data-state="waiting">Waiting for authorization.</p>
+        <button class="hidden" id="authAuthorizeButton" type="button" aria-hidden="true"></button>
+        <p class="auth-status" id="deviceSetupStatus" data-state="waiting">Enter your private key once to link this device.</p>
       </div>
     </div>
   </div>

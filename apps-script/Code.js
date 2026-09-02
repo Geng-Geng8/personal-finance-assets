@@ -1252,3 +1252,57 @@ function apiRequest(request) {
       throw new Error("Unsupported API action: " + action);
   }
 }
+
+/* =========================================
+   STAGE 4B DEVICE-KEY WEB APP ENTRY POINT
+========================================= */
+
+function doPost(e) {
+  try {
+    const raw = (e && e.postData && e.postData.contents) ? e.postData.contents : "";
+    if (!raw) {
+      return jsonResponse_({ ok: false, error: "Empty request body" });
+    }
+
+    let body;
+    try {
+      body = JSON.parse(raw);
+    } catch (parseErr) {
+      return jsonResponse_({ ok: false, error: "Invalid JSON body" });
+    }
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return jsonResponse_({ ok: false, error: "Request body must be an object" });
+    }
+
+    const suppliedKey = String(body.deviceKey || "").trim();
+    if (!suppliedKey || suppliedKey.length !== 64) {
+      return jsonResponse_({ ok: false, error: "Unauthorized" });
+    }
+
+    const configuredKey = PropertiesService.getScriptProperties().getProperty("PERSONAL_APP_DEVICE_KEY");
+    if (!configuredKey || typeof configuredKey !== "string" || configuredKey.trim().length !== 64) {
+      return jsonResponse_({ ok: false, error: "Server device key is not configured" });
+    }
+
+    if (suppliedKey.toLowerCase() !== configuredKey.trim().toLowerCase()) {
+      return jsonResponse_({ ok: false, error: "Unauthorized" });
+    }
+
+    const action = String(body.action || "");
+    const payload = body.payload == null ? {} : body.payload;
+
+    const result = apiRequest({ action, payload });
+    return jsonResponse_(result);
+  } catch (err) {
+    return jsonResponse_({
+      ok: false,
+      error: err && err.message ? err.message : "Request failed"
+    });
+  }
+}
+
+function jsonResponse_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
