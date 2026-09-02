@@ -819,10 +819,7 @@
     const elTotalCash = document.getElementById("wealthTotalCash");
     if (elTotalCash) elTotalCash.textContent = formatCurrency(data.totalCash);
 
-    const elTotalCashBadge = document.getElementById("wealthTotalCashBadge");
-    if (elTotalCashBadge) elTotalCashBadge.textContent = formatCurrency(data.totalCash) + " Total";
-
-    // Reserves: N14, O14, P14
+    // Reserves
     const elTaxReserve = document.getElementById("wealthTaxReserve");
     if (elTaxReserve) elTaxReserve.textContent = formatCurrency(data.taxReserve);
 
