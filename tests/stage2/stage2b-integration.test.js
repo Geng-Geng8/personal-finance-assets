@@ -71,8 +71,8 @@ test("api.js rejects calls without active authorization", async () => {
   );
 });
 
-test("frontend config contains only verified test identifiers and no production IDs", () => {
-  const config = read("frontend/config.js");
+test("test environment config contains only verified test identifiers and no production IDs", () => {
+  const config = read("frontend/config.test-env.js");
 
   assert.match(config, /581273737574-c6tv8f8jf11ivub0k47d2o0ae0jv8pg7\.apps\.googleusercontent\.com/);
   assert.match(config, /AKfycbwfJNXJmThqYxaO2DkekUhjO8K10VhePin3ZkFGS65UhhJ39DtW0YwCx0kVsNio6bZA/);

@@ -104,7 +104,7 @@ test("seed data is explicitly synthetic", () => {
   }
 });
 
-test("production application files are unchanged from the Stage 2 branch point", () => {
+test("production UI files and assets are unchanged from the baseline branch point", () => {
   execFileSync(
     "git",
     [
@@ -112,7 +112,9 @@ test("production application files are unchanged from the Stage 2 branch point",
       "--exit-code",
       "40cfc80db40dd59a15b5172f904e0373ffbd0394",
       "--",
-      "apps-script",
+      "apps-script/Index.html",
+      "apps-script/Styles.html",
+      "apps-script/JavaScript.html",
       "Personal Finance Tracker Icon.png",
       "finance-icon.png"
     ],

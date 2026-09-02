@@ -2,7 +2,7 @@
   "name": "personal-finance-assets",
   "private": true,
   "scripts": {
-    "check": "node --check apps-script/Code.js && node tests/check-client-syntax.js && node --check poc/auth/config.js && node --check poc/auth/app.js && node --check test-apps-script/Code.js && node --check frontend/config.js && node --check frontend/api.js && node --check frontend/app.js",
+    "check": "node --check apps-script/Code.js && node tests/check-client-syntax.js && node --check poc/auth/config.js && node --check poc/auth/app.js && node --check test-apps-script/Code.js && node --check frontend/config.js && node --check frontend/api.js && node --check frontend/app.js && node --check config.js && node --check api.js && node --check app.js",
     "test": "node --test"
   },
   "engines": {

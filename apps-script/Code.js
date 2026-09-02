@@ -242,8 +242,7 @@ function readExpensesFromSheet_() {
 
 
   const timeZone =
-    SpreadsheetApp
-      .getActiveSpreadsheet()
+    getProductionSpreadsheet_()
       .getSpreadsheetTimeZone();
 
 
@@ -1177,11 +1176,22 @@ function createUniqueId(
    GET EXPENSE SHEET
 ========================================= */
 
+function getProductionSpreadsheet_() {
+  const spreadsheetId = PropertiesService
+    .getScriptProperties()
+    .getProperty("PRODUCTION_SPREADSHEET_ID");
+
+  if (!spreadsheetId) {
+    throw new Error("PRODUCTION_SPREADSHEET_ID is not configured.");
+  }
+
+  return SpreadsheetApp.openById(spreadsheetId);
+}
+
 function getExpenseSheet() {
 
   const sheet =
-    SpreadsheetApp
-      .getActiveSpreadsheet()
+    getProductionSpreadsheet_()
       .getSheetByName(
         SHEET_NAME
       );
@@ -1198,4 +1208,47 @@ function getExpenseSheet() {
 
   return sheet;
 
+}
+
+/* =========================================
+   AUTHENTICATED API ENTRY POINT (STAGE 3)
+========================================= */
+
+function apiRequest(request) {
+  if (!request || typeof request !== "object" || Array.isArray(request)) {
+    throw new Error("Request must be an object.");
+  }
+
+  const action = String(request.action || "");
+  const payload = request.payload == null ? {} : request.payload;
+
+  switch (action) {
+    case "getExpenses":
+      return {
+        ok: true,
+        expenses: getExpenses(Boolean(payload && payload.forceRefresh))
+      };
+
+    case "addExpense":
+      return {
+        ok: true,
+        result: addExpense(payload)
+      };
+
+    case "updateExpense":
+      return {
+        ok: true,
+        result: updateExpense(payload)
+      };
+
+    case "deleteExpense":
+      const id = typeof payload === "object" && payload !== null ? payload.id : payload;
+      return {
+        ok: true,
+        result: deleteExpense(id)
+      };
+
+    default:
+      throw new Error("Unsupported API action: " + action);
+  }
 }
