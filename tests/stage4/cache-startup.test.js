@@ -92,3 +92,31 @@ test("11. existing finance calculations remain unchanged", () => {
   assert.equal(client.normalizeMoney(10.075), 10.08);
   assert.equal(client.calculateTotal([ { cost: 0.1 }, { cost: 0.2 }, { cost: "19.99" } ]), 20.29);
 });
+
+// 12. new shell version invalidates old cache
+test("12. new shell version is finance-shell-v2 and cleans old cache versions", () => {
+  const swCode = read("sw.js");
+  assert.match(swCode, /const CACHE_NAME = "finance-shell-v2";/);
+  assert.match(swCode, /self\.skipWaiting\(\)/);
+  assert.match(swCode, /caches\.delete\(key\)/);
+  assert.match(swCode, /self\.clients\.claim\(\)/);
+});
+
+// 13. HTML and script update path uses network-first to prevent stale lock-in
+test("13. HTML and script update path uses network-first strategy", () => {
+  const swCode = read("sw.js");
+  // Network first: tries fetch first, then catches to caches.match
+  assert.match(swCode, /fetch\(event\.request\)[\s\S]*\.catch\(\(\)\s*=>\s*\{[\s\S]*caches\.match/);
+});
+
+// 14. fast-start pre-render script exists in index.html head
+test("14. fast-start pre-render script exists in head of index.html", () => {
+  const html = read("index.html");
+  assert.match(html, /<script>[\s\S]*document\.documentElement\.classList\.add\("fast-start"\)[\s\S]*<\/script>[\s\S]*<\/head>/);
+});
+
+// 15. fast-start CSS rule suppresses authGate before first paint
+test("15. fast-start CSS rule suppresses authGate before first paint", () => {
+  const css = read("styles.css");
+  assert.match(css, /html\.fast-start\s*#authGate\s*\{[\s\S]*display:\s*none\s*!important/);
+});

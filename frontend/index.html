@@ -12,6 +12,15 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    (function() {
+      try {
+        if (localStorage.getItem("personalFinance.deviceKey") && localStorage.getItem("personalFinance.expenseSnapshot")) {
+          document.documentElement.classList.add("fast-start");
+        }
+      } catch (_) {}
+    })();
+  </script>
   <script src="config.js" defer></script>
   <script src="api.js" defer></script>
   <script src="app.js" defer></script>
@@ -1118,7 +1127,12 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function() {
-        navigator.serviceWorker.register("sw.js").catch(function() {});
+        if ("caches" in window) {
+          caches.delete("finance-shell-v1").catch(function() {});
+        }
+        navigator.serviceWorker.register("sw.js").then(function(reg) {
+          reg.update().catch(function() {});
+        }).catch(function() {});
       });
     }
   </script>

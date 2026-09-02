@@ -4248,6 +4248,10 @@
    STAGE 2B AUTH GATE
 ========================================= */
 
+html.fast-start #authGate {
+  display: none !important;
+}
+
 .auth-gate {
   position: fixed;
   inset: 0;

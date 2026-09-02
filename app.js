@@ -424,6 +424,10 @@
       list.innerHTML = "";
     }
 
+    if (typeof document !== "undefined" && document.documentElement) {
+      document.documentElement.classList.remove("fast-start");
+    }
+
     removeExpenseCache();
   }
 
@@ -553,10 +557,16 @@
         updateSyncStatus("updating");
         startAuthorizedSession({ backgroundOnly: true });
       } else {
+        if (typeof document !== "undefined" && document.documentElement) {
+          document.documentElement.classList.remove("fast-start");
+        }
         showLoading("Loading your finances…");
         startAuthorizedSession({ backgroundOnly: false });
       }
     } else {
+      if (typeof document !== "undefined" && document.documentElement) {
+        document.documentElement.classList.remove("fast-start");
+      }
       showSetup();
     }
   }

@@ -3,4 +3,5 @@
 .clasp.json
 **/.clasp.json
 node_modules/
+scratch/
 
