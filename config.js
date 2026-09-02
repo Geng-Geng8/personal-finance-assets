@@ -1,6 +1,6 @@
 window.FINANCE_APP_CONFIG = Object.freeze({
   environment: "production",
   oauthClientId: "522582558662-a8vk7etqodg192sl68fe0rp1svo1jnkj.apps.googleusercontent.com",
-  apiExecutableDeploymentId: "REPLACE_WITH_PRODUCTION_API_DEPLOYMENT_ID",
+  apiExecutableDeploymentId: "AKfycbxKhDN9cPwe7sy_CD8FjUiEMWQdL0buAcxMgp4CaRSxL7sXbsDeIv0N8jusxeO8Vk1o",
   oauthScope: "https://www.googleapis.com/auth/spreadsheets"
 });

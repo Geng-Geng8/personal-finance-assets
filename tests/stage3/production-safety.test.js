@@ -189,14 +189,19 @@ test("production frontend uses the verified production OAuth Client ID", () => {
   assert.match(frontendConfig, new RegExp(prodClientId));
 });
 
-test("production frontend uses deployment placeholder and cannot call test backend", () => {
+test("production frontend binds the verified production API Deployment ID and rejects test ID", () => {
+  const prodDeploymentId = "AKfycbxKhDN9cPwe7sy_CD8FjUiEMWQdL0buAcxMgp4CaRSxL7sXbsDeIv0N8jusxeO8Vk1o";
   const testDeploymentId = "AKfycbwfJNXJmThqYxaO2DkekUhjO8K10VhePin3ZkFGS65UhhJ39DtW0YwCx0kVsNio6bZA";
 
   const rootConfig = read("config.js");
   const frontendConfig = read("frontend/config.js");
 
-  assert.match(rootConfig, /REPLACE_WITH_PRODUCTION_API_DEPLOYMENT_ID/);
-  assert.match(frontendConfig, /REPLACE_WITH_PRODUCTION_API_DEPLOYMENT_ID/);
+  assert.match(rootConfig, new RegExp(prodDeploymentId));
+  assert.match(frontendConfig, new RegExp(prodDeploymentId));
+
+  // Placeholder must be resolved
+  assert.doesNotMatch(rootConfig, /REPLACE_WITH_PRODUCTION_API_DEPLOYMENT_ID/);
+  assert.doesNotMatch(frontendConfig, /REPLACE_WITH_PRODUCTION_API_DEPLOYMENT_ID/);
 
   // Test deployment ID must not be present in production config
   assert.doesNotMatch(rootConfig, new RegExp(testDeploymentId));
