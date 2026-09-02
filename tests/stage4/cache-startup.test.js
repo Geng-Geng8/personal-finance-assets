@@ -120,3 +120,25 @@ test("15. fast-start CSS rule suppresses authGate before first paint", () => {
   const css = read("styles.css");
   assert.match(css, /html\.fast-start\s*#authGate\s*\{[\s\S]*display:\s*none\s*!important/);
 });
+
+// 16. in-app control has accessible label and remove-device-button class
+test("16. in-app control has accessible label 'Remove This Device' and remove-device-button class", () => {
+  const html = read("index.html");
+  assert.match(html, /<button[^>]*class="[^"]*remove-device-button[^"]*"[^>]*aria-label="Remove This Device"/);
+});
+
+// 17. confirmation modal has exact required prompt text and Cancel / Remove Device buttons
+test("17. confirmation modal has exact required prompt text and Cancel / Remove Device buttons", () => {
+  const html = read("index.html");
+  assert.match(html, /id="removeDeviceModal"/);
+  assert.match(html, /Remove this device\?/);
+  assert.match(html, /You will need your private device key to access your finances again on this device\./);
+  assert.match(html, /<button[^>]*id="cancelRemoveDeviceBtn"[^>]*>Cancel<\/button>/);
+  assert.match(html, /<button[^>]*id="confirmRemoveDeviceBtn"[^>]*>Remove Device<\/button>/);
+});
+
+// 18. confirming removal clears all device data, cache, and fast-start class
+test("18. confirming removal clears all device data, cache, and fast-start class", () => {
+  const appCode = read("app.js");
+  assert.match(appCode, /function executeRemoveDevice\(\)\s*\{[\s\S]*financeApi\.clearDeviceKey\(\);[\s\S]*removeExpenseCache\(\);[\s\S]*clearAuthorizedSession\(\);/);
+});

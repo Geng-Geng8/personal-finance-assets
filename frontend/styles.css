@@ -4518,3 +4518,103 @@ html.fast-start #authGate {
   color: var(--text-secondary);
   border: 1px solid var(--border);
 }
+
+/* =========================================
+   STAGE 4B REMOVE DEVICE CONFIRMATION MODAL
+========================================= */
+
+.confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10000;
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+.confirm-modal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.confirm-modal-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #fee2e2;
+  color: #dc2626;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+}
+
+.confirm-modal-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 10px 0;
+}
+
+.confirm-modal-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.confirm-modal-actions button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 0;
+  transition: opacity 0.15s ease;
+}
+
+.confirm-modal-actions .ghost-button {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.confirm-modal-actions .danger-button {
+  background: #dc2626;
+  color: white;
+}
+
+.confirm-modal-actions button:hover {
+  opacity: 0.9;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}

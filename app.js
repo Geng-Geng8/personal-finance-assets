@@ -537,16 +537,61 @@
       });
     }
 
+    const removeDeviceModal = document.getElementById("removeDeviceModal");
+    const cancelRemoveDeviceBtn = document.getElementById("cancelRemoveDeviceBtn");
+    const confirmRemoveDeviceBtn = document.getElementById("confirmRemoveDeviceBtn");
+
+    function openRemoveDeviceModal() {
+      if (removeDeviceModal) {
+        removeDeviceModal.classList.remove("hidden");
+        if (confirmRemoveDeviceBtn) confirmRemoveDeviceBtn.focus();
+      } else {
+        const confirmed = window.confirm(
+          "Remove this device?\nYou will need your private device key to access your finances again on this device."
+        );
+        if (confirmed) {
+          executeRemoveDevice();
+        }
+      }
+    }
+
+    function closeRemoveDeviceModal() {
+      if (removeDeviceModal) {
+        removeDeviceModal.classList.add("hidden");
+      }
+    }
+
+    function executeRemoveDevice() {
+      closeRemoveDeviceModal();
+      financeApi.clearDeviceKey();
+      removeExpenseCache();
+      clearAuthorizedSession();
+      showSetup("Device access removed. Paste your key to set up again.", "waiting");
+      showToast("Device access removed.");
+    }
+
+    if (cancelRemoveDeviceBtn) {
+      cancelRemoveDeviceBtn.addEventListener("click", closeRemoveDeviceModal);
+    }
+    if (confirmRemoveDeviceBtn) {
+      confirmRemoveDeviceBtn.addEventListener("click", executeRemoveDevice);
+    }
+    if (removeDeviceModal) {
+      removeDeviceModal.addEventListener("click", function(e) {
+        if (e.target === removeDeviceModal) {
+          closeRemoveDeviceModal();
+        }
+      });
+      window.addEventListener("keydown", function(e) {
+        if (e.key === "Escape" && !removeDeviceModal.classList.contains("hidden")) {
+          closeRemoveDeviceModal();
+        }
+      });
+    }
+
     signOutButtons.forEach(function(btn) {
       btn.addEventListener("click", function() {
-        const confirmed = window.confirm("Remove this device? You will need your private device key to access your finances again on this device.");
-        if (confirmed) {
-          financeApi.clearDeviceKey();
-          removeExpenseCache();
-          clearAuthorizedSession();
-          showSetup("Device access removed. Paste your key to set up again.", "waiting");
-          showToast("Device access removed.");
-        }
+        openRemoveDeviceModal();
       });
     });
 
