@@ -288,6 +288,21 @@
 
   }
 
+  .live-pill.updating .live-dot {
+    background: #fed7aa;
+    animation: livePulse 1s infinite alternate ease-in-out;
+  }
+
+  .live-pill.error .live-dot {
+    background: #fca5a5;
+  }
+
+  @keyframes livePulse {
+    from { opacity: 0.4; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1.15); }
+  }
+
+
 
   .summary-amount {
 

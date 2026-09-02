@@ -72,15 +72,16 @@
 
 
   /* =========================================
-     LOCAL CACHE
+     LOCAL CACHE & PERFORMANCE
   ========================================= */
 
+  const SNAPSHOT_CACHE_KEY = "personalFinance.expenseSnapshot";
+  const SNAPSHOT_UPDATED_AT_KEY = "personalFinance.expenseSnapshotUpdatedAt";
+  const EXPENSE_CACHE_KEY = SNAPSHOT_CACHE_KEY;
   const EXPENSE_CACHE_VERSION = 1;
 
-
-  const EXPENSE_CACHE_KEY =
-    "personalFinance.expenses.v" +
-    EXPENSE_CACHE_VERSION;
+  const APP_INIT_TIMESTAMP = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+  let startupTimingLogged = false;
 
 
   /* =========================================
@@ -356,7 +357,38 @@
 
   let appSessionStarted = false;
 
-  function startAuthorizedSession() {
+  /* =========================================
+     STAGE 4B SYNC STATUS CONTROLLER
+  ========================================= */
+
+  function updateSyncStatus(status, label) {
+    const livePill = document.getElementById("livePill");
+    const liveStatusText = document.getElementById("liveStatusText");
+    if (!livePill) return;
+
+    livePill.classList.remove("updating", "error", "live");
+
+    if (status === "updating") {
+      livePill.classList.add("updating");
+      if (liveStatusText) liveStatusText.textContent = label || "Updating…";
+      livePill.title = "Syncing with Google Sheets…";
+    } else if (status === "error") {
+      livePill.classList.add("error");
+      const timeStr = lastSuccessfulSyncAt
+        ? new Date(lastSuccessfulSyncAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+        : "";
+      if (liveStatusText) liveStatusText.textContent = label || (timeStr ? `Updated ${timeStr}` : "Saved data");
+      livePill.title = "Could not refresh server data. Showing saved finances.";
+    } else {
+      livePill.classList.add("live");
+      if (liveStatusText) liveStatusText.textContent = label || "Live";
+      livePill.title = "Authoritative production data";
+    }
+  }
+
+  function startAuthorizedSession(options) {
+    const isBackgroundOnly = Boolean(options && options.backgroundOnly);
+
     if (appSessionStarted) {
       loadExpenses({
         showLoading: false,
@@ -367,7 +399,15 @@
 
     appSessionStarted = true;
     startExpenseSyncTimer();
-    restoreExpensesFromCache();
+
+    if (!isBackgroundOnly) {
+      const restored = restoreExpensesFromCache();
+      if (restored && hideAuthGateFn) {
+        hideAuthGateFn();
+        updateSyncStatus("updating");
+      }
+    }
+
     loadExpenses({
       showLoading: !hasRenderedExpenseData,
       forceServerRefresh: false
@@ -384,9 +424,7 @@
       list.innerHTML = "";
     }
 
-    try {
-      window.localStorage.removeItem(EXPENSE_CACHE_KEY);
-    } catch (e) {}
+    removeExpenseCache();
   }
 
   let showDeviceSetupScreenFn = null;
@@ -500,6 +538,7 @@
         const confirmed = window.confirm("Remove this device? You will need your private device key to access your finances again on this device.");
         if (confirmed) {
           financeApi.clearDeviceKey();
+          removeExpenseCache();
           clearAuthorizedSession();
           showSetup("Device access removed. Paste your key to set up again.", "waiting");
           showToast("Device access removed.");
@@ -508,8 +547,15 @@
     });
 
     if (financeApi.hasDeviceKey()) {
-      showLoading("Loading your finances…");
-      startAuthorizedSession();
+      const hasCache = restoreExpensesFromCache();
+      if (hasCache) {
+        hideAuthGate();
+        updateSyncStatus("updating");
+        startAuthorizedSession({ backgroundOnly: true });
+      } else {
+        showLoading("Loading your finances…");
+        startAuthorizedSession({ backgroundOnly: false });
+      }
     } else {
       showSetup();
     }
@@ -573,141 +619,74 @@
   ========================================= */
 
   function restoreExpensesFromCache() {
-
     try {
+      const raw = window.localStorage.getItem(SNAPSHOT_CACHE_KEY);
+      if (!raw) return false;
 
-      const raw =
-        window.localStorage.getItem(
-          EXPENSE_CACHE_KEY
-        );
-
-
-      if (!raw) {
-
-        return false;
-
-      }
-
-
-      const cached =
-        JSON.parse(raw);
-
-
-      if (
-        !cached ||
-        cached.version !==
-          EXPENSE_CACHE_VERSION ||
-        !Array.isArray(
-          cached.expenses
-        )
-      ) {
-
+      let expenses;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          expenses = parsed;
+        } else if (parsed && Array.isArray(parsed.expenses)) {
+          expenses = parsed.expenses;
+        } else {
+          removeExpenseCache();
+          return false;
+        }
+      } catch (_) {
         removeExpenseCache();
-
         return false;
-
       }
 
+      if (!expenses || expenses.length === 0) return false;
 
-      currentExpenses =
-        cached.expenses;
+      currentExpenses = expenses;
+      lastSuccessfulSyncAt = window.localStorage.getItem(SNAPSHOT_UPDATED_AT_KEY) || null;
 
+      const tRenderStart = (typeof performance !== "undefined" && performance.now) ? performance.now() : 0;
+      renderCurrentExpenseData({ resetRenderWindow: true });
+      const tRenderEnd = (typeof performance !== "undefined" && performance.now) ? performance.now() : 0;
 
-      lastSuccessfulSyncAt =
-        typeof cached.lastSync ===
-          "string"
-          ? cached.lastSync
-          : null;
+      hasRenderedExpenseData = true;
 
+      if (loadingState) {
+        loadingState.classList.add("hidden");
+      }
 
-      renderCurrentExpenseData({
-
-        resetRenderWindow:
-          true
-
-      });
-
-
-      loadingState.classList.add(
-        "hidden"
-      );
-
+      if (!startupTimingLogged && typeof performance !== "undefined" && performance.now) {
+        startupTimingLogged = true;
+        const totalStartupMs = performance.now() - APP_INIT_TIMESTAMP;
+        console.log(
+          `[Startup Timing] CACHE-FIRST: Cached Expenses rendered in ${(tRenderEnd - tRenderStart).toFixed(1)}ms. Total startup: ${totalStartupMs.toFixed(1)}ms.`
+        );
+      }
 
       return true;
-
-    } catch (error) {
-
+    } catch (_) {
       return false;
-
     }
-
   }
 
-
-  function saveExpensesToCache(
-    expenses,
-    syncTimestamp
-  ) {
-
+  function saveExpensesToCache(expenses, syncTimestamp) {
     try {
-
-      const payload = {
-
-        version:
-          EXPENSE_CACHE_VERSION,
-
-        lastSync:
-          syncTimestamp,
-
-        expenses:
-          expenses
-
-      };
-
-
-      window.localStorage.setItem(
-        EXPENSE_CACHE_KEY,
-        JSON.stringify(payload)
-      );
-
-    } catch (error) {
-
-      /*
-       * Cache failure must never stop
-       * the application.
-       */
-
-    }
-
+      if (!Array.isArray(expenses)) return;
+      const ts = syncTimestamp || new Date().toISOString();
+      window.localStorage.setItem(SNAPSHOT_CACHE_KEY, JSON.stringify(expenses));
+      window.localStorage.setItem(SNAPSHOT_UPDATED_AT_KEY, ts);
+    } catch (_) {}
   }
-
 
   function saveCurrentExpensesToCache() {
-
-    lastSuccessfulSyncAt =
-      new Date().toISOString();
-
-
-    saveExpensesToCache(
-      currentExpenses,
-      lastSuccessfulSyncAt
-    );
-
+    lastSuccessfulSyncAt = new Date().toISOString();
+    saveExpensesToCache(currentExpenses, lastSuccessfulSyncAt);
   }
 
-
   function removeExpenseCache() {
-
     try {
-
-      window.localStorage.removeItem(
-        EXPENSE_CACHE_KEY
-      );
-
-    } catch (error) {
-
-    }
-
+      window.localStorage.removeItem(SNAPSHOT_CACHE_KEY);
+      window.localStorage.removeItem(SNAPSHOT_UPDATED_AT_KEY);
+    } catch (_) {}
   }
 
 
@@ -1699,6 +1678,14 @@
             hideAuthGateFn();
           }
 
+          updateSyncStatus("live");
+
+          if (!startupTimingLogged && typeof performance !== "undefined" && performance.now) {
+            startupTimingLogged = true;
+            const totalMs = performance.now() - APP_INIT_TIMESTAMP;
+            console.log(`[Startup Timing] AUTHORITATIVE LOAD: Server fetch completed. Total startup: ${totalMs.toFixed(1)}ms.`);
+          }
+
 
           if (
             !hasRenderedExpenseData
@@ -1773,6 +1760,7 @@
             if (typeof financeApi.clearDeviceKey === "function") {
               financeApi.clearDeviceKey();
             }
+            removeExpenseCache();
             if (showDeviceSetupScreenFn) {
               showDeviceSetupScreenFn(
                 "Unauthorized: Invalid device key. Please re-enter your key.",
@@ -1785,11 +1773,10 @@
           if (
             hasRenderedExpenseData
           ) {
-
+            updateSyncStatus("error", "Saved data");
             showToast(
               "Could not refresh. Showing saved data."
             );
-
 
             runQueuedServerRefresh();
 

@@ -5,6 +5,15 @@ const financeApi = (() => {
   const KEY_REGEX = /^[a-f0-9]{64}$/i;
   const ALLOWED_ACTIONS = Object.freeze(["getExpenses", "addExpense", "updateExpense", "deleteExpense"]);
 
+  let lastApiTimings = {
+    fetchDurationMs: 0,
+    parseDurationMs: 0
+  };
+
+  function getLastTimings() {
+    return Object.assign({}, lastApiTimings);
+  }
+
   function getConfig() {
     return (typeof window !== "undefined" && window.FINANCE_APP_CONFIG)
       ? window.FINANCE_APP_CONFIG
@@ -85,6 +94,7 @@ const financeApi = (() => {
       throw new Error("fetch is not available in current environment.");
     }
 
+    const tFetchStart = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
     const response = await fetchFn(endpoint, {
       method: "POST",
       headers: {
@@ -96,8 +106,16 @@ const financeApi = (() => {
         payload: payload || {}
       })
     });
+    const tFetchEnd = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
 
+    const tParseStart = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
     const result = await response.json().catch(() => ({}));
+    const tParseEnd = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+
+    lastApiTimings = {
+      fetchDurationMs: tFetchEnd - tFetchStart,
+      parseDurationMs: tParseEnd - tParseStart
+    };
 
     if (!response.ok) {
       throw new Error(
@@ -162,6 +180,7 @@ const financeApi = (() => {
     deleteExpense,
     isAuthorized,
     onAuthStateChanged,
+    getLastTimings,
     signOut: clearDeviceKey
   });
 })();
