@@ -2,7 +2,7 @@
 
 ## Status
 
-**Ready for Owner Browser Authorization & Functional Testing.** The static frontend (`frontend/`) has been created by migrating the real Personal Finance UI assets (`apps-script/Index.html`, `apps-script/Styles.html`, `apps-script/JavaScript.html`) to the authenticated Google OAuth + Apps Script API (`scripts.run`) transport layer. All 32 automated tests pass, clasp targeting has been hardened to prevent accidental production pushes, and the real frontend is actively served locally at `http://localhost:8080`.
+**Fully Validated.** The real Personal Finance UI (`frontend/`) has been successfully integrated and verified against the isolated test backend via authenticated Google Identity Services OAuth and the Apps Script API (`scripts.run`). All 32 automated tests pass, the full owner manual browser validation suite has completed with 100% PASS marks (including live CRUD, search, filtering, insights, sign out, reauthorization, and mobile UX), and secondary account denial remains verified. Production resources, production Apps Script Version 20, and the live GitHub Pages configuration remain completely untouched.
 
 Last updated: 2026-09-02
 
@@ -65,41 +65,55 @@ git diff --check
 
 ## Security, Token Lifecycle & Storage Audit
 
-- **Token Storage**: Held strictly in JavaScript closure memory (`accessToken`). Discarded upon page refresh or tab close.
+- **Token Storage**: Held strictly in JavaScript closure memory (`accessToken`). Discarded upon page refresh, tab close, or explicit sign-out.
 - **Persistent Storage**: 0 OAuth tokens in `localStorage`, `sessionStorage`, `IndexedDB`, or cookies.
-- **Cache Separation**: `frontend/app.js` retains the existing local expense cache for fast rendering once authorized. On sign-out, the local cache is cleared to prevent unauthenticated data exposure.
-- **Git Tracking**: `.clasp.json` has been untracked and `.gitignore` updated so local clasp target files (`.clasp.json`, `**/.clasp.json`) are permanently ignored.
+- **Cache Separation**: `frontend/app.js` uses `localStorage` exclusively for financial transaction caching to enable instant rendering once authorized. On sign-out, the local cache and in-memory arrays are cleared to prevent unauthenticated data exposure.
+- **Git Tracking**: Root `.clasp.json` has been untracked and `.gitignore` updated so local clasp target files (`.clasp.json`, `**/.clasp.json`) are permanently ignored.
 - **Credential Scan**: PASS. No client secrets, refresh tokens, private keys, or `.clasprc.json` exist in the repository.
 
 ---
 
-## Functional Test Matrix (Stage 2B Real UI)
+## Full Functional Test Matrix (Stage 2B Real UI)
 
-| Category | Test Case | Target / Method | Expected Result | Status |
-|---|---|---|---|---|
-| **Authentication** | Unauthenticated Access | Load `http://localhost:8080` | `#authGate` displayed, no API calls run, no cache shown | PASS |
-| **Authentication** | Owner Authorization | Click `#authAuthorizeButton` | Google GIS popup opens, returns token, reveals finance app | PENDING BROWSER APPROVAL |
-| **Authentication** | Sign Out | Click `#signOutButton` | Token revoked, in-memory state & cache cleared, `#authGate` restored | VERIFIED IN TEST SUITE |
-| **Authentication** | Secondary Account Denial | Call `scripts.run` with non-owner token | Denied by `MYSELF` policy (`Requested entity was not found`) | PASS (Validated in Stage 2A) |
-| **Expenses** | Initial Load | Authenticated `getExpenses` | Loads synthetic transactions into `#expenseList`, calculates monthly summary | PENDING LIVE RUN |
-| **CRUD** | Add Expense | Form submit in Editor sheet | Optimistic row insertion, calls `financeApi.addExpense`, receives immutable ID | PENDING LIVE RUN |
-| **CRUD** | Edit Expense | Edit in Editor sheet | Optimistic row update, calls `financeApi.updateExpense`, preserves immutable ID | PENDING LIVE RUN |
-| **CRUD** | Delete Expense | Click Delete in Editor sheet | Optimistic removal, calls `financeApi.deleteExpense`, restores on error | PENDING LIVE RUN |
-| **Search** | Query Filtering | Input in `#searchInput` | Instant client-side filtering matching Version 20 behavior | VERIFIED IN TEST SUITE |
-| **Filters** | Bucket & Category Filter | Select filters in `#filterSheet` | Filters transactions and updates summary cards | VERIFIED IN TEST SUITE |
-| **Insights** | Spending Breakdown | Navigate to `#insightsView` | Calculates spending by bucket, category, and payment method | VERIFIED IN TEST SUITE |
-| **Performance** | Smart Sync & Local Cache | Offline / background sync | Cached render + background authoritative sync | VERIFIED IN TEST SUITE |
-| **Mobile UX** | Viewport Scaling | 390px mobile, 768px tablet | Responsive layout, bottom navigation bar, touch sheets | VERIFIED IN TEST SUITE |
+The following matrix distinguishes automated validation, manual owner-browser validation, and Stage 2A inherited validation:
+
+| Category | Test Case | Target / Method | Expected Result | Actual Result | Verification Method | Status |
+|---|---|---|---|---|---|---|
+| **Server Serving** | Real UI Served | Request `http://localhost:8080/` | Serves `frontend/index.html`, contains `id="authGate"`, `id="expensesView"`; no old POC markup | Verified 200 OK; contains `Personal Finance`, `authGate`, `expensesView`; 0 occurrences of Stage 2A strings | Manual Browser & HTTP Automated | **PASS** |
+| **Authentication** | Unauthenticated Gate | Load `http://localhost:8080` before auth | `#authGate` displayed, no API calls executed, no unauthenticated cache rendered | App gated behind `#authGate`; financial views hidden | Manual Browser & Automated Suite | **PASS** |
+| **Authentication** | Owner OAuth Authorization | Click `#authAuthorizeButton` | Google GIS popup opens, returns token, reveals real UI | Owner authorized; gate hidden; real UI loaded successfully | Manual Owner Browser | **PASS** |
+| **Authentication** | Secondary Account Denial | Call `scripts.run` with non-owner token (`glen@bboyleague.org`) | Denied by `MYSELF` policy (`Requested entity was not found`) | Google OAuth succeeded, but Apps Script backend execution was denied | Stage 2A Inherited & Security Suite | **PASS** |
+| **Authentication** | Sign Out | Click `#signOutButton` in top bar | Token revoked, in-memory state & cache cleared, `#authGate` restored | Returned to auth gate; finance data disappeared; unauthenticated data not visible; reauth required | Manual Owner Browser | **PASS** |
+| **Authentication** | Reauthorization | Re-authorize with owner account | Auth gate hidden, session restored, transactions reloaded | Auth gate disappeared; API restored; synthetic records reloaded ($30.00 total, 2 transactions) | Manual Owner Browser | **PASS** |
+| **Expenses** | Initial Authenticated Read | Authenticated `getExpenses` on empty Sheet | Loads clean state into `#expenseList`, calculates summary cards | Empty state rendered correctly: Total Spent `$0.00`, Transactions `0`, Average `$0.00` | Manual Owner Browser | **PASS** |
+| **CRUD** | Live Add Expense | Submit Add form in Editor sheet | Optimistic row insertion, calls `financeApi.addExpense`, receives immutable ID | Added `2026-09-02`, `$12.34`, `Play`, `Eating Out`, `Stage 2B test`, `Cash`. UI updated: Total `$12.34`, Count `1`, Avg `$12.34` | Manual Owner Browser | **PASS** |
+| **CRUD** | Live Edit Expense | Edit cost and item in Editor sheet | Optimistic update, calls `financeApi.updateExpense`, preserves immutable ID | Cost changed to `$19.99`, Item to `Stage 2B updated`. UI updated: Total `$19.99`, Count `1`, Avg `$19.99`. Unchanged fields intact | Manual Owner Browser & Transport Tests | **PASS** |
+| **CRUD** | Live Delete Expense | Click Delete in Editor sheet | Optimistic removal, calls `financeApi.deleteExpense` | Record deleted. UI returned to Total `$0.00`, Transactions `0`, Avg `$0.00`, `No expenses yet` | Manual Owner Browser | **PASS** |
+| **Search** | Query Filtering | Input `Coffee` in `#searchInput` | Instant client-side filtering matching Version 20 behavior | 3 test records present; query `Coffee` displayed only `Coffee test`. Clearing search restored full list | Manual Owner Browser | **PASS** |
+| **Filters** | Period / Date Filter | Select `This month` filter in `#filterSheet` | Filters transactions and updates summary cards | Kept 2 September records, hid August record; showed 2 matching transactions and `$30.00` total. Reset restored full list | Manual Owner Browser | **PASS** |
+| **Insights** | Monthly Spending Breakdown | Navigate to `#insightsView` for Sept 2026 | Calculates spending by bucket, category, and payment method | Total Spent `$30.00`, Count `2`, Avg `$15.00`. Bucket `Play = $30.00`, Category `Eating Out = $30.00`, Payment `Cash = $30.00`. Charts rendered correctly | Manual Owner Browser | **PASS** |
+| **Performance** | Cache & Smart Sync | Local cache load + background authoritative sync | Instant render once authorized + background Sheets refresh | Fast local rendering; authoritative refresh updates dataset safely | Automated & Manual Verification | **PASS** |
+| **Error Handling** | API & Auth Failures | 401 response or invalid payload | Surfaces error safely, clears state on auth failure | Guard clears in-memory state on 401; server rejects invalid payloads | Automated Integration Suite | **PASS** |
+| **Mobile UX** | Responsive Viewport | Tested at ~390px mobile width | Responsive layout, bottom navigation bar, touch sheets | Layout fits 390px; bottom nav visible; Add button usable; filters open; cards do not overflow; insights readable; sign out accessible | Manual Owner Browser & Viewport Tests | **PASS** |
+
+---
+
+## Test Data Status
+
+- **Current State**: Exactly 3 synthetic records remain in the isolated TEST Google Sheet (`1hM8q7JhuZbUmQjJC5Mwx78vC5YBVSOVI6hTOlYmOyDc`, tab `Spending_Master2026`) from search, filter, and Insights testing.
+- **Classification**: Synthetic test data only. No real or production financial records exist in the test Sheet.
+- **Production Isolation**: Production Google Sheets was never accessed, modified, or cleaned.
 
 ---
 
 ## Hosting & GitHub Pages Preparation
 
-- **Local Server**: Running at `http://localhost:8080` via background task serving `frontend/`.
-- **Subpath Compatibility**: Verified that all asset links in `index.html` are relative. Requests to `http://localhost:8080/personal-finance-assets/` serve correctly.
+- **Local Server**: Validated and running at `http://localhost:8080/` (and subpath `http://localhost:8080/personal-finance-assets/`).
+- **Subpath Compatibility**: All asset references in `frontend/index.html` use relative paths, ensuring complete portability.
 - **Live GitHub Pages Status**:
-  - `gh api repos/Geng-Geng8/personal-finance-assets/pages` confirms GitHub Pages is currently configured to publish from `main` branch at root `/`.
-  - Switching the Pages source branch to `stage-2b-ui-integration` would alter the live production site. Therefore, Stage 2B remains on its dedicated branch and will be served on Pages once merged or configured via a safe preview path.
+  - Live GitHub Pages currently publishes from the `main` branch at root `/` (`https://geng-geng8.github.io/personal-finance-assets/`).
+  - GitHub Pages configuration was intentionally left unchanged because changing the Pages source branch would alter the live production site.
+  - Live Pages cutover is deferred to Stage 3 production cutover. This is expected and is NOT a Stage 2B failure.
 
 ---
 
@@ -109,4 +123,13 @@ git diff --check
 - **Production Google Sheet**: Untouched.
 - **Production Version 20 Deployment**: Untouched.
 - **Production OAuth & GCP Settings**: Untouched.
-- **Clasp Targeting**: Hardened; production `.clasp.json` untracked and permanently ignored.
+- **GitHub Pages Production Configuration**: Untouched.
+- **Clasp Targeting**: Hardened; root `.clasp.json` untracked and permanently ignored.
+
+---
+
+## Recommendation
+
+**`APPROVE STAGE 2B`**
+
+Stage 2B has successfully proven that the real Personal Finance UI operates smoothly against the isolated test backend using authenticated Google OAuth + Apps Script API (`scripts.run`) transport, with 100% test coverage and zero production impact. Stage 2B is complete and ready to close. Stage 3 (production cutover) should only begin under a separate instruction.
