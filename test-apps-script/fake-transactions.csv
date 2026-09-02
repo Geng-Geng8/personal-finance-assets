@@ -1,0 +1,4 @@
+ID,Date,Cost,Bucket,Category,Item,Notes,Payment Method
+fake-001,2026-01-15,12.34,Play,Eating Out,POC lunch,Synthetic test record,Credit Card
+fake-002,2026-02-01,45.67,Necessity,Grocery,POC groceries,Synthetic test record,Cash
+fake-003,2026-02-10,9.99,Education,Books,POC book,Synthetic test record,E-Transfer

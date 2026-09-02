@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Stage 2 Auth POC</title>
+  <style>
+    body { font: 16px/1.4 system-ui, sans-serif; margin: 2rem auto; max-width: 960px; padding: 0 1rem; }
+    button, input, select { font: inherit; margin: 0.25rem; padding: 0.45rem; }
+    fieldset { margin: 1rem 0; }
+    label { display: inline-block; margin: 0.25rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #bbb; padding: 0.4rem; text-align: left; }
+    #status[data-state="error"] { color: #a00; }
+    #status[data-state="authorized"] { color: #075; }
+    pre { background: #f4f4f4; overflow: auto; padding: 0.75rem; white-space: pre-wrap; }
+  </style>
+  <script src="config.js" defer></script>
+  <script src="app.js" defer></script>
+  <script
+    src="https://accounts.google.com/gsi/client"
+    async
+    defer
+    onload="window.stage2AuthPoc && window.stage2AuthPoc.initializeGoogle()"
+  ></script>
+</head>
+<body>
+  <h1>Stage 2 Authentication POC</h1>
+  <p>This page operates only on the isolated fake-data test backend.</p>
+
+  <section aria-labelledby="authentication-heading">
+    <h2 id="authentication-heading">Authentication</h2>
+    <button id="authorizeButton" type="button">Authorize with Google</button>
+    <button id="clearTokenButton" type="button" disabled>Sign out and clear token</button>
+    <p id="status" data-state="waiting" role="status">Waiting for configuration.</p>
+  </section>
+
+  <section aria-labelledby="actions-heading">
+    <h2 id="actions-heading">Fake transaction actions</h2>
+    <button id="readButton" type="button" disabled>Read fake expenses</button>
+
+    <fieldset id="expenseFields" disabled>
+      <legend>Add, update, or delete a fake expense</legend>
+
+      <label>
+        Record ID (required for update/delete)
+        <input id="recordId" autocomplete="off">
+      </label>
+
+      <label>
+        Date
+        <input id="date" type="date" value="2026-02-15">
+      </label>
+
+      <label>
+        Cost
+        <input id="cost" type="number" min="0.01" step="0.01" value="12.34">
+      </label>
+
+      <label>
+        Bucket
+        <select id="bucket">
+          <option>Play</option>
+          <option>Necessity</option>
+          <option>Small Business</option>
+          <option>Education</option>
+          <option>Giving</option>
+        </select>
+      </label>
+
+      <label>
+        Category
+        <input id="category" value="Eating Out" autocomplete="off">
+      </label>
+
+      <label>
+        Item
+        <input id="item" value="POC test item" autocomplete="off">
+      </label>
+
+      <label>
+        Notes
+        <input id="notes" value="Synthetic data only" autocomplete="off">
+      </label>
+
+      <label>
+        Payment method
+        <select id="paymentMethod">
+          <option>Cash</option>
+          <option>E-Transfer</option>
+          <option>Credit Card</option>
+          <option>Other</option>
+        </select>
+      </label>
+
+      <div>
+        <button id="addButton" type="button">Add fake expense</button>
+        <button id="updateButton" type="button">Update fake expense</button>
+        <button id="deleteButton" type="button">Delete fake expense</button>
+      </div>
+    </fieldset>
+  </section>
+
+  <section aria-labelledby="results-heading">
+    <h2 id="results-heading">Results</h2>
+    <pre id="messageOutput">No API calls made.</pre>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Date</th>
+          <th>Cost</th>
+          <th>Bucket</th>
+          <th>Category</th>
+          <th>Item</th>
+          <th>Notes</th>
+          <th>Payment Method</th>
+        </tr>
+      </thead>
+      <tbody id="expenseRows"></tbody>
+    </table>
+  </section>
+</body>
+</html>
