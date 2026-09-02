@@ -541,7 +541,7 @@ function addExpense(expense) {
 
 
     const cost =
-      Number(
+      normalizeMoney_(
         expense.cost
       );
 
@@ -665,7 +665,7 @@ function updateExpense(expense) {
 
 
     const cost =
-      Number(
+      normalizeMoney_(
         expense.cost
       );
 
@@ -880,15 +880,17 @@ function validateExpense(expense) {
   }
 
 
-  const cost =
-    Number(
+  const costInCents =
+    moneyToCents_(
       expense.cost
     );
 
 
   if (
-    !Number.isFinite(cost) ||
-    cost <= 0
+    !Number.isSafeInteger(
+      costInCents
+    ) ||
+    costInCents <= 0
   ) {
 
     throw new Error(
@@ -951,6 +953,63 @@ function validateExpense(expense) {
     );
 
   }
+
+}
+
+
+/* =========================================
+   MONEY NORMALIZATION
+========================================= */
+
+function moneyToCents_(value) {
+
+  const amount =
+    Number(value);
+
+
+  if (
+    !Number.isFinite(amount)
+  ) {
+
+    return NaN;
+
+  }
+
+
+  const parts =
+    String(amount)
+      .split('e');
+
+
+  const cents =
+    Math.round(
+      Number(
+        parts[0] +
+        'e' +
+        (
+          Number(parts[1] || 0) +
+          2
+        )
+      )
+    );
+
+
+  return Number.isSafeInteger(cents)
+    ? cents
+    : NaN;
+
+}
+
+
+function normalizeMoney_(value) {
+
+  const cents =
+    moneyToCents_(value);
+
+
+  return Number.isSafeInteger(cents)
+    ? cents / 100
+    : NaN;
 
 }
 
@@ -1029,7 +1088,10 @@ function parseExpenseDate(
   if (
     isNaN(
       date.getTime()
-    )
+    ) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
   ) {
 
     throw new Error(

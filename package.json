@@ -1,0 +1,11 @@
+{
+  "name": "personal-finance-assets",
+  "private": true,
+  "scripts": {
+    "check": "node --check apps-script/Code.js && node tests/check-client-syntax.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
