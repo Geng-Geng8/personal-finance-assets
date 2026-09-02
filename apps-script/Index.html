@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('Styles'); ?>
+</head>
+
+<body>
+
+  <!-- =========================================
+       EXPENSES VIEW
+  ========================================== -->
+
+  <div class="app-shell" id="expensesView">
+
+    <header class="top-bar">
+
+      <div>
+        <p class="eyebrow">PERSONAL FINANCE</p>
+        <h1>Expenses</h1>
+      </div>
+
+      <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh expenses">
+        <svg viewBox="0 0 24 24">
+          <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"></path>
+        </svg>
+      </button>
+
+    </header>
+
+
+    <!-- MONTH SUMMARY -->
+
+    <section class="summary-card">
+
+      <div class="summary-top">
+
+        <span id="summaryPeriod">
+          This month
+        </span>
+
+        <span class="live-pill">
+          <span class="live-dot"></span>
+          Live
+        </span>
+
+      </div>
+
+
+      <div class="summary-amount" id="summaryTotal">
+        $0.00
+      </div>
+
+
+      <div class="summary-footer">
+
+        <div>
+
+          <span class="summary-label">
+            Transactions
+          </span>
+
+          <strong id="summaryTransactions">
+            0
+          </strong>
+
+        </div>
+
+
+        <div>
+
+          <span class="summary-label">
+            Average
+          </span>
+
+          <strong id="summaryAverage">
+            $0.00
+          </strong>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- SEARCH -->
+
+    <section class="search-section">
+
+      <div class="search-row">
+
+        <div class="search-box">
+
+          <svg viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-4-4"></path>
+          </svg>
+
+          <input type="search" id="searchInput" placeholder="Search expenses" autocomplete="off">
+
+          <button id="clearSearchButton" class="clear-search hidden" type="button" aria-label="Clear search">
+            ×
+          </button>
+
+        </div>
+
+
+        <button class="filter-button" id="openFiltersButton" type="button">
+
+          <svg viewBox="0 0 24 24">
+            <path d="M4 6h16M7 12h10M10 18h4"></path>
+          </svg>
+
+          <span>Filters</span>
+
+          <span class="filter-count hidden" id="filterCount">
+            0
+          </span>
+
+        </button>
+
+      </div>
+
+
+      <div class="active-filters hidden" id="activeFilters"></div>
+
+    </section>
+
+
+    <!-- LIST HEADING -->
+
+    <section class="section-heading">
+
+      <div>
+
+        <h2>Expenses</h2>
+
+        <p id="expenseCount">
+          Loading...
+        </p>
+
+      </div>
+
+
+      <button class="clear-all-button hidden" id="clearAllFiltersButton" type="button">
+        Clear filters
+      </button>
+
+    </section>
+
+
+    <!-- LOADING -->
+
+    <div class="loading-state" id="loadingState">
+      <div class="spinner"></div>
+      <p>Loading your expenses...</p>
+    </div>
+
+
+    <!-- EMPTY -->
+
+    <div class="empty-state hidden" id="emptyState">
+
+      <div class="empty-icon">
+        $
+      </div>
+
+      <h3 id="emptyTitle">
+        No expenses found
+      </h3>
+
+      <p id="emptyMessage">
+        Try changing your filters.
+      </p>
+
+    </div>
+
+
+    <main class="expense-list" id="expenseList"></main>
+
+
+    <div class="bottom-spacer"></div>
+
+  </div>
+
+
+
+  <!-- =========================================
+       INSIGHTS VIEW
+  ========================================== -->
+
+  <div class="app-shell hidden" id="insightsView">
+
+    <header class="top-bar">
+
+      <div>
+        <p class="eyebrow">PERSONAL FINANCE</p>
+        <h1>Insights</h1>
+      </div>
+
+
+      <button class="icon-button" id="refreshInsightsButton" type="button" aria-label="Refresh insights">
+        <svg viewBox="0 0 24 24">
+          <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"></path>
+        </svg>
+      </button>
+
+    </header>
+
+
+    <!-- INSIGHTS PERIOD CONTROLS -->
+
+    <section class="insight-filter-card">
+
+      <div class="insight-filter-heading">
+
+        <div>
+
+          <span class="small-label">
+            VIEWING
+          </span>
+
+          <strong id="insightPeriodLabel">
+            All spending
+          </strong>
+
+        </div>
+
+
+        <button id="resetInsightFiltersButton" class="reset-link" type="button">
+          Reset
+        </button>
+
+      </div>
+
+
+      <div class="period-help">
+
+        Choose a quick range or select a year and month.
+
+      </div>
+
+
+      <div class="insight-filter-grid">
+
+        <div class="quick-range-field">
+
+          <label for="insightDateRange">
+            Quick Range
+          </label>
+
+          <select id="insightDateRange" class="filter-select">
+
+            <option value="all">
+              All dates
+            </option>
+
+            <option value="7">
+              Last 7 days
+            </option>
+
+            <option value="30">
+              Last 30 days
+            </option>
+
+            <option value="this_month">
+              This month
+            </option>
+
+            <option value="this_year">
+              This year
+            </option>
+
+            <option value="custom">
+              Custom range
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <div>
+
+          <label for="insightYear">
+            Year
+          </label>
+
+          <select id="insightYear" class="filter-select">
+
+            <option value="">
+              All years
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <div>
+
+          <label for="insightMonth">
+            Month
+          </label>
+
+          <select id="insightMonth" class="filter-select" disabled="">
+
+            <option value="">
+              All months
+            </option>
+
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+
+          </select>
+
+        </div>
+
+      </div>
+
+
+      <div class="custom-insight-range hidden" id="customInsightRange">
+
+        <div>
+
+          <label for="insightStartDate">
+            Start date
+          </label>
+
+          <input type="date" id="insightStartDate" class="filter-select">
+
+        </div>
+
+
+        <div>
+
+          <label for="insightEndDate">
+            End date
+          </label>
+
+          <input type="date" id="insightEndDate" class="filter-select">
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- METRICS -->
+
+    <section class="metric-grid">
+
+      <article class="metric-card metric-primary">
+
+        <span>
+          Total Spent
+        </span>
+
+        <strong id="insightTotal">
+          $0.00
+        </strong>
+
+      </article>
+
+
+      <article class="metric-card">
+
+        <span>
+          Transactions
+        </span>
+
+        <strong id="insightTransactions">
+          0
+        </strong>
+
+      </article>
+
+
+      <article class="metric-card">
+
+        <span>
+          Average
+        </span>
+
+        <strong id="insightAverage">
+          $0.00
+        </strong>
+
+      </article>
+
+    </section>
+
+
+    <!-- MONTHLY TREND -->
+
+    <section class="chart-card">
+
+      <div class="chart-heading">
+
+        <div>
+
+          <span class="small-label">
+            TREND
+          </span>
+
+          <h2>
+            Monthly Spending
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="trend-chart" id="monthlyTrendChart"></div>
+
+    </section>
+
+
+    <!-- BUCKET -->
+
+    <section class="chart-card">
+
+      <div class="chart-heading">
+
+        <div>
+
+          <span class="small-label">
+            BREAKDOWN
+          </span>
+
+          <h2>
+            Spending by Bucket
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="donut-layout">
+
+        <div id="bucketDonut" class="donut-container"></div>
+
+        <div id="bucketLegend" class="chart-legend"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- CATEGORY -->
+
+    <section class="chart-card">
+
+      <div class="chart-heading">
+
+        <div>
+
+          <span class="small-label">
+            BREAKDOWN
+          </span>
+
+          <h2>
+            Spending by Category
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="donut-layout">
+
+        <div id="categoryDonut" class="donut-container"></div>
+
+        <div id="categoryLegend" class="chart-legend"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- PAYMENT -->
+
+    <section class="chart-card">
+
+      <div class="chart-heading">
+
+        <div>
+
+          <span class="small-label">
+            BREAKDOWN
+          </span>
+
+          <h2>
+            Spending by Payment Method
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="donut-layout">
+
+        <div id="paymentDonut" class="donut-container"></div>
+
+        <div id="paymentLegend" class="chart-legend"></div>
+
+      </div>
+
+    </section>
+
+
+    <div class="bottom-spacer"></div>
+
+  </div>
+
+
+
+  <!-- =========================================
+       BOTTOM NAVIGATION
+  ========================================== -->
+
+  <nav class="bottom-nav">
+
+    <button class="nav-item active" id="expensesNavButton" type="button">
+
+      <svg viewBox="0 0 24 24">
+        <path d="M5 5h14M5 12h14M5 19h14"></path>
+      </svg>
+
+      <span>Expenses</span>
+
+    </button>
+
+
+    <button class="add-fab" id="addExpenseButton" type="button" aria-label="Add expense">
+      +
+    </button>
+
+
+    <button class="nav-item" id="insightsButton" type="button">
+
+      <svg viewBox="0 0 24 24">
+        <path d="M4 19V9M10 19V5M16 19v-7M22 19V2"></path>
+      </svg>
+
+      <span>Insights</span>
+
+    </button>
+
+  </nav>
+
+
+
+  <!-- =========================================
+       EXPENSE FILTER SHEET
+  ========================================== -->
+
+  <div class="sheet-backdrop hidden" id="filterBackdrop"></div>
+
+
+  <section class="filter-sheet hidden" id="filterSheet">
+
+    <div class="sheet-handle"></div>
+
+
+    <div class="sheet-header">
+
+      <div>
+
+        <p class="eyebrow">
+          EXPENSES
+        </p>
+
+        <h2>
+          Filters
+        </h2>
+
+      </div>
+
+
+      <button class="editor-close" id="closeFiltersButton" type="button">
+        ×
+      </button>
+
+    </div>
+
+
+    <div class="filter-section">
+
+      <div class="field-heading">
+        <label>Bucket</label>
+      </div>
+
+      <div class="choice-grid" id="filterBucketChoices"></div>
+
+    </div>
+
+
+    <div class="filter-section">
+
+      <div class="field-heading">
+        <label>Category</label>
+      </div>
+
+      <div class="choice-grid" id="filterCategoryChoices"></div>
+
+    </div>
+
+
+    <div class="filter-section">
+
+      <div class="field-heading">
+        <label>Payment Method</label>
+      </div>
+
+      <div class="choice-grid" id="filterPaymentChoices"></div>
+
+    </div>
+
+
+    <div class="filter-section">
+
+      <label class="text-field-label" for="dateRangeFilter">
+        Date Range
+      </label>
+
+      <select class="filter-select" id="dateRangeFilter">
+
+        <option value="all">
+          All dates
+        </option>
+
+        <option value="7">
+          Last 7 days
+        </option>
+
+        <option value="30">
+          Last 30 days
+        </option>
+
+        <option value="this_month">
+          This month
+        </option>
+
+        <option value="this_year">
+          This year
+        </option>
+
+        <option value="custom">
+          Custom range
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <div class="custom-date-range hidden" id="customDateRange">
+
+      <div class="field-card">
+
+        <label for="startDateFilter">
+          Start date
+        </label>
+
+        <input type="date" id="startDateFilter">
+
+      </div>
+
+
+      <div class="field-card">
+
+        <label for="endDateFilter">
+          End date
+        </label>
+
+        <input type="date" id="endDateFilter">
+
+      </div>
+
+    </div>
+
+
+    <div class="filter-two-column">
+
+      <div>
+
+        <label class="text-field-label" for="monthFilter">
+          Month
+        </label>
+
+        <select class="filter-select" id="monthFilter">
+
+          <option value="">
+            All months
+          </option>
+
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+
+        </select>
+
+      </div>
+
+
+      <div>
+
+        <label class="text-field-label" for="yearFilter">
+          Year
+        </label>
+
+        <select class="filter-select" id="yearFilter">
+          <option value="">
+            All years
+          </option>
+        </select>
+
+      </div>
+
+    </div>
+
+
+    <div class="filter-actions">
+
+      <button class="secondary-button" id="resetFiltersButton" type="button">
+        Reset Filters
+      </button>
+
+
+      <button class="primary-button" id="doneFiltersButton" type="button">
+        Done
+      </button>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- =========================================
+       ADD / EDIT EXPENSE
+       V2.1 PREMIUM MOBILE ENTRY
+  ========================================== -->
+
+  <div class="sheet-backdrop hidden" id="editorBackdrop"></div>
+
+
+  <section class="editor-sheet hidden" id="editorSheet">
+
+    <div class="sheet-handle"></div>
+
+
+    <!-- FIXED HEADER -->
+
+    <div class="editor-header premium-editor-header">
+
+      <button
+        class="editor-close"
+        id="closeEditorButton"
+        type="button"
+        aria-label="Close expense editor"
+      >
+        ×
+      </button>
+
+
+      <div class="premium-editor-heading">
+
+        <p class="eyebrow">
+          TRANSACTION
+        </p>
+
+        <h2 id="editorTitle">
+          Add Expense
+        </h2>
+
+        <p class="editor-subtitle">
+          Quick, simple, and organized
+        </p>
+
+      </div>
+
+
+      <div class="header-placeholder"></div>
+
+    </div>
+
+
+    <!-- FORM -->
+
+    <form id="expenseForm" class="editor-form premium-expense-form">
+
+      <div class="editor-scroll premium-editor-scroll">
+
+        <input type="hidden" id="expenseId">
+
+
+        <!-- COST HERO -->
+
+        <section class="entry-card cost-entry-card">
+
+          <label class="cost-hero-label" for="cost">
+            COST
+          </label>
+
+          <div class="cost-hero-control">
+
+            <span class="cost-currency" aria-hidden="true">
+              $
+            </span>
+
+            <input
+              class="cost-hero-input"
+              type="number"
+              id="cost"
+              min="0.01"
+              step="0.01"
+              inputmode="decimal"
+              placeholder="0.00"
+              autocomplete="off"
+              required
+            >
+
+          </div>
+
+          <p class="cost-helper">
+            Tap the amount to enter your expense
+          </p>
+
+        </section>
+
+
+        <!-- PAYMENT METHOD -->
+
+        <section class="entry-card entry-choice-card">
+
+          <div class="premium-field-heading">
+
+            <div>
+              <span class="entry-step">1</span>
+              <label>Payment Method</label>
+            </div>
+
+            <span class="required-label">
+              Required
+            </span>
+
+          </div>
+
+          <div class="payment-grid premium-payment-grid" id="paymentChoices"></div>
+
+        </section>
+
+
+        <!-- BUCKET -->
+
+        <section class="entry-card entry-choice-card">
+
+          <div class="premium-field-heading">
+
+            <div>
+              <span class="entry-step">2</span>
+              <label>Bucket</label>
+            </div>
+
+            <span class="required-label">
+              Required
+            </span>
+
+          </div>
+
+          <div class="choice-grid premium-bucket-grid" id="bucketChoices"></div>
+
+        </section>
+
+
+        <!-- CATEGORY -->
+
+        <section class="entry-card entry-choice-card">
+
+          <div class="premium-field-heading">
+
+            <div>
+              <span class="entry-step">3</span>
+              <label>Category</label>
+            </div>
+
+            <span class="required-label">
+              Required
+            </span>
+
+          </div>
+
+          <div class="choice-grid premium-category-grid" id="categoryChoices"></div>
+
+        </section>
+
+
+        <!-- DATE -->
+
+        <section class="entry-card compact-entry-card">
+
+          <label class="premium-control-label" for="date">
+            Date
+          </label>
+
+          <div class="premium-input-shell date-input-shell">
+
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path>
+            </svg>
+
+            <input type="date" id="date" required>
+
+          </div>
+
+        </section>
+
+
+        <!-- ITEM -->
+
+        <section class="entry-card compact-entry-card">
+
+          <label class="premium-control-label" for="item">
+            Item
+          </label>
+
+          <div class="premium-input-shell">
+
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 13 13 20 4 11V4h7l9 9Z"></path>
+              <circle cx="8" cy="8" r="1.25"></circle>
+            </svg>
+
+            <input
+              type="text"
+              id="item"
+              placeholder="What did you spend on?"
+              autocomplete="off"
+              required
+            >
+
+          </div>
+
+        </section>
+
+
+        <!-- NOTES -->
+
+        <section class="entry-card compact-entry-card notes-entry-card">
+
+          <div class="premium-control-label-row">
+
+            <label class="premium-control-label" for="notes">
+              Notes
+            </label>
+
+            <span>
+              Optional
+            </span>
+
+          </div>
+
+          <div class="premium-input-shell premium-textarea-shell">
+
+            <textarea
+              id="notes"
+              placeholder="Add a note..."
+              rows="3"
+            ></textarea>
+
+          </div>
+
+        </section>
+
+
+        <div class="form-error hidden" id="formError"></div>
+
+        <div class="editor-scroll-end-space" aria-hidden="true"></div>
+
+      </div>
+
+
+      <!-- ALWAYS VISIBLE -->
+
+      <div class="editor-actions premium-editor-actions">
+
+        <button
+          class="primary-button save-expense-button"
+          type="submit"
+          id="saveButton"
+        >
+          Save Expense
+        </button>
+
+
+        <button
+          class="danger-button hidden"
+          type="button"
+          id="deleteEditorButton"
+        >
+          Delete Expense
+        </button>
+
+      </div>
+
+    </form>
+
+  </section>
+
+
+  <!-- TOAST -->
+
+  <div class="toast hidden" id="toast"></div>
+
+
+  <?!= include('JavaScript'); ?>
+
+
+</body></html>
