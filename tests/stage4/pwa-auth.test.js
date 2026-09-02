@@ -374,3 +374,22 @@ test("existing production config contains no secrets or device keys", () => {
   assert.doesNotMatch(config, /PERSONAL_APP_DEVICE_KEY/);
   assert.doesNotMatch(config, /[a-f0-9]{64}/i);
 });
+
+// 23. device key field uses proper wrapper, password input, button type, and font size
+test("device key field structure satisfies accessibility and layout requirements", () => {
+  const html = read("index.html");
+  assert.match(html, /<div class="device-key-field">/);
+  assert.match(html, /<input type="password" id="deviceKeyInput"/);
+  assert.match(html, /<button type="button" id="toggleKeyVisibility"/);
+
+  const css = read("styles.css");
+  assert.match(css, /\.device-key-input\s*\{[^}]*font-size:\s*16px/);
+  assert.doesNotMatch(css, /\.auth-card button\s*\{/, "auth-card button must be scoped to primary-button");
+});
+
+// 24. key toggle button is constrained and has sufficient input padding
+test("key toggle button is constrained and has sufficient input padding", () => {
+  const css = read("styles.css");
+  assert.match(css, /\.device-key-input\s*\{[^}]*padding:\s*0 72px 0 14px/);
+  assert.match(css, /width:\s*auto\s*!important/);
+});

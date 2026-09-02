@@ -429,36 +429,58 @@
     showDeviceSetupScreenFn = showSetup;
     hideAuthGateFn = hideAuthGate;
 
-    if (deviceKeyInput) {
-      deviceKeyInput.addEventListener("input", function() {
-        const val = deviceKeyInput.value.trim();
-        if (financeApi.isValidKeyFormat(val)) {
-          saveDeviceKeyButton.disabled = false;
+    function validateInputKey() {
+      if (!deviceKeyInput) return;
+      const val = deviceKeyInput.value.trim();
+      if (financeApi.isValidKeyFormat(val)) {
+        if (saveDeviceKeyButton) saveDeviceKeyButton.disabled = false;
+        if (deviceSetupStatus) {
           deviceSetupStatus.textContent = "Valid key format. Click Set Up Device to link.";
           deviceSetupStatus.dataset.state = "authorized";
-        } else if (!val) {
-          saveDeviceKeyButton.disabled = true;
+        }
+      } else if (!val) {
+        if (saveDeviceKeyButton) saveDeviceKeyButton.disabled = true;
+        if (deviceSetupStatus) {
           deviceSetupStatus.textContent = "Enter your private key once to link this device.";
           deviceSetupStatus.dataset.state = "waiting";
-        } else {
-          saveDeviceKeyButton.disabled = true;
+        }
+      } else {
+        if (saveDeviceKeyButton) saveDeviceKeyButton.disabled = true;
+        if (deviceSetupStatus) {
           deviceSetupStatus.textContent = "Key must be 64 hexadecimal characters.";
           deviceSetupStatus.dataset.state = "waiting";
         }
+      }
+    }
+
+    if (deviceKeyInput) {
+      deviceKeyInput.addEventListener("input", validateInputKey);
+      deviceKeyInput.addEventListener("paste", function() {
+        setTimeout(function() {
+          if (deviceKeyInput) {
+            deviceKeyInput.value = deviceKeyInput.value.trim();
+            validateInputKey();
+          }
+        }, 0);
       });
     }
 
     if (toggleKeyVisibility && deviceKeyInput) {
-      toggleKeyVisibility.addEventListener("click", function() {
+      toggleKeyVisibility.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
         if (deviceKeyInput.type === "password") {
           deviceKeyInput.type = "text";
           toggleKeyVisibility.textContent = "Hide";
+          toggleKeyVisibility.setAttribute("aria-label", "Hide key");
         } else {
           deviceKeyInput.type = "password";
           toggleKeyVisibility.textContent = "Show";
+          toggleKeyVisibility.setAttribute("aria-label", "Show key");
         }
       });
     }
+
 
     if (saveDeviceKeyButton) {
       saveDeviceKeyButton.addEventListener("click", function() {
