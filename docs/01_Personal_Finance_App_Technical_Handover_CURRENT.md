@@ -11,7 +11,7 @@ Last Updated: 2026-09-03
 
 Personal Finance is a private, single-owner, mobile-first Progressive Web App for recording expenses, reviewing spending patterns, and making wealth decisions. The installed frontend is served by GitHub Pages. It sends authenticated JSON envelopes by `POST` to a Google Apps Script Web App. Apps Script validates an owner-only device key held in browser `localStorage`, then reads or writes the production Google Sheet. Google Sheets remains both the database and calculation engine.
 
-The current production release is Phase 2B: Reserve Management is complete, deployed, and production-validated alongside Phase 2A manual account editing. The next likely product phase is current-month reserve rollover / month targeting.
+The current production release is National Bank Wealth Editing (FHSA, RRSP, and TFSA-USD raw USD editing with automatic CAD conversion) in production alongside Phase 2B Reserve Management and Phase 2A account editing. The next likely product phase is current-month reserve rollover / month targeting.
 
 ## Production identity
 
@@ -20,17 +20,19 @@ The current production release is Phase 2B: Reserve Management is complete, depl
 | Repository | [Geng-Geng8/personal-finance-assets](https://github.com/Geng-Geng8/personal-finance-assets) |
 | Production PWA | [GitHub Pages production](https://geng-geng8.github.io/personal-finance-assets/) |
 | Branch | `main` |
-| Phase 2B application release SHA | `4679eb5f837ed0eda4777716bf99a385967cc138` (docs commits may advance `main` without changing deployed application code) |
-| Phase 2B branch | `phase-2b-reserve-management` merged into `main` |
+| National Bank Wealth Editing release SHA | `b07fd32764e8f75bb3a80a10d07a4e28bf915838` (docs commits may advance `main` without changing deployed application code) |
+| National Bank Wealth Editing branch | `wealth-national-bank-editing` merged into `main` |
+| Historical Phase 2B application release SHA | `4679eb5f837ed0eda4777716bf99a385967cc138` |
+| Historical Phase 2B branch | `phase-2b-reserve-management` merged into `main` |
 | Historical Phase 2A application release SHA | `ba6a252e96d4aa779c381c082f211e1851c45d6f` |
 | Historical Phase 2A branch | `stage-7-wealth-account-editing` merged into `main` |
 | Pre-Phase-2A rollback branch | `pre-phase-2a-wealth-edit-production` |
 | Pre-Phase-2A production SHA | `9cb076cc2bcf62f7b5c29d225bb9da1638939b30` |
 | Historical Stage 6 rollback branch | `pre-stage-6-wealth-production` (`6c57290f3496cc44d06febc3284ee94e3259958f`) |
 | Production Apps Script project | Script ID `1RHBFF7H5Vqnlh97Gt4KuIt_NdBRYgfGCCDTK2zmkMBNbgUtLybxwR4CF` |
-| Production Apps Script version | Version 31 — `Phase 2B Reserve Management Production Candidate` |
+| Production Apps Script version | Version 32 — `Phase 2C National Bank Wealth Editing Production Candidate` |
 | Production Web App deployment | `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` |
-| Preserved Apps Script versions | 20, 22, 23, 28 (prior Stage 6 rollback), 30 (prior Phase 2A rollback), 31 |
+| Preserved Apps Script versions | 20, 22, 23, 28 (prior Stage 6 rollback), 30 (prior Phase 2A rollback), 31 (prior Phase 2B rollback), 32 |
 | Production spreadsheet | `2026 Buckets Budget` |
 
 The Apps Script version label and historical version list are owner-confirmed production state; Git alone cannot prove deployment version numbers. The Web App deployment ID is also present in current `config.js`.
@@ -122,7 +124,9 @@ Wealth supports authenticated read and approved single-account editing. `getWeal
 
 The returned object contains `availableCash`, `tfsa`, `fhsa`, `rrsp`, `crypto`, `totalInvested`, `taxReserve`, `incomeTaxCppReserve`, `emergencyFund`, `totalCash`, `accounts`, and `updatedAt`.
 
-Phase 2A established an authoritative server-owned whitelist of exactly **nine approved manual accounts**:
+The authoritative server-owned whitelist contains **twelve approved editable accounts**:
+
+Nine original Phase 2A standard CAD accounts:
 - `eq_tfsa` (H17 / I17, `EQ-TFSA`)
 - `wealthsimple_tfsa` (H18 / I18, `WEALTHSIMPLE- TFSA`)
 - `national_bank_tfsa` (H19 / I19, `National Bank TFSA`)
@@ -133,12 +137,12 @@ Phase 2A established an authoritative server-owned whitelist of exactly **nine a
 - `eq_geng_cash` (H27 / I27, `EQ - Geng-Cash`)
 - `td_savings` (H28 / I28, `TD - Sav`)
 
-Non-editable accounts remain strictly read-only:
-- `national_bank_fhsa` (I20) — manual input, but read-only because J14 is not formula-linked.
-- `national_bank_tfsa_usd` (I21) — formula-driven currency conversion; writes permanently prohibited.
-- `national_bank_rrsp` (I22) — manual input, but read-only because K14 is not formula-linked.
+Three production-validated National Bank accounts:
+- `national_bank_fhsa`: H20 = account identity. Writes manual CAD balance in I20 only. J14 is formula-driven by `=I20`. The server verifies that J14 contains the approved formula `=I20` and that I20 contains no formula before permitting the write. J14 is never directly written.
+- `national_bank_rrsp`: H22 = account identity. Writes manual CAD balance in I22 only. K14 is formula-driven by `=I22`. The server verifies that K14 contains the approved formula `=I22` and that I22 contains no formula before permitting the write. K14 is never directly written.
+- `national_bank_tfsa_usd`: H21 = account identity. Split input/output account: writes manual raw USD balance in J21 only. Display balance I21 is formula-driven by `=J21*GOOGLEFINANCE("CURRENCY:USDCAD")`. The server verifies that I21 contains the approved GOOGLEFINANCE formula and that J21 contains no formula before permitting the write. I21 is never directly writable. In the frontend, the card displays CAD from I21 while editing pre-fills raw USD from J21 (`editCurrency = USD`, labeled `USD Balance`). Live CAD balance updates automatically as Google Finance currency rates refresh.
 
-Writes use `updateWealthAccountBalance` with payload `{ accountId, balance }`. The server validates authorization, allowlists the ID, enforces maximum 2 decimal places (between 0.00 and 1,000,000,000.00), verifies the live target cell is not a formula, matches the expected account name in column H, and executes within `LockService.getScriptLock(10000)`. After the single-cell write, Apps Script rereads `getWealth()` and returns the full fresh object. The frontend updates local state and cache only on confirmed success.
+Writes use `updateWealthAccountBalance` with payload `{ accountId, balance }`. The server validates authorization, allowlists the ID, enforces maximum 2 decimal places (between 0.00 and 1,000,000,000.00), verifies that any required formula cells match their exact approved formulas, verifies that the target write cell is not a formula, matches the expected account name in column H, and executes within `LockService.getScriptLock(10000)`. After the single-cell write, Apps Script flushes Sheet recalculations, rereads `getWealth()`, and returns the full fresh object. The frontend updates local state and cache only on confirmed success. Client topology injections (custom sheet, range, cell, row, formula, or FX rate) are strictly rejected.
 
 Phase 2B established protected reserve management via `updateWealthReserve` with payload `{ reserveId, operation, amount }`:
 - Authoritative reserve write targets:
@@ -176,38 +180,39 @@ See `03_Google_Sheet_Data_Model.md` for the complete cell mapping and formula re
 
 ## Rollback strategy
 
-The primary Phase 2B rollback targets:
+The primary National Bank Wealth Editing rollback targets:
 
-- Apps Script deployment rollback: edit the existing Web App deployment `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` to point to preserved **Version 30** (`Phase 2A Wealth Account Editing Production Candidate`).
-- Frontend rollback: use a reviewed revert commit for the frontend targeting `5513e933733ed5930de3e21bbd6ae2aa5e227ef5` (pre-Phase-2B `main` base) or `ba6a252e96d4aa779c381c082f211e1851c45d6f` (Phase 2A application release SHA). Do not reset shared `main`.
+- Apps Script deployment rollback: edit the existing Web App deployment `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` to point to preserved **Version 31** (`Phase 2B Reserve Management Production Candidate`) or **Version 30** (`Phase 2A Wealth Account Editing Production Candidate`).
+- Frontend rollback: use a reviewed revert commit for the frontend targeting `72dd8210240a64006a77ef299ed965faddd6f583` (pre-National-Bank `main` base) or `4679eb5f837ed0eda4777716bf99a385967cc138` (Phase 2B application release SHA). Do not reset shared `main`.
 
 Historical checkpoints preserved for depth:
 - `pre-phase-2a-wealth-edit-production` at `9cb076cc2bcf62f7b5c29d225bb9da1638939b30` with Version 28.
 - `pre-stage-6-wealth-production` at `6c57290f3496cc44d06febc3284ee94e3259958f` with Version 23.
-- Historical immutable Apps Script versions: 20, 22, 23, 28, 30, 31.
+- Historical immutable Apps Script versions: 20, 22, 23, 28, 30, 31, 32.
 
-Do not reset shared history. Use a reviewed revert commit for GitHub Pages and edit the **existing** Apps Script Web App deployment to a preserved immutable version (Version 30 for Phase 2B rollback).
+Do not reset shared history. Use a reviewed revert commit for GitHub Pages and edit the **existing** Apps Script Web App deployment to a preserved immutable version (Version 31 for immediate rollback).
 
 ## Test baseline and current verification
 
-- Phase 2B release record: **166 / 166 automated tests passed** (including 25 dedicated Stage 8 reserve-management tests, 39 Stage 7 balance-editing tests, and all prior safety/auth suites).
+- National Bank Wealth Editing release record: **194 / 194 automated tests passed** (including 21 dedicated Stage 7 National Bank tests, 39 Stage 7 balance-editing tests, 25 Stage 8 reserve-management tests, and all prior safety/auth suites).
+- Phase 2B release record: **166 / 166 automated tests passed** (historical baseline).
 - Phase 2A release record: **141 / 141 automated tests passed** (historical baseline).
 - Stage 6 release record: **102 / 102 automated tests passed** (historical baseline).
-- Phase 2B validation record:
-  - 25/25 focused Phase 2B tests passed
-  - 166/166 full automated tests passed
-  - Apps Script Version 31 deployed to the existing production Web App
-  - non-mutating production security/read checks passed
-  - owner verified Expenses and Wealth loaded normally
-  - one reversible production September Tax Reserve write passed
-  - exact original source value was restored
-  - N14 and H14 returned to baseline
-  - no synthetic value remained in production
-- Historical Phase 2A non-production integration gate: verified against dedicated Apps Script test deployment and synthetic spreadsheet (all 9 accounts tested, formula overwrite protection verified, LockService serialization verified, and test project purged).
+- Production validation record:
+  - Apps Script Version 32 deployed to the existing production Web App deployment
+  - GitHub Pages deployed from commit `b07fd32764e8f75bb3a80a10d07a4e28bf915838`
+  - Non-mutating production read and metadata checks verified: all 12 accounts returned, FHSA/RRSP/TFSA-USD editable, TFSA-USD balance is CAD, TFSA-USD editValue is USD, editCurrency is USD
+  - Three minimal reversible production writes passed:
+    1. National Bank FHSA: I20 changed by +$0.01, J14 followed automatically, Total Invested recalculated, exact original I20 value restored, baseline preserved
+    2. National Bank RRSP: I22 changed by +$0.01, K14 followed automatically, Total Invested recalculated, exact original I22 value restored, baseline preserved
+    3. National Bank TFSA-USD: J21 raw USD balance changed by +$0.01 USD, I21 GOOGLEFINANCE formula recalculation verified, exact original J21 USD value restored, baseline preserved
+  - Available Cash remained unchanged across all investment write validations
+  - Dependent formulas (`J14`, `K14`, `I21`, `H14`, `M14`, `N14`, `O14`) verified intact
+  - No synthetic value remained in production
 
 ## Current status and immediate next phase
 
-**Production:** Phase 2B Reserve Management is complete and live in production (Apps Script Version 31, application release commit `4679eb5f837ed0eda4777716bf99a385967cc138`).
+**Production:** National Bank Wealth Editing is complete, deployed, and live in production (Apps Script Version 32, application release commit `b07fd32764e8f75bb3a80a10d07a4e28bf915838`).
 **Active Next Phase:** Current-month reserve rollover / month targeting (solution not yet defined or implemented).
 
 ## Known constraints and discrepancies

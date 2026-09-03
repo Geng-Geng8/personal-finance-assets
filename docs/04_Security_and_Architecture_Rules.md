@@ -41,9 +41,9 @@ The words **MUST**, **MUST NOT**, **REQUIRED**, and **PROHIBITED** are binding f
 22. Every Wealth write target MUST exist in an explicit server-side whitelist. Absence from the whitelist means read-only.
 23. Formula cells MUST be protected. The server MUST inspect the live target for a formula before every write and MUST reject formula targets even if a stale configuration marks them editable.
 24. Summary cells are read-only unless a separate approved phase explicitly identifies them as safe source inputs.
-25. I21 (`National Bank TFSA-USD`) is formula-driven and MUST remain read-only.
-26. Phase 2A MUST initially exclude I20 and I22 until their J14/K14 summary dependencies are intentionally resolved.
-27. Reserve editing is excluded from Phase 2A.
+25. I21 (`National Bank TFSA-USD`) is formula-driven and MUST NEVER be written directly. In Phase 2C, editing writes manual raw USD to J21 while I21 remains the protected GOOGLEFINANCE formula display cell.
+26. I20 and I22 are editable in Phase 2C only with strict summary formula guards verifying J14 (`=I20`) and K14 (`=I22`) remain intact before and inside lock. J14 and K14 MUST NEVER be directly written.
+27. Reserve editing is excluded from Phase 2A (released in Phase 2B).
 
 ## Financial mutation integrity
 

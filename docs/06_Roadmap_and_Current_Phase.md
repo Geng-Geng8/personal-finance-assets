@@ -9,7 +9,7 @@ Last Updated: 2026-09-03
 
 ## Current baseline
 
-Phase 2B Reserve Management is in production at application release commit `4679eb5f837ed0eda4777716bf99a385967cc138` (on `main`; docs commits advance `main` without altering application code) and Apps Script Version 31. The release record is 166/166 automated tests passed (restoring and expanding coverage from Phase 2A's 141/141 baseline and Stage 6's historical 102/102 baseline).
+National Bank Wealth Editing is in production at application release commit `b07fd32764e8f75bb3a80a10d07a4e28bf915838` (on `main`; docs commits advance `main` without altering application code) and Apps Script Version 32. The release record is 194/194 automated tests passed (expanding coverage from Phase 2B's 166/166 baseline, Phase 2A's 141/141 baseline, and Stage 6's historical 102/102 baseline).
 
 ## Phase 2A: editable approved manual Wealth accounts (COMPLETE / PRODUCTION)
 
@@ -40,12 +40,12 @@ COMPLETE / PRODUCTION. Released to production with Apps Script Version 30 and Ph
 - Replace frontend Wealth state and cache only after success.
 - Add focused automated, UI, security, test-deployment, and reversible production validation.
 
-**Not in scope**
+**Not in scope for initial Phase 2A (historical note: resolved in Phase 2B and 2C)**
 
-- I20 National Bank FHSA until J14 dependency is resolved.
-- I22 National Bank RRSP until K14 dependency is resolved.
-- I21 National Bank TFSA-USD, which is formula-driven.
-- Tax Reserve, Income Tax / CPP Reserve, or Emergency Fund editing.
+- I20 National Bank FHSA (released in Phase 2C with J14 formula `=I20`).
+- I22 National Bank RRSP (released in Phase 2C with K14 formula `=I22`).
+- I21 National Bank TFSA-USD (released in Phase 2C with J21 raw USD input and I21 GOOGLEFINANCE conversion).
+- Tax Reserve, Income Tax / CPP Reserve, or Emergency Fund editing (released in Phase 2B).
 - Crypto editing.
 - Account creation, deletion, renaming, or reordering.
 - Arbitrary Sheet/cell APIs.
@@ -111,6 +111,21 @@ COMPLETE / PRODUCTION. Released to production with Apps Script Version 31 and Ph
   - Target cell must be verified non-formula before and inside `LockService.getScriptLock(10000)`.
   - Dependent formulas must remain valid; success returns a full authoritative reread via `getWealth()`.
 - Known intentional limitation: Reserve source editing is hard-coded to September 2026 (`N10` / `O10`) for this release.
+
+## Phase 2C: National Bank Wealth Editing (COMPLETE / PRODUCTION)
+
+**Goal**
+Enable safe editing for National Bank FHSA (I20), National Bank RRSP (I22), and National Bank TFSA-USD (J21 raw USD input with automatic CAD conversion via GOOGLEFINANCE).
+
+**Status**
+COMPLETE / PRODUCTION. Released to production with Apps Script Version 32 and application release commit `b07fd32764e8f75bb3a80a10d07a4e28bf915838`. Authoritative whitelist expanded to twelve accounts. 194/194 automated tests passed. Three minimal reversible production writes passed (+0.01 FHSA, +0.01 RRSP, +0.01 USD TFSA-USD), all dependent recalculations verified, exact original source values restored, Available Cash unaffected, and no synthetic values remaining.
+
+**Production API contract**
+- Action: `updateWealthAccountBalance`
+- Client payload: `{ accountId, balance }`
+- National Bank FHSA: writes I20 only; J14 formula guard `=I20` enforced before and inside lock.
+- National Bank RRSP: writes I22 only; K14 formula guard `=I22` enforced before and inside lock.
+- National Bank TFSA-USD: writes J21 raw USD only; I21 formula guard `=J21*GOOGLEFINANCE("CURRENCY:USDCAD")` enforced before and inside lock; I21 never directly writable; frontend displays CAD from I21 and edits USD via J21 with `editCurrency = USD`.
 
 ## NEXT — Current-month reserve rollover / month targeting (NEXT PRODUCT PHASE)
 

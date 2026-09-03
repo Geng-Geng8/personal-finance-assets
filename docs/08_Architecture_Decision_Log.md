@@ -120,3 +120,13 @@ All decisions below are **Accepted** unless explicitly marked otherwise.
 **Reason:** Allows the owner to manage reserve movements and set-asides directly from the Wealth UI while strictly protecting Sheet formulas, preventing negative reserve obligations, avoiding client-directed cell coordinates, and preserving authoritative Available Cash calculations.
 **Consequences:** Protected reserves are editable with granular operation semantics; arbitrary cell/sheet writes and direct formula overwrites remain blocked. N14, O14, and H14 remain formula-driven and read-only. Apps Script Version 31 deployed; Phase 2B application release commit `4679eb5f837ed0eda4777716bf99a385967cc138` deployed; Version 30 preserved as immediate rollback version. Current-month rollover and dynamic month targeting are deferred to the next phase.
 **Do Not Reconsider Unless:** A future phase introduces dynamic calendar-month resolution or rollover rules that alter source cell mapping.
+
+## ADR-017 — Phase 2C National Bank Wealth editing and split USD/CAD topology
+
+**Decision:** Expand the `updateWealthAccountBalance` allowlist to twelve accounts by adding `national_bank_fhsa` (I20), `national_bank_rrsp` (I22), and `national_bank_tfsa_usd` (J21 raw USD input). Enforce strict formula guards:
+1. `national_bank_fhsa`: writes I20 only; enforces J14 summary formula `=I20` and confirms I20 has no formula before and inside `LockService`. J14 is never directly written.
+2. `national_bank_rrsp`: writes I22 only; enforces K14 summary formula `=I22` and confirms I22 has no formula before and inside `LockService`. K14 is never directly written.
+3. `national_bank_tfsa_usd`: split input/output architecture; writes manual raw USD balance to J21 only; enforces I21 conversion formula `=J21*GOOGLEFINANCE("CURRENCY:USDCAD")` and confirms J21 has no formula before and inside `LockService`. I21 is never directly writable. In the frontend, the card displays CAD from I21 while editing pre-fills raw USD from J21 (`editCurrency = USD`, labeled `USD Balance`).
+**Reason:** Resolves the historical manual summary gap for FHSA/RRSP and embedded constant gap for TFSA-USD safely in the Sheet without client-side FX computation, preserving authoritative Sheet recalculation and preventing formula overwrites.
+**Consequences:** FHSA, RRSP, and TFSA-USD are editable from the PWA. Production Apps Script Version 32 deployed; application release commit `b07fd32764e8f75bb3a80a10d07a4e28bf915838` deployed; Version 31 preserved as immediate rollback version.
+**Do Not Reconsider Unless:** A future structural modification alters the National Bank row layout or Google Finance formula in the production Sheet.

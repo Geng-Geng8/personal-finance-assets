@@ -11,23 +11,30 @@ Last Updated: 2026-09-03
 
 | Item | Baseline |
 | --- | --- |
-| Phase 2B application release SHA | `4679eb5f837ed0eda4777716bf99a385967cc138` (docs commits may advance `main` without changing deployed application code) |
-| Production Apps Script | Version 31 — Phase 2B Reserve Management Production Candidate |
+| National Bank Wealth Editing release SHA | `b07fd32764e8f75bb3a80a10d07a4e28bf915838` (docs commits may advance `main` without changing deployed application code) |
+| Production Apps Script | Version 32 — Phase 2C National Bank Wealth Editing Production Candidate |
 | Production Web App | Existing deployment `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` |
-| Phase 2B release result | 166 / 166 automated tests passed (including 25 dedicated Stage 8 reserve-management tests) |
-| Pre-Phase-2B rollback | Version 30 (`Phase 2A Wealth Account Editing Production Candidate`) / commit `5513e933733ed5930de3e21bbd6ae2aa5e227ef5` |
-| Preserved Apps Script versions | 20, 22, 23, 28 (prior Stage 6 rollback), 30 (prior Phase 2A rollback), 31 |
+| Release test result | 194 / 194 automated tests passed (including 21 dedicated National Bank tests, 39 Stage 7 tests, 25 Stage 8 tests) |
+| Immediate rollback target | Version 31 (`Phase 2B Reserve Management Production Candidate`) / commit `72dd8210240a64006a77ef299ed965faddd6f583` |
+| Historical Phase 2B baseline | 166 / 166 automated tests passed (`4679eb5f837ed0eda4777716bf99a385967cc138` / Version 31) |
 | Historical Phase 2A baseline | 141 / 141 automated tests passed (`ba6a252e96d4aa779c381c082f211e1851c45d6f` / Version 30) |
 | Historical Stage 6 baseline | 102 / 102 automated tests passed (`pre-stage-6-wealth-production` at `6c57290f3496cc44d06febc3284ee94e3259958f` / Version 28) |
+| Preserved Apps Script versions | 20, 22, 23, 28, 30, 31, 32 |
 
-Phase 2B validation status:
-- 25/25 focused Phase 2B tests passed
-- 166/166 full automated tests passed (`npm run check` and `npm test`)
-- Apps Script Version 31 deployed to the existing production Web App
-- Non-mutating production security/read checks passed
-- Owner verified Expenses and Wealth loaded normally
-- One reversible production September Tax Reserve write passed: September Tax source (N10) increased by $0.01, N14 and H14 recalculated correctly, exact original source value was restored, N14 and H14 returned to baseline, and no synthetic value remained in production
-- Historical Phase 2A non-production integration gate: passed on synthetic spreadsheet `1hM8q7JhuZbUmQjJC5Mwx78vC5YBVSOVI6hTOlYmOyDc` and dedicated test Apps Script deployment (all 9 accounts mutated, formula protection verified, LockService verified, test project purged)
+National Bank Wealth Editing validation status:
+- 21/21 focused National Bank tests passed
+- 194/194 full automated tests passed (`npm run check` and `npm test`)
+- Apps Script Version 32 deployed to the existing production Web App deployment
+- Non-mutating production security, read, and metadata checks passed (12 accounts returned, FHSA/RRSP/TFSA-USD editable, USD/CAD split verified)
+- GitHub Pages deployed from commit `b07fd32764e8f75bb3a80a10d07a4e28bf915838`
+- Three minimal reversible production writes passed:
+  1. National Bank FHSA: I20 increased by +$0.01, J14 followed automatically, Total Invested recalculated, exact original I20 value restored, baseline preserved
+  2. National Bank RRSP: I22 increased by +$0.01, K14 followed automatically, Total Invested recalculated, exact original I22 value restored, baseline preserved
+  3. National Bank TFSA-USD: J21 raw USD balance increased by +$0.01 USD, I21 GOOGLEFINANCE formula recalculation verified, exact original J21 USD value restored, baseline preserved
+- Available Cash remained completely unaffected by these investment-only validations
+- Dependent formulas (`J14 = '=I20'`, `K14 = '=I22'`, `I21 = '=J21*GOOGLEFINANCE("CURRENCY:USDCAD")'`, `H14`, `M14`, `N14`, `O14`) verified intact
+- No synthetic value remained in production
+- Historical Phase 2B reversible September Tax write and Phase 2A non-production integration gate preserved as validation benchmarks
 
 ## Environment distinctions
 
