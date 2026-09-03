@@ -674,3 +674,32 @@ test("17. HTML contains editAllocationsBtn and manageAllocationsModal", () => {
   assert.ok(html.includes('id="saveAllocationsButton"'));
 });
 
+test("18. HTML and CSS contain editSingleBucketModal and card pointer states", () => {
+  const html = fs.readFileSync(path.join(repoRoot, "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8");
+
+  assert.ok(html.includes('id="editSingleBucketModal"'));
+  assert.ok(html.includes('id="singleBucketAmountInput"'));
+  assert.ok(html.includes('id="saveSingleBucketButton"'));
+  assert.ok(html.includes('id="cancelSingleBucketButton"'));
+
+  // Play and secondary editable cards have pointer cursor
+  assert.ok(css.includes(".play-hero-card") && css.includes("cursor: pointer"));
+  assert.ok(css.includes(".bucket-card-business") && css.includes("cursor: pointer"));
+
+  // Necessity card has cursor: default
+  assert.ok(css.includes(".bucket-card-necessity"));
+  assert.ok(css.includes("cursor: default"));
+});
+
+test("19. app.js wires single bucket modal and card click handlers", () => {
+  const appJs = fs.readFileSync(path.join(repoRoot, "app.js"), "utf8");
+
+  assert.ok(appJs.includes('openSingleBucketModal("play")'));
+  assert.ok(appJs.includes('openSingleBucketModal("smallBusiness")'));
+  assert.ok(appJs.includes('openSingleBucketModal("education")'));
+  assert.ok(appJs.includes('openSingleBucketModal("giving")'));
+  assert.ok(appJs.includes('saveSingleBucketAllocation'));
+});
+
+

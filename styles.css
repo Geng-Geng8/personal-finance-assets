@@ -598,7 +598,13 @@
     padding: 16px 18px;
     margin-bottom: 10px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-    transition: transform 150ms ease, box-shadow 150ms ease;
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+  }
+
+  .play-hero-card:hover {
+    border-color: var(--bucket-play-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   }
 
   .play-hero-card:active {
@@ -682,11 +688,36 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    transition: transform 150ms ease, box-shadow 150ms ease;
+    transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
   }
 
-  .secondary-bucket-card:active {
+  /* Editable secondary bucket cards */
+  .bucket-card-business,
+  .bucket-card-education,
+  .bucket-card-giving {
+    cursor: pointer;
+  }
+
+  .bucket-card-business:hover,
+  .bucket-card-education:hover,
+  .bucket-card-giving:hover {
+    border-color: var(--border-strong, #cbd5e1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  }
+
+  .bucket-card-business:active,
+  .bucket-card-education:active,
+  .bucket-card-giving:active {
     transform: scale(0.985);
+  }
+
+  /* Necessity card remains strictly non-clickable */
+  .bucket-card-necessity {
+    cursor: default;
+  }
+
+  .bucket-card-necessity:active {
+    transform: none;
   }
 
   .secondary-bucket-top {

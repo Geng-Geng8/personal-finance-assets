@@ -1623,6 +1623,43 @@
     </div>
   </section>
 
+  <!-- =========================================
+       EDIT SINGLE BUCKET MODAL
+  ========================================== -->
+
+  <div class="sheet-backdrop hidden" id="editSingleBucketBackdrop"></div>
+
+  <section class="editor-sheet wealth-edit-sheet hidden" id="editSingleBucketModal" role="dialog" aria-modal="true" aria-labelledby="singleBucketTitle">
+    <div class="sheet-handle"></div>
+
+    <div class="editor-header premium-editor-header">
+      <button class="editor-close" id="closeSingleBucketButton" type="button" aria-label="Close bucket editor">×</button>
+      <div class="premium-editor-heading">
+        <p class="eyebrow" id="singleBucketEyebrow">SPENDING BUCKET</p>
+        <h3 id="singleBucketTitle" class="wealth-edit-account-name">Edit Allocation</h3>
+      </div>
+    </div>
+
+    <div class="wealth-edit-sheet-content reserve-manager-content">
+      <p class="reserve-operation-help" id="singleBucketHelp" style="margin-bottom: 12px;">Update monthly budget allocation for this bucket.</p>
+
+      <div class="wealth-edit-field">
+        <label for="singleBucketAmountInput" class="wealth-edit-label" id="singleBucketInputLabel">Allocation</label>
+        <div class="wealth-edit-input-box">
+          <span class="wealth-edit-currency-symbol">$</span>
+          <input type="number" step="0.01" min="0" max="1000000" id="singleBucketAmountInput" class="wealth-edit-native-input" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+
+      <div id="singleBucketError" class="wealth-edit-error-banner hidden" role="alert"></div>
+
+      <div class="editor-actions wealth-edit-actions-footer">
+        <button type="button" id="cancelSingleBucketButton" class="ghost-button">Cancel</button>
+        <button type="button" id="saveSingleBucketButton" class="primary-button wealth-save-balance-btn">Save Allocation</button>
+      </div>
+    </div>
+  </section>
+
 
   <!-- TOAST -->
 

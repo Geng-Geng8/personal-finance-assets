@@ -1030,6 +1030,134 @@
     }
   }
 
+  /* =========================================
+     STAGE 3 SINGLE BUCKET ALLOCATION EDITING
+  ========================================= */
+
+  let activeSingleBucketKey = null;
+
+  const BUCKET_METADATA = {
+    play: { title: "Edit Play Allocation", label: "Play Allocation" },
+    smallBusiness: { title: "Edit Small Business Allocation", label: "Small Business Allocation" },
+    education: { title: "Edit Education Allocation", label: "Education Allocation" },
+    giving: { title: "Edit Giving Allocation", label: "Giving Allocation" }
+  };
+
+  function openSingleBucketModal(bucketKey) {
+    if (typeof document === "undefined") return;
+    if (!BUCKET_METADATA[bucketKey]) return;
+
+    activeSingleBucketKey = bucketKey;
+    const meta = BUCKET_METADATA[bucketKey];
+
+    const modal = document.getElementById("editSingleBucketModal");
+    const backdrop = document.getElementById("editSingleBucketBackdrop");
+    const titleEl = document.getElementById("singleBucketTitle");
+    const labelEl = document.getElementById("singleBucketInputLabel");
+    const input = document.getElementById("singleBucketAmountInput");
+    const errBanner = document.getElementById("singleBucketError");
+
+    if (titleEl) titleEl.textContent = meta.title;
+    if (labelEl) labelEl.textContent = meta.label;
+    if (errBanner) {
+      errBanner.textContent = "";
+      errBanner.classList.add("hidden");
+    }
+
+    let currentVal = currentSpendingBuckets ? currentSpendingBuckets[bucketKey] : null;
+    if (currentVal == null) {
+      const snapshot = loadSpendingBucketsFromCache();
+      if (snapshot) currentVal = snapshot[bucketKey];
+    }
+
+    if (input) {
+      input.value = currentVal != null ? currentVal : "";
+    }
+
+    if (backdrop) backdrop.classList.remove("hidden");
+    if (modal) modal.classList.remove("hidden");
+
+    if (input) {
+      setTimeout(() => {
+        try { input.focus(); input.select(); } catch (_) {}
+      }, 50);
+    }
+  }
+
+  function closeSingleBucketModal() {
+    if (typeof document === "undefined") return;
+
+    activeSingleBucketKey = null;
+    const modal = document.getElementById("editSingleBucketModal");
+    const backdrop = document.getElementById("editSingleBucketBackdrop");
+    const errBanner = document.getElementById("singleBucketError");
+
+    if (backdrop) backdrop.classList.add("hidden");
+    if (modal) modal.classList.add("hidden");
+    if (errBanner) {
+      errBanner.textContent = "";
+      errBanner.classList.add("hidden");
+    }
+  }
+
+  async function saveSingleBucketAllocation() {
+    if (typeof document === "undefined" || !activeSingleBucketKey) return;
+
+    const input = document.getElementById("singleBucketAmountInput");
+    const saveBtn = document.getElementById("saveSingleBucketButton");
+    const errBanner = document.getElementById("singleBucketError");
+
+    const newVal = input && input.value !== "" ? parseFloat(input.value) : 0;
+    if (isNaN(newVal) || newVal < 0) {
+      if (errBanner) {
+        errBanner.textContent = "Please enter a valid non-negative number.";
+        errBanner.classList.remove("hidden");
+      }
+      return;
+    }
+
+    const current = currentSpendingBuckets || loadSpendingBucketsFromCache() || {};
+    const payload = {
+      play: activeSingleBucketKey === "play" ? newVal : (current.play ?? 0),
+      smallBusiness: activeSingleBucketKey === "smallBusiness" ? newVal : (current.smallBusiness ?? 0),
+      education: activeSingleBucketKey === "education" ? newVal : (current.education ?? 0),
+      giving: activeSingleBucketKey === "giving" ? newVal : (current.giving ?? 0)
+    };
+
+    const origText = saveBtn ? saveBtn.textContent : "Save Allocation";
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving...";
+    }
+    if (errBanner) {
+      errBanner.textContent = "";
+      errBanner.classList.add("hidden");
+    }
+
+    try {
+      const result = await financeApi.updateSpendingBuckets(payload);
+
+      if (result && typeof result === "object" && result.play !== undefined) {
+        currentSpendingBuckets = result;
+        saveSpendingBucketsToCache(result);
+        renderSpendingBuckets(result);
+      }
+
+      closeSingleBucketModal();
+      showToast("Allocation updated.");
+    } catch (err) {
+      if (errBanner) {
+        errBanner.textContent = err && err.message ? err.message : "Failed to save allocation.";
+        errBanner.classList.remove("hidden");
+      }
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = origText;
+      }
+    }
+  }
+
   function renderWealthView(data) {
     if (!data || typeof document === "undefined") return;
 
@@ -2263,6 +2391,27 @@
     if (cancelAllocationsBtn) cancelAllocationsBtn.addEventListener("click", closeAllocationsModal);
     if (manageAllocationsBackdrop) manageAllocationsBackdrop.addEventListener("click", closeAllocationsModal);
     if (saveAllocationsBtn) saveAllocationsBtn.addEventListener("click", saveAllocations);
+
+    // Single bucket card click listeners
+    const playHeroCard = document.getElementById("playHeroCard");
+    const bucketCardBusiness = document.getElementById("bucketCardBusiness");
+    const bucketCardEducation = document.getElementById("bucketCardEducation");
+    const bucketCardGiving = document.getElementById("bucketCardGiving");
+
+    if (playHeroCard) playHeroCard.addEventListener("click", () => openSingleBucketModal("play"));
+    if (bucketCardBusiness) bucketCardBusiness.addEventListener("click", () => openSingleBucketModal("smallBusiness"));
+    if (bucketCardEducation) bucketCardEducation.addEventListener("click", () => openSingleBucketModal("education"));
+    if (bucketCardGiving) bucketCardGiving.addEventListener("click", () => openSingleBucketModal("giving"));
+
+    const closeSingleBucketBtn = document.getElementById("closeSingleBucketButton");
+    const cancelSingleBucketBtn = document.getElementById("cancelSingleBucketButton");
+    const saveSingleBucketBtn = document.getElementById("saveSingleBucketButton");
+    const singleBucketBackdrop = document.getElementById("editSingleBucketBackdrop");
+
+    if (closeSingleBucketBtn) closeSingleBucketBtn.addEventListener("click", closeSingleBucketModal);
+    if (cancelSingleBucketBtn) cancelSingleBucketBtn.addEventListener("click", closeSingleBucketModal);
+    if (singleBucketBackdrop) singleBucketBackdrop.addEventListener("click", closeSingleBucketModal);
+    if (saveSingleBucketBtn) saveSingleBucketBtn.addEventListener("click", saveSingleBucketAllocation);
 
     if (wealthReserveOperations) {
       wealthReserveOperations.addEventListener("click", function(e) {
