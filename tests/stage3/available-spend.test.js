@@ -720,5 +720,13 @@ test("21. app.js loads spending buckets cache-first and only re-renders on live 
   assert.ok(appJs.includes("renderSpendingBuckets(buckets)"));
 });
 
+test("22. styles.css @keyframes sheetSlideUp preserves horizontal centering with translate(-50%, ...)", () => {
+  const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8");
+
+  assert.ok(css.includes("transform: translate(-50%, 100%)"));
+  assert.ok(css.includes("transform: translate(-50%, 0)"));
+});
+
+
 
 

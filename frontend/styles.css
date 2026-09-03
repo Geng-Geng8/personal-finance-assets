@@ -3686,10 +3686,10 @@
 
   @keyframes sheetSlideUp {
     from {
-      transform: translateY(100%);
+      transform: translate(-50%, 100%);
     }
     to {
-      transform: translateY(0);
+      transform: translate(-50%, 0);
     }
   }
 
