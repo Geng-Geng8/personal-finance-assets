@@ -56,13 +56,13 @@ Classification terms:
 | N14 | Tax Reserve | FORMULA: `sum of N2:N13` | SUMMARY | READ ONLY (formula-protected; fed by N2:N13, active September 2026 input cell is N10) |
 | O14 | Income Tax / CPP Reserve | FORMULA: `sum of O2:O13` | SUMMARY | READ ONLY (formula-protected; fed by O2:O13, active September 2026 input cell is O10) |
 | P14 | Emergency Fund | MANUAL INPUT | SUMMARY / RESERVE | EDITABLE (replace only via `emergency_fund`) |
-| I29 | Total Cash | FORMULA: sum of I23:I28 | SUMMARY | READ ONLY |
+| I29 | Total Cash | FORMULA: `=SUM(I23:I28)+I30+I31+I32` | SUMMARY | READ ONLY (I30:I32 are included in the Sheet formula but not in the app whitelist) |
 
 `M14` excludes Crypto by design because it sums registered investment totals I14:K14. Crypto is read separately from L14 and displayed separately in the UI.
 
-## Individual account table: H17:I28
+## Individual account area: H17:J28
 
-The exact Sheet labels differ slightly from the normalized product names. The stable IDs below are the authoritative **Phase 2A production contract**, implemented in production with explicit stable logical IDs, live formula inspection, and editability metadata.
+The exact Sheet labels differ slightly from the normalized product names. The stable IDs below define the **current Wealth account editing contract**, expanding the original nine Phase 2A accounts into the current twelve-account production model with explicit stable logical IDs, live formula inspection, and editability metadata.
 
 | Cell | Exact Sheet label | Product display name | Stable logical ID | Cell type | Production status |
 | --- | --- | --- | --- | --- | --- |
@@ -93,7 +93,7 @@ flowchart TD
     I14 --> M14["M14 Total Invested"]
     J14 --> M14
     K14 --> M14
-    CASH["I23:I28 cash accounts"] --> I29["I29 Total Cash"]
+    CASH["I23:I28 + I30:I32 cash cells"] --> I29["I29 Total Cash (=SUM(I23:I28)+I30+I31+I32)"]
     N["N2:N13 tax inputs"] --> N14["N14 Tax Reserve"]
     O["O2:O13 income tax/CPP inputs"] --> O14["O14 Income Tax/CPP"]
     I29 --> H14["H14 Available Cash"]
@@ -106,7 +106,8 @@ P14 Emergency Fund also feeds H14 directly. `M14` is calculated from I14:K14.
 ## Known dependency gaps
 
 - Historically, J14 and K14 were manual summaries and I21 used an embedded constant. In the current release, all three are formula-resolved: J14 is formula-linked to I20 (`=I20`), K14 is formula-linked to I22 (`=I22`), and I21 is formula-driven by `=J21*GOOGLEFINANCE("CURRENCY:USDCAD")`.
-- L14 Crypto is a user-entered summary outside the H17:I28 account table; it remains read-only.
+- L14 Crypto is a user-entered summary outside the H17:J28 account area; it remains read-only.
+- I30:I32 are included in the production I29 Total Cash formula (`=SUM(I23:I28)+I30+I31+I32`), but are not currently part of the app account whitelist.
 - P14 Emergency Fund is an editable manual input cell in Phase 2B (direct balance replacement only).
 
 ## Wealth account editing server mapping
