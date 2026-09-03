@@ -1239,59 +1239,70 @@ function parseSheetNumber_(val) {
 const WEALTH_EDITABLE_WHITELIST = Object.freeze({
   eqTfsa: {
     id: "eqTfsa",
-    displayName: "EQ-TFSA",
-    cell: "I17"
+    expectedName: "EQ-TFSA",
+    nameCell: "H17",
+    balanceCell: "I17"
   },
   wealthsimpleTfsa: {
     id: "wealthsimpleTfsa",
-    displayName: "WEALTHSIMPLE- TFSA",
-    cell: "I18"
+    expectedName: "WEALTHSIMPLE- TFSA",
+    nameCell: "H18",
+    balanceCell: "I18"
   },
   nationalBankTfsa: {
     id: "nationalBankTfsa",
-    displayName: "National Bank TFSA",
-    cell: "I19"
+    expectedName: "National Bank TFSA",
+    nameCell: "H19",
+    balanceCell: "I19"
   },
   nationalBankFhsa: {
     id: "nationalBankFhsa",
-    displayName: "National Bank FHSA",
-    cell: "I20"
+    expectedName: "National Bank FHSA",
+    nameCell: "H20",
+    balanceCell: "I20"
   },
-  // nationalBankTfsaUsd (I21) contains formula =1800.57*1.36 and is strictly NOT editable
+  // nationalBankTfsaUsd (H21 / I21) contains formula =1800.57*1.36 and is strictly NOT editable
   nationalBankRrsp: {
     id: "nationalBankRrsp",
-    displayName: "National Bank RRSP",
-    cell: "I22"
+    expectedName: "National Bank RRSP",
+    nameCell: "H22",
+    balanceCell: "I22"
   },
   simpliiChe: {
     id: "simpliiChe",
-    displayName: "Simplii - Che",
-    cell: "I23"
+    expectedName: "Simplii - Che",
+    nameCell: "H23",
+    balanceCell: "I23"
   },
   simpliiSav: {
     id: "simpliiSav",
-    displayName: "Simplii - Sav",
-    cell: "I24"
+    expectedName: "Simplii - Sav",
+    nameCell: "H24",
+    balanceCell: "I24"
   },
   eqSav: {
     id: "eqSav",
-    displayName: "EQ - Sav",
-    cell: "I25"
+    expectedName: "EQ - Sav",
+    nameCell: "H25",
+    balanceCell: "I25"
   },
   eqBankCard: {
     id: "eqBankCard",
-    displayName: "EQ Bank Card",
-    cell: "I26"
+    expectedName: "EQ Bank Card",
+    nameCell: "H26",
+    balanceCell: "I26"
   },
   eqGengCash: {
     id: "eqGengCash",
-    displayName: "EQ - Geng-Cash",
-    cell: "I27"
+    expectedName: "EQ - Geng-Cash",
+    nameCell: "H27",
+    balanceCell: "I27"
   },
   tdSav: {
     id: "tdSav",
-    displayName: "TD - Sav",
-    cell: "I28"
+    expectedName: "TD - Sav",
+    nameCell: "H28",
+    balanceCell: "I28"
   }
 });
 
@@ -1348,10 +1359,14 @@ function getWealth() {
 
   const accounts = accountRows
     .map(function(row, idx) {
-      const name = String(row[0] || "").trim();
-      if (!name) return null;
+      const rowNumber = 17 + idx;
+      const currentNameCell = "H" + rowNumber;
+      const currentBalanceCell = "I" + rowNumber;
+      const rawName = String(row[0] || "");
+      const trimmedName = rawName.trim();
+      if (!trimmedName) return null;
       const balance = parseSheetNumber_(row[1]);
-      const lower = name.toLowerCase();
+      const lower = trimmedName.toLowerCase();
       const isInvestment = lower.includes("tfsa") ||
                            lower.includes("fhsa") ||
                            lower.includes("rrsp") ||
@@ -1359,14 +1374,20 @@ function getWealth() {
                            lower.includes("crypto") ||
                            lower.includes("stock") ||
                            lower.includes("brokerage");
-      const id = toAccountId_(name);
+      const id = toAccountId_(trimmedName);
       const formula = String((accountFormulas[idx] && accountFormulas[idx][1]) || "").trim();
       const hasFormula = formula.length > 0 && formula.startsWith("=");
-      const isEditable = !hasFormula && WEALTH_EDITABLE_WHITELIST.hasOwnProperty(id);
+
+      const whitelistEntry = WEALTH_EDITABLE_WHITELIST[id];
+      const isEditable = !hasFormula &&
+        Boolean(whitelistEntry) &&
+        currentBalanceCell === whitelistEntry.balanceCell &&
+        currentNameCell === whitelistEntry.nameCell &&
+        trimmedName === whitelistEntry.expectedName;
 
       return {
         id: id,
-        name: name,
+        name: trimmedName,
         balance: balance,
         type: isInvestment ? "investment" : "cash",
         isEditable: isEditable,
@@ -1444,9 +1465,16 @@ function updateWealthBalance(payload) {
 
   try {
     const sheet = getWealthSheet_();
-    const cellRange = sheet.getRange(target.cell);
 
-    // Double safety layer: formula protection
+    // Identity check: verify the live Sheet account name matches the whitelist expected name at target nameCell
+    const liveNameVal = sheet.getRange(target.nameCell).getValue();
+    const liveName = String(liveNameVal || "").trim();
+    if (liveName !== target.expectedName) {
+      throw new Error("Account mapping changed. Balance was not updated.");
+    }
+
+    // Formula protection check on target balance cell
+    const cellRange = sheet.getRange(target.balanceCell);
     const currentFormula = cellRange.getFormula();
     if (currentFormula && String(currentFormula).trim().length > 0) {
       throw new Error("This value is calculated automatically and cannot be edited.");

@@ -59,7 +59,7 @@ function loadBackendContext(customData = {}) {
     I28: ""
   }, customData.cellFormulas || {});
 
-  const accountRows = [
+  const defaultAccountRows = [
     ["EQ-TFSA", cellValues.I17],
     ["WEALTHSIMPLE- TFSA", cellValues.I18],
     ["National Bank TFSA", cellValues.I19],
@@ -73,6 +73,8 @@ function loadBackendContext(customData = {}) {
     ["EQ - Geng-Cash", cellValues.I27],
     ["TD - Sav", cellValues.I28]
   ];
+
+  const accountRows = customData.accountRows || defaultAccountRows;
 
   const accountFormulaRows = [
     ["", cellFormulas.I17],
@@ -91,6 +93,7 @@ function loadBackendContext(customData = {}) {
 
   let lockAcquired = false;
   let lockReleased = false;
+  let setValueCount = 0;
 
   const mockWealthSheet = {
     name: "2026-Budgets",
@@ -107,11 +110,22 @@ function loadBackendContext(customData = {}) {
           getFormulas: () => accountFormulaRows
         };
       }
+      if (rangeStr.startsWith("H")) {
+        const rowNum = parseInt(rangeStr.slice(1), 10);
+        const idx = rowNum - 17;
+        if (idx >= 0 && idx < accountRows.length) {
+          return {
+            getValue: () => accountRows[idx][0],
+            getFormula: () => ""
+          };
+        }
+      }
       if (cellValues.hasOwnProperty(rangeStr)) {
         return {
           getValue: () => cellValues[rangeStr],
           getFormula: () => cellFormulas[rangeStr] || "",
           setValue: (newVal) => {
+            setValueCount++;
             cellValues[rangeStr] = newVal;
           }
         };
@@ -164,7 +178,8 @@ function loadBackendContext(customData = {}) {
       })
     },
     _getLockState: () => ({ lockAcquired, lockReleased }),
-    _getCellValues: () => cellValues
+    _getCellValues: () => cellValues,
+    _getSetValueCount: () => setValueCount
   };
 
   const vm = require("node:vm");
@@ -183,6 +198,7 @@ test("1. valid manual account update accepted", () => {
   const lock = ctx._getLockState();
   assert.equal(lock.lockAcquired, true);
   assert.equal(lock.lockReleased, true);
+  assert.equal(ctx._getSetValueCount(), 1);
 });
 
 // 2. Authenticated update required via doPost
@@ -338,11 +354,12 @@ test("16. successful update returns refreshed Wealth object", () => {
   assert.ok(Array.isArray(res.wealth.accounts));
 });
 
-// 17. Failed update leaves frontend previous value intact
-test("17. failed update leaves frontend previous value intact", () => {
+// 17. Failed update leaves frontend previous value intact and uses exact safe failure message
+test("17. failed update leaves frontend previous value intact and uses exact safe failure message", () => {
   const appCode = read("app.js");
-  assert.match(appCode, /Balance wasn't updated\. Your previous value is unchanged/);
-  // Confirms no optimistic mutation before response
+  assert.match(appCode, /elError\.textContent = "Balance wasn't updated\. Your previous value is unchanged\.";/);
+  // Ensure raw err.message is NOT used to replace user-facing message
+  assert.doesNotMatch(appCode, /elError\.textContent = \(err && err\.message\)/);
   assert.match(appCode, /handleSaveWealthBalance/);
 });
 
@@ -367,4 +384,113 @@ test("20. Remove This Device still clears Wealth snapshot", () => {
   const appCode = read("app.js");
   assert.match(appCode, /removeWealthCache/);
   assert.match(appCode, /personalFinance\.wealthSnapshot/);
+});
+
+// 21. Normal approved account at its expected row remains editable
+test("21. normal approved account at its expected row remains editable", () => {
+  const ctx = loadBackendContext();
+  const wealth = ctx.getWealth();
+  const tdAccount = wealth.accounts.find(a => a.id === "tdSav");
+  assert.ok(tdAccount);
+  assert.equal(tdAccount.isEditable, true);
+  assert.equal(tdAccount.isFormula, false);
+});
+
+// 22. If two account rows are reordered, neither is marked editable in getWealth()
+test("22. if two account rows are reordered, neither is marked editable in getWealth()", () => {
+  // Swap row 27 (EQ - Geng-Cash) and row 28 (TD - Sav)
+  const reorderedRows = [
+    ["EQ-TFSA", 23222.82],
+    ["WEALTHSIMPLE- TFSA", 81141.10],
+    ["National Bank TFSA", 30985.47],
+    ["National Bank FHSA ", 33488.20],
+    ["National Bank TFSA-USD", 2448.78],
+    ["National Bank RRSP", 15527.88],
+    ["Simplii - Che", 400.00],
+    ["Simplii - Sav", 1000.00],
+    ["EQ - Sav", 30000.00],
+    ["EQ Bank Card", 205.00],
+    ["TD - Sav", 197.00], // Swapped into row 27 (H27)
+    ["EQ - Geng-Cash", 100.24] // Swapped into row 28 (H28)
+  ];
+
+  const ctx = loadBackendContext({ accountRows: reorderedRows });
+  const wealth = ctx.getWealth();
+
+  const tdAccount = wealth.accounts.find(a => a.id === "tdSav");
+  const gengCashAccount = wealth.accounts.find(a => a.id === "eqGengCash");
+
+  assert.ok(tdAccount);
+  assert.ok(gengCashAccount);
+
+  // Both must be marked read-only because their cells do not match whitelist coordinates
+  assert.equal(tdAccount.isEditable, false);
+  assert.equal(gengCashAccount.isEditable, false);
+});
+
+// 23. Backend rejects write if expected account name is no longer in whitelist's expected row
+test("23. backend rejects write if expected account name is no longer in whitelist's expected row", () => {
+  // Row 28 (H28) has "EQ - Geng-Cash" instead of "TD - Sav"
+  const reorderedRows = [
+    ["EQ-TFSA", 23222.82],
+    ["WEALTHSIMPLE- TFSA", 81141.10],
+    ["National Bank TFSA", 30985.47],
+    ["National Bank FHSA ", 33488.20],
+    ["National Bank TFSA-USD", 2448.78],
+    ["National Bank RRSP", 15527.88],
+    ["Simplii - Che", 400.00],
+    ["Simplii - Sav", 1000.00],
+    ["EQ - Sav", 30000.00],
+    ["EQ Bank Card", 205.00],
+    ["TD - Sav", 197.00],
+    ["EQ - Geng-Cash", 100.24]
+  ];
+
+  const ctx = loadBackendContext({ accountRows: reorderedRows });
+  assert.throws(() => {
+    ctx.updateWealthBalance({ accountId: "tdSav", balance: 250.00 });
+  }, /Account mapping changed\. Balance was not updated\./);
+});
+
+// 24. Backend performs zero setValue() calls when identity validation fails
+test("24. backend performs zero setValue() calls when identity validation fails", () => {
+  const reorderedRows = [
+    ["EQ-TFSA", 23222.82],
+    ["WEALTHSIMPLE- TFSA", 81141.10],
+    ["National Bank TFSA", 30985.47],
+    ["National Bank FHSA ", 33488.20],
+    ["National Bank TFSA-USD", 2448.78],
+    ["National Bank RRSP", 15527.88],
+    ["Simplii - Che", 400.00],
+    ["Simplii - Sav", 1000.00],
+    ["EQ - Sav", 30000.00],
+    ["EQ Bank Card", 205.00],
+    ["TD - Sav", 197.00],
+    ["EQ - Geng-Cash", 100.24]
+  ];
+
+  const ctx = loadBackendContext({ accountRows: reorderedRows });
+  assert.equal(ctx._getSetValueCount(), 0);
+
+  try {
+    ctx.updateWealthBalance({ accountId: "tdSav", balance: 250.00 });
+  } catch (_) {}
+
+  // Strictly verify zero writes performed
+  assert.equal(ctx._getSetValueCount(), 0);
+});
+
+// 25. I21 remains formula-driven and non-editable
+test("25. I21 remains formula-driven and non-editable", () => {
+  const ctx = loadBackendContext();
+  const wealth = ctx.getWealth();
+  const usdAccount = wealth.accounts.find(a => a.id === "nationalBankTfsaUsd");
+  assert.ok(usdAccount);
+  assert.equal(usdAccount.isEditable, false);
+  assert.equal(usdAccount.isFormula, true);
+
+  assert.throws(() => {
+    ctx.updateWealthBalance({ accountId: "nationalBankTfsaUsd", balance: 3000 });
+  }, /Invalid or non-editable account/);
+  assert.equal(ctx._getSetValueCount(), 0);
 });

@@ -1051,7 +1051,7 @@
         elSaveBtn.textContent = "Save Balance";
       }
       if (elError) {
-        elError.textContent = (err && err.message) || "Balance wasn't updated. Your previous value is unchanged.";
+        elError.textContent = "Balance wasn't updated. Your previous value is unchanged.";
         elError.classList.remove("hidden");
       }
     }
