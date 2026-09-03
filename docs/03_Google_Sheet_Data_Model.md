@@ -4,7 +4,7 @@ Last Updated: 2026-09-03
 # Personal Finance PWA — Google Sheet Data Model
 
 **Owner:** Glen Reyes  
-**Source of Truth:** Read-only inspection of the production spreadsheet `2026 Buckets Budget` on 2026-09-03, reconciled with Apps Script at main SHA `9cb076cc2bcf62f7b5c29d225bb9da1638939b30`.  
+**Source of Truth:** Read-only inspection of the production spreadsheet `2026 Buckets Budget` on 2026-09-03, reconciled with Apps Script at Phase 2B application release SHA `4679eb5f837ed0eda4777716bf99a385967cc138` (Apps Script Version 31).
 **Related master:** `01_Personal_Finance_App_Technical_Handover_CURRENT.md`
 
 This document describes structure and formula relationships. It intentionally excludes live balances, transaction rows, and the private spreadsheet ID.
@@ -51,11 +51,11 @@ Classification terms:
 | I14 | Total TFSA | FORMULA referencing L17 | SUMMARY | READ ONLY |
 | J14 | Total FHSA | MANUAL INPUT | SUMMARY | READ ONLY; dependency decision required |
 | K14 | Total RRSP | MANUAL INPUT | SUMMARY | READ ONLY; dependency decision required |
-| L14 | Total Crypto | MANUAL INPUT | SUMMARY | READ ONLY in Phase 2A |
+| L14 | Total Crypto | MANUAL INPUT | SUMMARY | READ ONLY in Phase 2A/2B |
 | M14 | Total Invested | FORMULA: sum of I14:K14 | SUMMARY | READ ONLY |
-| N14 | Tax Reserve | FORMULA: sum of N2:N13 | SUMMARY | READ ONLY; Phase 2B only |
-| O14 | Income Tax / CPP Reserve | FORMULA: sum of O2:O13 | SUMMARY | READ ONLY; Phase 2B only |
-| P14 | Emergency Fund | MANUAL INPUT | SUMMARY / RESERVE | READ ONLY; Phase 2B only |
+| N14 | Tax Reserve | FORMULA: `sum of N2:N13` | SUMMARY | READ ONLY (formula-protected; fed by N2:N13, active September 2026 input cell is N10) |
+| O14 | Income Tax / CPP Reserve | FORMULA: `sum of O2:O13` | SUMMARY | READ ONLY (formula-protected; fed by O2:O13, active September 2026 input cell is O10) |
+| P14 | Emergency Fund | MANUAL INPUT | SUMMARY / RESERVE | EDITABLE (replace only via `emergency_fund`) |
 | I29 | Total Cash | FORMULA: sum of I23:I28 | SUMMARY | READ ONLY |
 
 `M14` excludes Crypto by design because it sums registered investment totals I14:K14. Crypto is read separately from L14 and displayed separately in the UI.
@@ -102,7 +102,7 @@ P14 Emergency Fund also feeds H14 directly. `M14` is calculated from I14:K14.
 - J14 is currently a user-entered numeric summary; it is not formula-linked to I20.
 - K14 is currently a user-entered numeric summary; it is not formula-linked to I22.
 - L14 Crypto is a user-entered summary outside the H17:I28 account table.
-- P14 Emergency Fund is a user-entered reserve summary, but Phase 2B must inspect the intended source/input workflow before enabling edits.
+- P14 Emergency Fund is an editable manual input cell in Phase 2B (direct balance replacement only).
 
 Do not paper over these gaps by calculating totals in frontend JavaScript. Either deliberately establish/approve Sheet formulas or keep the affected account inputs read-only.
 
@@ -134,10 +134,49 @@ Before every write, the server must:
 
 The client must replace its Wealth state and cache only with that returned object. No aggressive optimistic update.
 
+## Phase 2B reserve management mapping
+
+The browser sends:
+
+```json
+{
+  "reserveId": "tax_reserve_2026_09",
+  "operation": "add",
+  "amount": 150.00
+}
+```
+
+Authoritative server-side reserve targets:
+
+| Stable logical ID | Exact Sheet cell | Reserve type | Approved operations | Write rule |
+| --- | --- | --- | --- | --- |
+| `tax_reserve_2026_09` | N10 | Tax Reserve (September 2026) | `add`, `pay`, `replace` | Manual input; cannot make total negative |
+| `income_tax_cpp_reserve_2026_09` | O10 | Income Tax / CPP (September 2026) | `add`, `pay`, `replace` | Manual input; cannot make total negative |
+| `emergency_fund` | P14 | Emergency Fund | `replace` only | Manual input; cannot be negative |
+
+Strictly protected formula/read-only cells:
+- `N14`: `=SUM(N2:N13)` (Tax Reserve summary; never writable)
+- `O14`: `=SUM(O2:O13)` (Income Tax / CPP summary; never writable)
+- `H14`: `=I29-P14-N14-O14` (Available Cash summary; never writable)
+
+Before every reserve write, the server must:
+
+1. Authenticate the POST device key.
+2. Reject unknown or non-editable reserve IDs.
+3. Verify the operation is permitted for the target reserve (`replace` only for `emergency_fund`; `add`/`pay`/`replace` for tax reserves).
+4. Validate numeric input (finite, positive for add/pay, maximum two decimal places).
+5. Resolve the target cell from the server-side whitelist (`N10`, `O10`, `P14`).
+6. Inspect the live target cell and reject if it contains a formula.
+7. Inspect dependent formula cells (`N14`, `O14`, `H14`) and reject if any formula is altered or missing.
+8. Enforce the non-negative policy: the operation must not cause the projected authoritative reserve total to drop below zero.
+9. Acquire `LockService.getScriptLock(10000)`.
+10. Recheck the target formula state inside the lock.
+11. Write the single approved cell.
+12. Flush and let the Sheet recalculate.
+13. Call `getWealth()` and return the complete authoritative fresh Wealth object.
+
+Known intentional limitation: Reserve source editing is hard-coded to September 2026 (`N10` / `O10`) in this release. Current-month rollover and dynamic month targeting are deferred to the next phase.
+
 ## Time-zone note
 
 The production spreadsheet reports `America/New_York`; `apps-script/appsscript.json` reports `America/Toronto`. The current backend formats expense dates using the spreadsheet time zone. This discrepancy is documented, not resolved. Audit both settings before any date/time behavior change.
-
-## Phase 2B boundary
-
-Tax Reserve, Income Tax / CPP Reserve, and Emergency Fund are not Phase 2A account edits. Phase 2B must inspect the intended input cells, formulas, monthly allocation model, and preservation rules before proposing any reserve write API.

@@ -104,7 +104,7 @@ All decisions below are **Accepted** unless explicitly marked otherwise.
 
 **Decision:** Meaningful releases create a rollback branch, a new immutable Apps Script version, and an update to the existing production Web App deployment.  
 **Reason:** Frontend and backend can fail independently; both need fast, known-good recovery while keeping the endpoint stable.  
-**Consequences:** Release records must pair Git SHA, Apps Script version, deployment ID, tests, and smoke results. Versions 20, 22, 23, 28 (prior Stage 6 rollback), and 30 remain preserved.  
+**Consequences:** Release records must pair Git SHA, Apps Script version, deployment ID, tests, and smoke results. Versions 20, 22, 23, 28 (prior Stage 6 rollback), 30 (prior Phase 2A rollback), and 31 remain preserved.
 **Do Not Reconsider Unless:** A replacement deployment platform provides equal traceability, immutability, and rollback safety.
 
 ## ADR-015 — Phase 2A approved manual account editing contract
@@ -113,3 +113,10 @@ All decisions below are **Accepted** unless explicitly marked otherwise.
 **Reason:** Restricting mutations to verified manual cells with known formula dependencies eliminates formula overwrite risks, prevents client-driven sheet topology injection, and guarantees downstream dependent recalculation consistency.  
 **Consequences:** Only server-allowlisted accounts are editable; arbitrary cell/sheet writes are completely blocked. Summary metrics and formula cells cannot be targeted. Production Apps Script Version 30 deployed; rollback branch `pre-phase-2a-wealth-edit-production` at `9cb076cc2bcf62f7b5c29d225bb9da1638939b30` preserved.  
 **Do Not Reconsider Unless:** A formal architectural review re-evaluates the summary dependencies of I20/I22 or a new account is added through the approved release process.
+
+## ADR-016 — Phase 2B reserve management write contract and source targeting
+
+**Decision:** Implement reserve management via the `updateWealthReserve` action with payload `{ reserveId, operation, amount }`. Restrict reserve write targets to an explicit server-side whitelist: `tax_reserve_2026_09` (N10), `income_tax_cpp_reserve_2026_09` (O10), and `emergency_fund` (P14). Support `add` (Add Set-Aside), `pay` (Pay CRA), and `replace` (Correct September Total) for tax reserves, and `replace` only (Set Emergency Fund Balance) for Emergency Fund. Enforce that projected Tax and Income Tax / CPP reserve totals cannot drop below zero. Enforce `LockService` serialization, live target formula check, dependent formula validation on summary cells N14 (`SUM(N2:N13)`), O14 (`SUM(O2:O13)`), and H14 (`I29-P14-N14-O14`), two-decimal precision validation, and full recalculated `getWealth()` return. Intentionally hard-code source targeting to September 2026 for this release.
+**Reason:** Allows the owner to manage reserve movements and set-asides directly from the Wealth UI while strictly protecting Sheet formulas, preventing negative reserve obligations, avoiding client-directed cell coordinates, and preserving authoritative Available Cash calculations.
+**Consequences:** Protected reserves are editable with granular operation semantics; arbitrary cell/sheet writes and direct formula overwrites remain blocked. N14, O14, and H14 remain formula-driven and read-only. Apps Script Version 31 deployed; Phase 2B application release commit `4679eb5f837ed0eda4777716bf99a385967cc138` deployed; Version 30 preserved as immediate rollback version. Current-month rollover and dynamic month targeting are deferred to the next phase.
+**Do Not Reconsider Unless:** A future phase introduces dynamic calendar-month resolution or rollover rules that alter source cell mapping.

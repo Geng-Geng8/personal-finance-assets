@@ -9,7 +9,7 @@ Last Updated: 2026-09-03
 
 ## Current baseline
 
-Phase 2A Wealth Account Editing is in production at application release commit `ba6a252e96d4aa779c381c082f211e1851c45d6f` (on `main`; docs commits advance `main` without altering application code) and Apps Script Version 30. The release record is 141/141 automated tests passed (restoring and expanding coverage from Stage 6's historical 102/102 baseline).
+Phase 2B Reserve Management is in production at application release commit `4679eb5f837ed0eda4777716bf99a385967cc138` (on `main`; docs commits advance `main` without altering application code) and Apps Script Version 31. The release record is 166/166 automated tests passed (restoring and expanding coverage from Phase 2A's 141/141 baseline and Stage 6's historical 102/102 baseline).
 
 ## Phase 2A: editable approved manual Wealth accounts (COMPLETE / PRODUCTION)
 
@@ -85,55 +85,51 @@ COMPLETE / PRODUCTION. Released to production with Apps Script Version 30 and Ph
 9. Mobile editor behavior passes review at approximately 390–430 px.
 10. A minimal production write is explicitly approved, reversible, restored exactly, and verified by authoritative reread.
 
-## NOW — Phase 2B: reserve editing after source audit (ACTIVE NEXT PHASE)
+## Phase 2B: reserve management (COMPLETE / PRODUCTION)
 
 **Goal**  
 Allow deliberate updates to protected reserves without bypassing their existing formulas or making protected money appear spendable.
 
 **Status**  
-Active next phase. No reserve write contract is yet approved. A read-only source audit is required first.
+COMPLETE / PRODUCTION. Released to production with Apps Script Version 31 and Phase 2B application release commit `4679eb5f837ed0eda4777716bf99a385967cc138`. Approved reserve targets are editable with strict formula protection. Automated test record: 166/166 passed. Reversible production write passed on September Tax Reserve (N10) with $0.01 addition, recalculation of N14 and H14 verified, exact restoration confirmed, and baseline preserved.
+
+**Production API contract**
+
+- Action: `updateWealthReserve`
+- Client payload: `{ reserveId, operation, amount }`
+- Server response after success: `{ ok: true, wealth: <complete fresh Wealth object> }`
+- Whitelisted server targets:
+  - `tax_reserve_2026_09` -> N10 (September 2026 Tax Reserve input)
+  - `income_tax_cpp_reserve_2026_09` -> O10 (September 2026 Income Tax / CPP Reserve input)
+  - `emergency_fund` -> P14 (Emergency Fund direct balance input)
+- Operation semantics:
+  - Tax Reserve and Income Tax / CPP Reserve support `add` (Add Set-Aside), `pay` (Pay CRA), and `replace` (Correct September Total).
+  - Emergency Fund supports `replace` only (Set Emergency Fund Balance); `add` and `pay` are rejected.
+- Protection and validation:
+  - N14 (`SUM(N2:N13)`), O14 (`SUM(O2:O13)`), and H14 (`I29-P14-N14-O14`) are formula-driven and remain strictly read-only.
+  - Projected Tax and Income Tax / CPP reserve totals cannot drop below zero.
+  - Target cell must be verified non-formula before and inside `LockService.getScriptLock(10000)`.
+  - Dependent formulas must remain valid; success returns a full authoritative reread via `getWealth()`.
+- Known intentional limitation: Reserve source editing is hard-coded to September 2026 (`N10` / `O10`) for this release.
+
+## NEXT — Current-month reserve rollover / month targeting (NEXT PRODUCT PHASE)
+
+**Goal**
+Allow reserve operations to target the current active calendar month dynamically or roll over across month boundaries rather than remaining hard-coded to September 2026 (`N10` / `O10`).
+
+**Status**
+Planned next product phase. The solution is not yet defined or implemented.
 
 **Scope**
-
-- Audit N2:N13, O2:O13, P14, labels, monthly semantics, and dependent formulas.
-- Decide whether the user edits source-period inputs or a single approved reserve input.
-- Define stable logical IDs and server-side mappings only after the audit.
-- Preserve H14 Available Cash formula behavior.
-- Add clear reserve-specific UX and the same authenticated, locked, full-reread write pattern.
-
-**Not in scope**
-
-- Editing formula summary cells N14 or O14 directly.
-- Combining protected reserves with spendable cash.
-- Reusing a generic Phase 2A account ID for reserve writes.
-- Any write implementation before the source audit and owner approval.
-
-**Prerequisites**
-
-1. Read-only source audit of all reserve inputs and formulas.
-2. Confirm the intended monthly/annual workflow and whether P14 is a direct source or derived value.
-3. Define exact edit targets, validation, and dependency tests.
-4. Completed and stabilized Phase 2A (application release commit `ba6a252e96d4aa779c381c082f211e1851c45d6f` / Version 30).
-
-**Risks**
-
-- Double-counting or overwriting formula-driven reserves.
-- Reducing protected funds accidentally.
-- Breaking Available Cash.
-- Presenting reserve money as discretionary.
-
-**Success criteria**
-
-1. Every reserve write target is a confirmed manual input with a stable server ID.
-2. Formula and summary cells remain protected.
-3. Available Cash and reserve totals recalculate correctly in the Sheet.
-4. UI hierarchy keeps protected money visually distinct.
-5. The complete release and rollback playbook passes.
+- Evaluate dynamic current-month resolution versus explicit month selection in the UI.
+- Determine rollover and reconciliation semantics across calendar month transitions.
+- Preserve all existing Phase 2B security guarantees: authenticated POST, server-owned targets, formula protection for N14/O14/H14, zero-floor constraints, LockService, and authoritative `getWealth()` rereads.
+- Maintain backwards compatibility and non-destructive Sheet operations.
 
 ## LATER — no committed feature roadmap
 
-No feature after Phase 2B is currently committed by an authoritative source. Bank synchronization, multi-user access, a fourth navigation tab, a separate Wealth database, paid infrastructure, and major redesigns are not roadmap commitments. Add a later feature only when the owner approves a concrete goal, scope, prerequisites, risks, and success criteria based on current evidence.
+No feature beyond current-month reserve rollover / month targeting is currently committed by an authoritative source. Bank synchronization, multi-user access, a fourth navigation tab, a separate Wealth database, paid infrastructure, and major redesigns are not roadmap commitments. Add a later feature only when the owner approves a concrete goal, scope, prerequisites, risks, and success criteria based on current evidence.
 
 ## Best next step
 
-Perform the Phase 2B read-only source audit of all reserve inputs, formulas, and monthly semantics (N2:N13, O2:O13, P14). Do not write to production reserve cells.
+Design the current-month reserve rollover / month targeting approach in an architecture brief before making any code changes.

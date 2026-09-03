@@ -11,7 +11,7 @@ Last Updated: 2026-09-03
 
 Personal Finance is a private, single-owner, mobile-first Progressive Web App for recording expenses, reviewing spending patterns, and making wealth decisions. The installed frontend is served by GitHub Pages. It sends authenticated JSON envelopes by `POST` to a Google Apps Script Web App. Apps Script validates an owner-only device key held in browser `localStorage`, then reads or writes the production Google Sheet. Google Sheets remains both the database and calculation engine.
 
-The current production release is Phase 2A: Wealth account editing is live in production for nine approved manual accounts. The active next phase is Phase 2B: reserve editing source audit.
+The current production release is Phase 2B: Reserve Management is complete, deployed, and production-validated alongside Phase 2A manual account editing. The next likely product phase is current-month reserve rollover / month targeting.
 
 ## Production identity
 
@@ -20,15 +20,17 @@ The current production release is Phase 2A: Wealth account editing is live in pr
 | Repository | [Geng-Geng8/personal-finance-assets](https://github.com/Geng-Geng8/personal-finance-assets) |
 | Production PWA | [GitHub Pages production](https://geng-geng8.github.io/personal-finance-assets/) |
 | Branch | `main` |
-| Phase 2A application release SHA | `ba6a252e96d4aa779c381c082f211e1851c45d6f` (docs commits may advance `main` without changing deployed application code) |
-| Phase 2A branch | `stage-7-wealth-account-editing` merged into `main` |
+| Phase 2B application release SHA | `4679eb5f837ed0eda4777716bf99a385967cc138` (docs commits may advance `main` without changing deployed application code) |
+| Phase 2B branch | `phase-2b-reserve-management` merged into `main` |
+| Historical Phase 2A application release SHA | `ba6a252e96d4aa779c381c082f211e1851c45d6f` |
+| Historical Phase 2A branch | `stage-7-wealth-account-editing` merged into `main` |
 | Pre-Phase-2A rollback branch | `pre-phase-2a-wealth-edit-production` |
 | Pre-Phase-2A production SHA | `9cb076cc2bcf62f7b5c29d225bb9da1638939b30` |
 | Historical Stage 6 rollback branch | `pre-stage-6-wealth-production` (`6c57290f3496cc44d06febc3284ee94e3259958f`) |
 | Production Apps Script project | Script ID `1RHBFF7H5Vqnlh97Gt4KuIt_NdBRYgfGCCDTK2zmkMBNbgUtLybxwR4CF` |
-| Production Apps Script version | Version 30 — `Phase 2A Wealth Account Editing Production Candidate` |
+| Production Apps Script version | Version 31 — `Phase 2B Reserve Management Production Candidate` |
 | Production Web App deployment | `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` |
-| Preserved Apps Script versions | 20, 22, 23, 28 (prior Stage 6 rollback), 30 |
+| Preserved Apps Script versions | 20, 22, 23, 28 (prior Stage 6 rollback), 30 (prior Phase 2A rollback), 31 |
 | Production spreadsheet | `2026 Buckets Budget` |
 
 The Apps Script version label and historical version list are owner-confirmed production state; Git alone cannot prove deployment version numbers. The Web App deployment ID is also present in current `config.js`.
@@ -70,6 +72,7 @@ Normal runtime does **not** use Google OAuth. Current `config.js` still contains
 | `deleteExpense` | Authenticated POST | Resolves immutable ID, then deletes its row | `Spending_Master2026` |
 | `getWealth` | Authenticated POST | Returns summary metrics and account rows | `2026-Budgets` |
 | `updateWealthAccountBalance` | Authenticated POST | Validates accountId and balance (max 2 decimals), verifies expected name and non-formula status with LockService, writes approved cell, and returns fresh full Wealth object | `2026-Budgets` |
+| `updateWealthReserve` | Authenticated POST | Validates reserveId and amount (max 2 decimals), enforces operation semantics (add/pay/replace for tax reserves, replace only for emergency fund), prevents negative projected totals, verifies live non-formula status with LockService, writes approved cell (N10, O10, or P14), and returns fresh full Wealth object | `2026-Budgets` |
 
 `doGet` denies requests containing `action` or `function`. A bare Apps Script Web App GET may render the retained Apps Script HTML shell, but it must never return financial data. The installed GitHub Pages PWA is the normal client.
 
@@ -137,6 +140,25 @@ Non-editable accounts remain strictly read-only:
 
 Writes use `updateWealthAccountBalance` with payload `{ accountId, balance }`. The server validates authorization, allowlists the ID, enforces maximum 2 decimal places (between 0.00 and 1,000,000,000.00), verifies the live target cell is not a formula, matches the expected account name in column H, and executes within `LockService.getScriptLock(10000)`. After the single-cell write, Apps Script rereads `getWealth()` and returns the full fresh object. The frontend updates local state and cache only on confirmed success.
 
+Phase 2B established protected reserve management via `updateWealthReserve` with payload `{ reserveId, operation, amount }`:
+- Authoritative reserve write targets:
+  - `tax_reserve_2026_09` -> N10 (September 2026 Tax Reserve input cell)
+  - `income_tax_cpp_reserve_2026_09` -> O10 (September 2026 Income Tax / CPP Reserve input cell)
+  - `emergency_fund` -> P14 (Emergency Fund direct balance input cell)
+- Formula and summary protection:
+  - `N14` (`SUM(N2:N13)`) is the Tax Reserve formula total; never directly editable.
+  - `O14` (`SUM(O2:O13)`) is the Income Tax / CPP Reserve formula total; never directly editable.
+  - `H14` (`I29-P14-N14-O14`) is the Available Cash formula total; strictly read-only.
+- Operation semantics:
+  - Tax Reserve and Income Tax / CPP Reserve support `add` (Add Set-Aside), `pay` (Pay CRA, subtracting from September), and `replace` (Correct September Total, replacing September's net value).
+  - Emergency Fund supports `replace` only (Set Emergency Fund Balance); `add` and `pay` operations are rejected.
+  - Non-negative validation: Operations that would cause the projected authoritative Tax Reserve or Income Tax / CPP Reserve to drop below zero are rejected.
+- Protection and synchronization:
+  - Target cell must be a confirmed manual input and is verified non-formula both before and inside `LockService.getScriptLock(10000)`.
+  - Dependent formulas (`N14`, `O14`, `H14`) are audited and verified during write execution.
+  - Success returns a full authoritative `getWealth()` reread to refresh client state and cache.
+- Known intentional limitation: Reserve source editing is hard-coded to September 2026 (`N10` / `O10`) for this release.
+
 See `03_Google_Sheet_Data_Model.md` for the complete cell mapping and formula relationships.
 
 ## PWA and cache behavior
@@ -154,28 +176,30 @@ See `03_Google_Sheet_Data_Model.md` for the complete cell mapping and formula re
 
 ## Rollback strategy
 
-The primary Phase 2A rollback targets:
+The primary Phase 2B rollback targets:
 
-- Git branch `pre-phase-2a-wealth-edit-production` at `9cb076cc2bcf62f7b5c29d225bb9da1638939b30`.
-- Apps Script deployment rollback: edit the existing Web App deployment `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` to point to preserved **Version 28** (`Stage 6 Wealth Read-Only Production`).
+- Apps Script deployment rollback: edit the existing Web App deployment `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` to point to preserved **Version 30** (`Phase 2A Wealth Account Editing Production Candidate`).
+- Frontend rollback: revert or reset `main` to `5513e933733ed5930de3e21bbd6ae2aa5e227ef5` (pre-Phase-2B `main` base) or `ba6a252e96d4aa779c381c082f211e1851c45d6f` (Phase 2A application release SHA).
 
 Historical checkpoints preserved for depth:
+- `pre-phase-2a-wealth-edit-production` at `9cb076cc2bcf62f7b5c29d225bb9da1638939b30` with Version 28.
 - `pre-stage-6-wealth-production` at `6c57290f3496cc44d06febc3284ee94e3259958f` with Version 23.
-- Historical immutable Apps Script versions: 20, 22, 23, 28, 30.
+- Historical immutable Apps Script versions: 20, 22, 23, 28, 30, 31.
 
 Do not force-reset shared history. Prefer a reviewed revert commit for GitHub Pages and edit the **existing** Apps Script Web App deployment to a preserved immutable version.
 
 ## Test baseline and current verification
 
-- Phase 2A release record: **141 / 141 automated tests passed** (including 39 dedicated Stage 7 balance-editing tests).
+- Phase 2B release record: **166 / 166 automated tests passed** (including 25 dedicated Stage 8 reserve-management tests, 39 Stage 7 balance-editing tests, and all prior safety/auth suites).
+- Phase 2A release record: **141 / 141 automated tests passed** (historical baseline).
 - Stage 6 release record: **102 / 102 automated tests passed** (historical baseline).
-- Non-production integration gate passed: verified against dedicated Apps Script test deployment and synthetic spreadsheet (all 9 accounts tested, formula overwrite protection verified, LockService serialization verified, and test project purged).
-- Reversible production write passed: tested against production TD Savings, original value restored exactly, and authoritative totals confirmed returned to baseline.
+- Non-production integration gate passed: verified against dedicated Apps Script test deployment and synthetic spreadsheet (all reserve operations tested, formula overwrite protection verified, LockService serialization verified, and test project purged).
+- Reversible production write passed: tested against production September Tax Reserve (N10) with a $0.01 addition; Tax Reserve (N14) and Available Cash (H14) recalculated correctly; original September source was restored exactly; Tax Reserve and Available Cash returned to baseline; no synthetic value remains in production.
 
 ## Current status and immediate next phase
 
-**Production:** Phase 2A Wealth Account Editing is live (Apps Script Version 30, application release commit `ba6a252e96d4aa779c381c082f211e1851c45d6f`).
-**Active Next Phase:** Phase 2B — reserve editing source audit (N2:N13, O2:O13, P14, labels, monthly semantics, and dependent formulas). Do not mutate production reserve cells without audit approval.
+**Production:** Phase 2B Reserve Management is complete and live in production (Apps Script Version 31, application release commit `4679eb5f837ed0eda4777716bf99a385967cc138`).
+**Active Next Phase:** Current-month reserve rollover / month targeting (solution not yet defined or implemented).
 
 ## Known constraints and discrepancies
 
