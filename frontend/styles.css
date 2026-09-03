@@ -5291,3 +5291,138 @@ button.wealth-account-row-editable:hover .wealth-account-chevron {
   opacity: 0.65;
   cursor: not-allowed;
 }
+
+/* =========================================
+   PHASE 2B RESERVE MANAGEMENT
+========================================= */
+
+.wealth-reserves-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.wealth-manage-reserves-button {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.wealth-manage-reserves-button:hover,
+.wealth-manage-reserves-button:focus-visible {
+  border-color: var(--primary, #2563eb);
+  color: var(--primary, #2563eb);
+}
+
+.wealth-manage-reserves-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.reserve-manager-content {
+  max-height: min(72vh, 650px);
+  overflow-y: auto;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+
+.reserve-period-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #eff6ff;
+  padding: 12px 14px;
+  color: #1e3a8a;
+}
+
+.reserve-manager-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.reserve-manager-fieldset legend {
+  margin-bottom: 8px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reserve-operation-grid,
+.reserve-target-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reserve-choice-button,
+.reserve-target-button {
+  min-height: 48px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.reserve-choice-button strong,
+.reserve-choice-button span {
+  display: block;
+}
+
+.reserve-choice-button strong {
+  font-size: 13px;
+}
+
+.reserve-choice-button span {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.reserve-target-button {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.reserve-choice-button.is-selected,
+.reserve-target-button.is-selected {
+  border-color: var(--primary, #2563eb);
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.reserve-operation-help {
+  margin: -8px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 390px) {
+  .wealth-reserves-header {
+    align-items: flex-start;
+  }
+
+  .reserve-operation-grid {
+    grid-template-columns: 1fr;
+  }
+}

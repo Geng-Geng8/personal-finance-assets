@@ -833,6 +833,16 @@
     const elTotalReserves = document.getElementById("wealthTotalReserves");
     if (elTotalReserves) elTotalReserves.textContent = formatCurrency(totalReserves);
 
+    const elManageReserves = document.getElementById("manageReservesButton");
+    if (elManageReserves) {
+      const reserveRows = data.reserveManagement && Array.isArray(data.reserveManagement.reserves)
+        ? data.reserveManagement.reserves
+        : [];
+      elManageReserves.disabled = !reserveRows.some(function(reserve) {
+        return reserve && reserve.isEditable;
+      });
+    }
+
     // Math Banner: Total Cash - Reserves = Available Cash
     const elMathTotal = document.getElementById("wealthMathTotalCash");
     if (elMathTotal) elMathTotal.textContent = formatCurrency(data.totalCash);
@@ -1054,6 +1064,207 @@
         elError.textContent = "Balance wasn't updated. Your previous value is unchanged.";
         elError.classList.remove("hidden");
       }
+    }
+  }
+
+  let selectedReserveMode = "add";
+  let selectedReserveId = "tax_reserve_2026_09";
+  let isSavingWealthReserve = false;
+
+  function getReserveManagementEntry(reserveId) {
+    const management = currentWealthData && currentWealthData.reserveManagement;
+    const reserves = management && Array.isArray(management.reserves) ? management.reserves : [];
+    return reserves.find(function(reserve) {
+      return reserve && reserve.reserveId === reserveId;
+    }) || null;
+  }
+
+  function renderReserveManagerSelection(clearInput) {
+    if (typeof document === "undefined") return;
+
+    const management = currentWealthData && currentWealthData.reserveManagement;
+    const isEmergency = selectedReserveMode === "emergency";
+    const activeReserveId = isEmergency ? "emergency_fund" : selectedReserveId;
+    const activeReserve = getReserveManagementEntry(activeReserveId);
+
+    const elPeriod = document.getElementById("wealthReservePeriod");
+    if (elPeriod) {
+      elPeriod.textContent = management && management.periodLabel
+        ? management.periodLabel
+        : "September 2026";
+    }
+
+    document.querySelectorAll("[data-reserve-mode]").forEach(function(button) {
+      const selected = button.getAttribute("data-reserve-mode") === selectedReserveMode;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
+
+    document.querySelectorAll("[data-reserve-id]").forEach(function(button) {
+      const selected = button.getAttribute("data-reserve-id") === selectedReserveId;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
+
+    const elTargetFieldset = document.getElementById("wealthReserveTargetFieldset");
+    if (elTargetFieldset) elTargetFieldset.classList.toggle("hidden", isEmergency);
+
+    const elCurrentLabel = document.getElementById("wealthReserveCurrentLabel");
+    if (elCurrentLabel) {
+      elCurrentLabel.textContent = isEmergency ? "Current balance" : "Current September movement";
+    }
+
+    const elCurrentValue = document.getElementById("wealthReserveCurrentValue");
+    if (elCurrentValue) {
+      elCurrentValue.textContent = formatCurrency(activeReserve ? activeReserve.currentValue : 0);
+    }
+
+    const copy = {
+      add: {
+        inputLabel: "Amount to add",
+        help: "The entered amount will be added to September's current movement.",
+        saveLabel: "Add Set-Aside"
+      },
+      pay: {
+        inputLabel: "CRA payment amount",
+        help: "The entered amount will be subtracted from September and will reduce the authoritative reserve total.",
+        saveLabel: "Record CRA Payment"
+      },
+      replace: {
+        inputLabel: "Correct September net value",
+        help: "This replaces September's current net movement. A negative value is allowed when the full reserve remains non-negative.",
+        saveLabel: "Correct September Total"
+      },
+      emergency: {
+        inputLabel: "New Emergency Fund balance",
+        help: "This replaces the current Emergency Fund balance.",
+        saveLabel: "Set Emergency Fund Balance"
+      }
+    }[selectedReserveMode];
+
+    const elInputLabel = document.getElementById("wealthReserveInputLabel");
+    if (elInputLabel) elInputLabel.textContent = copy.inputLabel;
+
+    const elHelp = document.getElementById("wealthReserveOperationHelp");
+    if (elHelp) elHelp.textContent = copy.help;
+
+    const elInput = document.getElementById("wealthReserveInput");
+    if (elInput) {
+      elInput.min = selectedReserveMode === "replace" ? "-1000000000" : (isEmergency ? "0" : "0.01");
+      if (clearInput) elInput.value = "";
+    }
+
+    const elSave = document.getElementById("saveWealthReserveButton");
+    if (elSave) {
+      elSave.textContent = copy.saveLabel;
+      elSave.disabled = !activeReserve || !activeReserve.isEditable;
+    }
+
+    const elError = document.getElementById("wealthReserveError");
+    if (elError) {
+      elError.textContent = "";
+      elError.classList.add("hidden");
+    }
+  }
+
+  function openWealthReserveManager() {
+    if (typeof document === "undefined" || !currentWealthData || !currentWealthData.reserveManagement) return;
+
+    selectedReserveMode = "add";
+    selectedReserveId = "tax_reserve_2026_09";
+    renderReserveManagerSelection(true);
+
+    const elBackdrop = document.getElementById("wealthReserveBackdrop");
+    const elSheet = document.getElementById("wealthReserveSheet");
+    if (elBackdrop) elBackdrop.classList.remove("hidden");
+    if (elSheet) elSheet.classList.remove("hidden");
+  }
+
+  function closeWealthReserveManager() {
+    if (isSavingWealthReserve || typeof document === "undefined") return;
+    const elBackdrop = document.getElementById("wealthReserveBackdrop");
+    const elSheet = document.getElementById("wealthReserveSheet");
+    if (elSheet) elSheet.classList.add("hidden");
+    if (elBackdrop) elBackdrop.classList.add("hidden");
+  }
+
+  async function handleSaveWealthReserve() {
+    if (isSavingWealthReserve || typeof document === "undefined") return;
+
+    const isEmergency = selectedReserveMode === "emergency";
+    const reserveId = isEmergency ? "emergency_fund" : selectedReserveId;
+    const operation = isEmergency ? "replace" : selectedReserveMode;
+    const reserve = getReserveManagementEntry(reserveId);
+    const elInput = document.getElementById("wealthReserveInput");
+    const elError = document.getElementById("wealthReserveError");
+    const elSave = document.getElementById("saveWealthReserveButton");
+    const rawValue = elInput ? elInput.value.trim() : "";
+
+    function showReserveError(message) {
+      if (elError) {
+        elError.textContent = message;
+        elError.classList.remove("hidden");
+      }
+    }
+
+    if (!reserve || !reserve.isEditable) {
+      showReserveError("This reserve is not currently editable.");
+      return;
+    }
+    if (!/^-?(?:\d+|\d*\.\d{1,2})$/.test(rawValue)) {
+      showReserveError("Enter a valid amount with no more than two decimal places.");
+      return;
+    }
+
+    const amount = Number(rawValue);
+    if (!Number.isFinite(amount) || Math.abs(amount) > 1000000000) {
+      showReserveError("Enter a valid amount within the allowed limit.");
+      return;
+    }
+    if ((operation === "add" || operation === "pay") && amount <= 0) {
+      showReserveError("Add and Pay CRA amounts must be positive.");
+      return;
+    }
+    if (reserveId === "emergency_fund" && amount < 0) {
+      showReserveError("Emergency Fund cannot be negative.");
+      return;
+    }
+
+    isSavingWealthReserve = true;
+    if (elSave) {
+      elSave.disabled = true;
+      elSave.textContent = "Saving…";
+    }
+    if (elError) {
+      elError.textContent = "";
+      elError.classList.add("hidden");
+    }
+
+    try {
+      const updatedWealth = await financeApi.updateWealthReserve({
+        reserveId: reserveId,
+        operation: operation,
+        amount: Math.round(amount * 100) / 100
+      });
+
+      if (!updatedWealth || typeof updatedWealth !== "object") {
+        throw new Error("Invalid response from server.");
+      }
+
+      currentWealthData = updatedWealth;
+      saveWealthToCache(updatedWealth);
+      renderWealthView(updatedWealth);
+      isSavingWealthReserve = false;
+      closeWealthReserveManager();
+      updateSyncStatus("live", "Reserve updated");
+      showToast("Reserve updated from the authoritative Sheet.");
+    } catch (err) {
+      isSavingWealthReserve = false;
+      if (elSave) {
+        elSave.disabled = false;
+        renderReserveManagerSelection(false);
+      }
+      showReserveError("Reserve wasn't updated. Your previous values are unchanged.");
     }
   }
 
@@ -1769,6 +1980,51 @@
         } else if (e.key === "Escape") {
           e.preventDefault();
           closeWealthBalanceEditor();
+        }
+      });
+    }
+
+    const manageReservesBtn = document.getElementById("manageReservesButton");
+    const closeWealthReserveBtn = document.getElementById("closeWealthReserveButton");
+    const cancelWealthReserveBtn = document.getElementById("cancelWealthReserveButton");
+    const saveWealthReserveBtn = document.getElementById("saveWealthReserveButton");
+    const wealthReserveBackdrop = document.getElementById("wealthReserveBackdrop");
+    const wealthReserveInput = document.getElementById("wealthReserveInput");
+    const wealthReserveOperations = document.getElementById("wealthReserveOperations");
+    const wealthReserveTargets = document.getElementById("wealthReserveTargets");
+
+    if (manageReservesBtn) manageReservesBtn.addEventListener("click", openWealthReserveManager);
+    if (closeWealthReserveBtn) closeWealthReserveBtn.addEventListener("click", closeWealthReserveManager);
+    if (cancelWealthReserveBtn) cancelWealthReserveBtn.addEventListener("click", closeWealthReserveManager);
+    if (wealthReserveBackdrop) wealthReserveBackdrop.addEventListener("click", closeWealthReserveManager);
+    if (saveWealthReserveBtn) saveWealthReserveBtn.addEventListener("click", handleSaveWealthReserve);
+
+    if (wealthReserveOperations) {
+      wealthReserveOperations.addEventListener("click", function(e) {
+        const button = e.target.closest("[data-reserve-mode]");
+        if (!button || isSavingWealthReserve) return;
+        selectedReserveMode = button.getAttribute("data-reserve-mode") || "add";
+        renderReserveManagerSelection(true);
+      });
+    }
+
+    if (wealthReserveTargets) {
+      wealthReserveTargets.addEventListener("click", function(e) {
+        const button = e.target.closest("[data-reserve-id]");
+        if (!button || isSavingWealthReserve) return;
+        selectedReserveId = button.getAttribute("data-reserve-id") || "tax_reserve_2026_09";
+        renderReserveManagerSelection(true);
+      });
+    }
+
+    if (wealthReserveInput) {
+      wealthReserveInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleSaveWealthReserve();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          closeWealthReserveManager();
         }
       });
     }

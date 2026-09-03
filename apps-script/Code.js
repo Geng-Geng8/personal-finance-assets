@@ -1296,6 +1296,125 @@ var WEALTH_EDITABLE_WHITELIST = Object.freeze({
   }
 });
 
+var WEALTH_RESERVE_EDITABLE_WHITELIST = Object.freeze({
+  tax_reserve_2026_09: {
+    id: "tax_reserve_2026_09",
+    name: "Tax Reserve",
+    sourceCell: "N10",
+    summaryCell: "N14",
+    expectedSummaryFormula: "=SUM(N2:N13)",
+    allowedOperations: Object.freeze(["add", "pay", "replace"])
+  },
+  income_tax_cpp_reserve_2026_09: {
+    id: "income_tax_cpp_reserve_2026_09",
+    name: "Income Tax / CPP",
+    sourceCell: "O10",
+    summaryCell: "O14",
+    expectedSummaryFormula: "=SUM(O2:O13)",
+    allowedOperations: Object.freeze(["add", "pay", "replace"])
+  },
+  emergency_fund: {
+    id: "emergency_fund",
+    name: "Emergency Fund",
+    sourceCell: "P14",
+    summaryCell: null,
+    expectedSummaryFormula: null,
+    allowedOperations: Object.freeze(["replace"])
+  }
+});
+
+var WEALTH_RESERVE_PERIOD = Object.freeze({
+  id: "2026-09",
+  label: "September 2026"
+});
+
+var EXPECTED_AVAILABLE_CASH_FORMULA = "=I29-P14-N14-O14";
+var WEALTH_MAX_MONEY_CENTS = 100000000000;
+
+function normalizeWealthFormula_(formula) {
+  return String(formula || "").replace(/\s+/g, "").toUpperCase();
+}
+
+function hasApprovedWealthFormula_(range, expectedFormula) {
+  return normalizeWealthFormula_(range.getFormula()) === normalizeWealthFormula_(expectedFormula);
+}
+
+function parseMoneyCents_(value, fieldName) {
+  if (value === undefined || value === null || value === "") {
+    throw new Error(fieldName + " is required.");
+  }
+
+  let num;
+  if (typeof value === "number") {
+    num = value;
+  } else if (typeof value === "string") {
+    const cleaned = value.replace(/[\$,\s]/g, "");
+    if (!/^[+-]?(?:\d+|\d*\.\d{1,2})$/.test(cleaned)) {
+      throw new Error(fieldName + " must be a finite money value with at most 2 decimal places.");
+    }
+    num = Number(cleaned);
+  } else {
+    throw new Error(fieldName + " must be a finite money value.");
+  }
+
+  if (!Number.isFinite(num) || Number.isNaN(num)) {
+    throw new Error(fieldName + " must be a finite money value.");
+  }
+  if (Math.abs(num * 100 - Math.round(num * 100)) > 1e-6) {
+    throw new Error(fieldName + " cannot have more than 2 decimal places.");
+  }
+
+  const cents = Math.round(num * 100);
+  if (Math.abs(cents) > WEALTH_MAX_MONEY_CENTS) {
+    throw new Error(fieldName + " exceeds the maximum allowed limit.");
+  }
+  return cents;
+}
+
+function readSheetMoneyCents_(range, allowBlank) {
+  const value = range.getValue();
+  if (allowBlank && (value === "" || value === null)) return 0;
+  if (typeof value !== "number" || !Number.isFinite(value) || Number.isNaN(value)) {
+    throw new Error("Reserve data is not a valid numeric value. Nothing was updated.");
+  }
+  return Math.round(value * 100);
+}
+
+function getReserveManagement_(sheet) {
+  const availableCashFormulaIsValid = hasApprovedWealthFormula_(
+    sheet.getRange("H14"),
+    EXPECTED_AVAILABLE_CASH_FORMULA
+  );
+
+  function reserveMetadata(id) {
+    const target = WEALTH_RESERVE_EDITABLE_WHITELIST[id];
+    const sourceRange = sheet.getRange(target.sourceCell);
+    const sourceIsManual = !String(sourceRange.getFormula() || "").trim();
+    const summaryIsValid = !target.summaryCell || hasApprovedWealthFormula_(
+      sheet.getRange(target.summaryCell),
+      target.expectedSummaryFormula
+    );
+
+    return {
+      reserveId: target.id,
+      name: target.name,
+      currentValue: parseSheetNumber_(sourceRange.getValue()),
+      allowedOperations: target.allowedOperations.slice(),
+      isEditable: sourceIsManual && summaryIsValid && availableCashFormulaIsValid
+    };
+  }
+
+  return {
+    periodId: WEALTH_RESERVE_PERIOD.id,
+    periodLabel: WEALTH_RESERVE_PERIOD.label,
+    reserves: [
+      reserveMetadata("tax_reserve_2026_09"),
+      reserveMetadata("income_tax_cpp_reserve_2026_09"),
+      reserveMetadata("emergency_fund")
+    ]
+  };
+}
+
 function toAccountId_(name) {
   const map = {
     "EQ-TFSA": "eq_tfsa",
@@ -1395,8 +1514,122 @@ function getWealth() {
     emergencyFund: parseSheetNumber_(row14[8]),
     totalCash: parseSheetNumber_(totalCashVal),
     accounts: accounts,
+    reserveManagement: getReserveManagement_(sheet),
     updatedAt: new Date().toISOString()
   };
+}
+
+function updateWealthReserve(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Payload must be an object.");
+  }
+
+  const allowedPayloadFields = Object.freeze({
+    reserveId: true,
+    operation: true,
+    amount: true
+  });
+  const unexpectedField = Object.keys(payload).find(function(key) {
+    return !allowedPayloadFields[key];
+  });
+  if (unexpectedField) {
+    throw new Error("Arbitrary sheet or cell coordinates are not permitted.");
+  }
+
+  const reserveId = String(payload.reserveId || "").trim();
+  if (!reserveId || !WEALTH_RESERVE_EDITABLE_WHITELIST.hasOwnProperty(reserveId)) {
+    throw new Error("Invalid or non-editable reserve.");
+  }
+
+  const target = WEALTH_RESERVE_EDITABLE_WHITELIST[reserveId];
+  const operation = String(payload.operation || "").trim().toLowerCase();
+  if (target.allowedOperations.indexOf(operation) === -1) {
+    throw new Error("Invalid operation for this reserve.");
+  }
+
+  const amountCents = parseMoneyCents_(payload.amount, "Amount");
+  if ((operation === "add" || operation === "pay") && amountCents <= 0) {
+    throw new Error("Add and pay amounts must be positive.");
+  }
+  if (reserveId === "emergency_fund" && amountCents < 0) {
+    throw new Error("Emergency Fund cannot be negative.");
+  }
+
+  const lock = LockService.getScriptLock();
+  const hasLock = lock.tryLock(30000);
+  if (!hasLock) {
+    throw new Error("Server is busy. Please try again.");
+  }
+
+  try {
+    const sheet = getWealthSheet_();
+    const sourceRange = sheet.getRange(target.sourceCell);
+
+    if (String(sourceRange.getFormula() || "").trim()) {
+      throw new Error("This reserve source is calculated automatically and cannot be edited.");
+    }
+
+    if (!hasApprovedWealthFormula_(sheet.getRange("H14"), EXPECTED_AVAILABLE_CASH_FORMULA)) {
+      throw new Error("Available Cash formula changed. Reserve was not updated.");
+    }
+
+    let currentSummaryCents = null;
+    let summaryRange = null;
+    if (target.summaryCell) {
+      summaryRange = sheet.getRange(target.summaryCell);
+      if (!hasApprovedWealthFormula_(summaryRange, target.expectedSummaryFormula)) {
+        throw new Error("Reserve summary formula changed. Reserve was not updated.");
+      }
+      currentSummaryCents = readSheetMoneyCents_(summaryRange, false);
+    }
+
+    const currentSourceCents = readSheetMoneyCents_(sourceRange, true);
+    let proposedSourceCents;
+    if (operation === "add") {
+      proposedSourceCents = currentSourceCents + amountCents;
+    } else if (operation === "pay") {
+      proposedSourceCents = currentSourceCents - amountCents;
+    } else {
+      proposedSourceCents = amountCents;
+    }
+
+    if (Math.abs(proposedSourceCents) > WEALTH_MAX_MONEY_CENTS) {
+      throw new Error("Resulting reserve movement exceeds the maximum allowed limit.");
+    }
+
+    if (target.summaryCell) {
+      const projectedSummaryCents = currentSummaryCents - currentSourceCents + proposedSourceCents;
+      if (projectedSummaryCents < 0) {
+        throw new Error("This operation would make the authoritative reserve total negative.");
+      }
+      if (projectedSummaryCents > WEALTH_MAX_MONEY_CENTS) {
+        throw new Error("Resulting reserve total exceeds the maximum allowed limit.");
+      }
+    } else if (proposedSourceCents < 0) {
+      throw new Error("Emergency Fund cannot be negative.");
+    }
+
+    // Recheck the approved topology immediately before the financial write.
+    if (String(sourceRange.getFormula() || "").trim()) {
+      throw new Error("This reserve source is calculated automatically and cannot be edited.");
+    }
+    if (!hasApprovedWealthFormula_(sheet.getRange("H14"), EXPECTED_AVAILABLE_CASH_FORMULA)) {
+      throw new Error("Available Cash formula changed. Reserve was not updated.");
+    }
+    if (summaryRange && !hasApprovedWealthFormula_(summaryRange, target.expectedSummaryFormula)) {
+      throw new Error("Reserve summary formula changed. Reserve was not updated.");
+    }
+
+    sourceRange.setValue(proposedSourceCents / 100);
+    SpreadsheetApp.flush();
+
+    return {
+      ok: true,
+      wealth: getWealth()
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function updateWealthAccountBalance(payload) {
@@ -1524,6 +1757,9 @@ function apiRequest(request) {
 
     case "updateWealthAccountBalance":
       return updateWealthAccountBalance(payload);
+
+    case "updateWealthReserve":
+      return updateWealthReserve(payload);
 
     case "addExpense":
       return {

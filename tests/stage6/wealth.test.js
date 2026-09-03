@@ -72,6 +72,24 @@ function loadBackendContext(mockSheetData = {}) {
           }
         };
       }
+      if (rangeStr === "H14") {
+        return { getValue: () => row14[0], getFormula: () => "=I29-P14-N14-O14" };
+      }
+      if (rangeStr === "N10") {
+        return { getValue: () => 0, getFormula: () => "" };
+      }
+      if (rangeStr === "O10") {
+        return { getValue: () => 0, getFormula: () => "" };
+      }
+      if (rangeStr === "N14") {
+        return { getValue: () => row14[6], getFormula: () => "=SUM(N2:N13)" };
+      }
+      if (rangeStr === "O14") {
+        return { getValue: () => row14[7], getFormula: () => "=SUM(O2:O13)" };
+      }
+      if (rangeStr === "P14") {
+        return { getValue: () => row14[8], getFormula: () => "" };
+      }
       throw new Error("Unexpected range: " + rangeStr);
     }
   };

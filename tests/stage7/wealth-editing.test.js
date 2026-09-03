@@ -29,6 +29,12 @@ function loadBackendContext(customData = {}) {
   ];
 
   const cellValues = Object.assign({
+    H14: row14[0],
+    N10: 0,
+    O10: 0,
+    N14: row14[6],
+    O14: row14[7],
+    P14: row14[8],
     I17: 23222.82,
     I18: 81141.10,
     I19: 30985.47,
@@ -45,6 +51,12 @@ function loadBackendContext(customData = {}) {
   }, customData.cellValues || {});
 
   const cellFormulas = Object.assign({
+    H14: "=I29-P14-N14-O14",
+    N10: "",
+    O10: "",
+    N14: "=SUM(N2:N13)",
+    O14: "=SUM(O2:O13)",
+    P14: "",
     I17: "",
     I18: "",
     I19: "",
@@ -372,7 +384,7 @@ test("12. old updateWealthBalance action denied with Unsupported API action", ()
   }, /Unsupported API action/);
 });
 
-test("13. only updateWealthAccountBalance is active in apiRequest and api.js", () => {
+test("13. updateWealthAccountBalance remains active in apiRequest and api.js", () => {
   const code = read("apps-script/Code.js");
   const apiCode = read("api.js");
   assert.match(code, /case "updateWealthAccountBalance":/);
@@ -744,7 +756,7 @@ test("36. failed update leaves previously confirmed Wealth state and cache uncha
   assert.ok(funcStart > 0, "handleSaveWealthBalance must exist");
   const catchStart = appCode.indexOf("} catch (err) {", funcStart);
   assert.ok(catchStart > funcStart, "catch block must follow handleSaveWealthBalance");
-  const catchEnd = appCode.indexOf("function setInsightsSubView", catchStart);
+  const catchEnd = appCode.indexOf("let selectedReserveMode", catchStart);
   const catchBlock = appCode.substring(catchStart, catchEnd);
   assert.doesNotMatch(catchBlock, /currentWealthData\s*=/);
   assert.doesNotMatch(catchBlock, /saveWealthToCache/);
