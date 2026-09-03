@@ -455,13 +455,15 @@
     border-radius: 22px;
     background:
       linear-gradient(
-        180deg,
-        #f8faff 0%,
-        #f0f4fc 100%
+        145deg,
+        #1d54c4 0%,
+        #2e6de4 100%
       );
-    border: 1px solid #dce5f8;
-    color: #0f172a;
-    box-shadow: 0 3px 12px rgba(40, 100, 220, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    box-shadow:
+      0 10px 24px
+      rgba(29, 84, 196, 0.18);
     margin-bottom: 18px;
   }
 
@@ -470,7 +472,7 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
-    color: #475569;
+    color: rgba(255, 255, 255, 0.82);
     font-size: 12.5px;
     font-weight: 600;
     letter-spacing: -0.01em;
@@ -482,9 +484,9 @@
     gap: 5px;
     padding: 3px 8px;
     border-radius: 999px;
-    background: rgba(15, 23, 42, 0.05);
-    border: 1px solid rgba(15, 23, 42, 0.06);
-    color: #475569;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
     font-size: 11px;
     font-weight: 600;
   }
@@ -493,21 +495,21 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #10b981;
+    background: #6ee7b7;
   }
 
   #expensesView .live-pill.updating .live-dot {
-    background: #f59e0b;
+    background: #fde68a;
     animation: livePulse 1s infinite alternate ease-in-out;
   }
 
   #expensesView .live-pill.error .live-dot {
-    background: #ef4444;
+    background: #fca5a5;
   }
 
   #expensesView .summary-amount {
     margin-bottom: 14px;
-    color: #0f172a;
+    color: #ffffff;
     font-size: 32px;
     font-weight: 800;
     line-height: 1.1;
@@ -520,7 +522,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 12px;
     padding-top: 13px;
-    border-top: 1px solid rgba(220, 229, 248, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   #expensesView .summary-footer > div {
@@ -530,7 +532,7 @@
   }
 
   #expensesView .summary-label {
-    color: #94a3b8;
+    color: rgba(255, 255, 255, 0.72);
     font-size: 11px;
     font-weight: 650;
     letter-spacing: 0.02em;
@@ -538,10 +540,18 @@
   }
 
   #expensesView .summary-footer strong {
-    color: #0f172a;
+    color: #ffffff;
     font-size: 15.5px;
     font-weight: 750;
     font-variant-numeric: tabular-nums;
+  }
+
+  #expensesView .search-box {
+    border: 1px solid #d4dae5;
+  }
+
+  #expensesView .filter-button {
+    border: 1px solid #d4dae5;
   }
 
     font-size: 11px;
@@ -898,7 +908,7 @@
 
     border:
       1px solid
-      var(--border);
+      #dde2ea;
 
     border-radius: 18px;
 
@@ -3708,7 +3718,7 @@
 
     border:
       1px solid
-      var(--border);
+      #d8dee8;
 
     border-radius: 18px;
 
@@ -3728,7 +3738,11 @@
       16px
       14px;
 
-    border-color: var(--border);
+    border:
+      1px solid
+      #d8dee8;
+
+    border-color: #d8dee8;
 
     background: var(--surface);
 
@@ -3979,7 +3993,7 @@
 
     padding: 6px 4px;
 
-    border: 1px solid var(--border);
+    border: 1px solid #d4dae5;
 
     border-radius: 13px;
 
@@ -4089,7 +4103,7 @@
 
     padding: 6px 3px;
 
-    border: 1px solid var(--border);
+    border: 1px solid #d4dae5;
 
     border-radius: 13px;
 
@@ -4221,7 +4235,7 @@
 
     padding: 8px 5px 6px;
 
-    border: 1px solid var(--border);
+    border: 1px solid #d4dae5;
 
     border-radius: 14px;
 
@@ -4369,7 +4383,7 @@
 
     border:
       1px solid
-      var(--border);
+      #d4dae5;
 
     border-radius: 13px;
 
