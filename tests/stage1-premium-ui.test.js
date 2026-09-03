@@ -13,9 +13,12 @@ function createMockDom() {
       className: "",
       textContent: "",
       innerHTML: "",
+      value: "",
       attributes: {},
       children: [],
       listeners: {},
+      style: {},
+      reset() {},
       classList: {
         add(c) {
           const classes = (el.className || "").split(/\s+/).filter(Boolean);
@@ -28,6 +31,13 @@ function createMockDom() {
         },
         contains(c) {
           return (el.className || "").split(/\s+/).includes(c);
+        },
+        toggle(c, force) {
+          const has = this.contains(c);
+          const shouldAdd = force !== undefined ? Boolean(force) : !has;
+          if (shouldAdd) this.add(c);
+          else this.remove(c);
+          return shouldAdd;
         }
       },
       setAttribute(name, val) {
@@ -93,10 +103,14 @@ function loadAppContext(mockDom, overrides = {}) {
       confirm() { return true; },
       addEventListener() {},
       removeEventListener() {},
+      requestAnimationFrame(cb) { return setTimeout(cb, 0); },
+      cancelAnimationFrame() {},
       FINANCE_APP_CONFIG: {
         environment: "test"
       }
     },
+    requestAnimationFrame(cb) { return setTimeout(cb, 0); },
+    cancelAnimationFrame() {},
     setTimeout(fn) { fn(); return 1; },
     openEditExpense(id) {
       openedEditIds.push(id);
@@ -209,4 +223,97 @@ test("SVG glyph registry returns valid SVGs for all buckets and categories", () 
     const svg = ctx.getPaymentSvg(method);
     assert.match(svg, /<svg[^>]+viewBox="0 0 24 24"/, `Payment ${method} must return valid SVG`);
   }
+});
+
+test("Add mode shows close-state FAB and Edit mode does not falsely show close-state FAB", () => {
+  const dom = createMockDom();
+  const elements = {};
+  function getOrCreate(id) {
+    if (!elements[id]) {
+      elements[id] = dom.createElement("div");
+      elements[id].id = id;
+    }
+    return elements[id];
+  }
+  dom.getElementById = getOrCreate;
+
+  const addFab = getOrCreate("addExpenseButton");
+  const editorSheet = getOrCreate("editorSheet");
+  editorSheet.classList.add("hidden");
+
+  const ctx = loadAppContext(dom);
+
+  // 1. Open Add Expense
+  ctx.openAddExpense();
+  assert.ok(addFab.classList.contains("is-open"), "Add Expense should show close-state is-open on FAB");
+  assert.equal(addFab.getAttribute("aria-label"), "Close expense editor");
+
+  // 2. Tapping FAB while in Add mode closes the sheet
+  ctx.openAddExpense();
+  assert.equal(addFab.classList.contains("is-open"), false, "Closing Add Expense should remove is-open from FAB");
+  assert.equal(addFab.getAttribute("aria-label"), "Add expense");
+
+  // 3. Open Edit Expense
+  ctx.openEditExpense("exp-1");
+  assert.equal(addFab.classList.contains("is-open"), false, "Edit mode must NOT show close-state on FAB");
+  assert.equal(addFab.getAttribute("aria-label"), "Add expense");
+
+  // 4. Tapping FAB while in Edit mode switches to Add Expense
+  ctx.openAddExpense();
+  assert.ok(addFab.classList.contains("is-open"), "Tapping FAB while editing switches to Add Expense and shows is-open");
+  assert.equal(addFab.getAttribute("aria-label"), "Close expense editor");
+
+  // 5. Calling closeEditor restores FAB state
+  ctx.closeEditor();
+  assert.equal(addFab.classList.contains("is-open"), false, "closeEditor restores normal FAB state");
+  assert.equal(addFab.getAttribute("aria-label"), "Add expense");
+});
+
+test("Optimistic save does not show premature checkmark or success text before server response", () => {
+  const dom = createMockDom();
+  const elements = {};
+  function getOrCreate(id) {
+    if (!elements[id]) {
+      elements[id] = dom.createElement("div");
+      elements[id].id = id;
+    }
+    return elements[id];
+  }
+  dom.getElementById = getOrCreate;
+
+  const saveButton = getOrCreate("saveExpenseButton");
+  saveButton.textContent = "Save Expense";
+
+  let addExpenseCalled = false;
+  const mockApi = {
+    addExpense() {
+      addExpenseCalled = true;
+      return new Promise(() => {});
+    },
+    updateExpense() {
+      return new Promise(() => {});
+    }
+  };
+
+  const ctx = loadAppContext(dom, {
+    financeApi: mockApi
+  });
+
+  const testExpense = {
+    item: "Test Coffee",
+    cost: 5.50,
+    bucket: "Play",
+    category: "Eating Out",
+    date: "2026-09-02",
+    paymentMethod: "Credit Card"
+  };
+
+  // Trigger optimisticAddExpense
+  ctx.optimisticAddExpense(testExpense);
+
+  // Editor must be closed immediately
+  // Save button must NEVER show "✓ Saved" prematurely
+  assert.notEqual(saveButton.textContent, "✓ Saved", "Save button must not show premature checkmark/Saved text");
+  assert.equal(saveButton.classList.contains("save-confirmed"), false, "Save button must not have save-confirmed class");
+  assert.ok(addExpenseCalled, "API addExpense must be called");
 });

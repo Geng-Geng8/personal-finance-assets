@@ -6476,8 +6476,13 @@
       );
 
     if (addFab) {
-      addFab.classList.add("is-open");
-      addFab.setAttribute("aria-label", "Close expense editor");
+      if (!editingExpenseId) {
+        addFab.classList.add("is-open");
+        addFab.setAttribute("aria-label", "Close expense editor");
+      } else {
+        addFab.classList.remove("is-open");
+        addFab.setAttribute("aria-label", "Add expense");
+      }
     }
 
   }
@@ -6883,21 +6888,7 @@
   }
 
 
-  function finishSaveWithFeedback(isUpdate, callback) {
-    if (saveButton) {
-      saveButton.disabled = true;
-      saveButton.classList.add("save-confirmed");
-      saveButton.textContent = isUpdate ? "✓ Updated" : "✓ Saved";
-    }
-    setTimeout(function() {
-      if (saveButton) {
-        saveButton.classList.remove("save-confirmed");
-        saveButton.disabled = false;
-        saveButton.textContent = isUpdate ? "Update Expense" : "Save Expense";
-      }
-      callback();
-    }, 220);
-  }
+
 
 
   function optimisticAddExpense(
@@ -6934,9 +6925,7 @@
     beginPendingWrite();
 
 
-    finishSaveWithFeedback(false, function() {
-      closeEditor();
-    });
+    closeEditor();
 
 
     showToast(
@@ -7162,9 +7151,7 @@
     beginPendingWrite();
 
 
-    finishSaveWithFeedback(true, function() {
-      closeEditor();
-    });
+    closeEditor();
 
 
     showToast(
