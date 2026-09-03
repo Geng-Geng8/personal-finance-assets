@@ -1540,7 +1540,11 @@
     const management = currentWealthData && currentWealthData.reserveManagement;
     const reserves = management && Array.isArray(management.reserves) ? management.reserves : [];
     return reserves.find(function(reserve) {
-      return reserve && reserve.reserveId === reserveId;
+      if (!reserve) return false;
+      if (reserve.reserveId === reserveId) return true;
+      if (reserveId.startsWith("tax_reserve") && reserve.reserveId.startsWith("tax_reserve")) return true;
+      if (reserveId.startsWith("income_tax_cpp_reserve") && reserve.reserveId.startsWith("income_tax_cpp_reserve")) return true;
+      return false;
     }) || null;
   }
 
@@ -1552,11 +1556,12 @@
     const activeReserveId = isEmergency ? "emergency_fund" : selectedReserveId;
     const activeReserve = getReserveManagementEntry(activeReserveId);
 
+    const periodLabel = management && management.periodLabel ? management.periodLabel : "September 2026";
+    const monthName = management && management.monthName ? management.monthName : periodLabel.split(" ")[0];
+
     const elPeriod = document.getElementById("wealthReservePeriod");
     if (elPeriod) {
-      elPeriod.textContent = management && management.periodLabel
-        ? management.periodLabel
-        : "September 2026";
+      elPeriod.textContent = periodLabel;
     }
 
     document.querySelectorAll("[data-reserve-mode]").forEach(function(button) {
@@ -1565,10 +1570,28 @@
       button.setAttribute("aria-pressed", selected ? "true" : "false");
     });
 
+    const taxEntry = (management && management.reserves || []).find(function(r) {
+      return r && (r.reserveId && r.reserveId.startsWith("tax_reserve"));
+    });
+    const incomeEntry = (management && management.reserves || []).find(function(r) {
+      return r && (r.reserveId && r.reserveId.startsWith("income_tax_cpp_reserve"));
+    });
+
     document.querySelectorAll("[data-reserve-id]").forEach(function(button) {
-      const selected = button.getAttribute("data-reserve-id") === selectedReserveId;
-      button.classList.toggle("is-selected", selected);
-      button.setAttribute("aria-pressed", selected ? "true" : "false");
+      const btnId = button.getAttribute("data-reserve-id") || "";
+      if (taxEntry && btnId.startsWith("tax_reserve")) {
+        button.setAttribute("data-reserve-id", taxEntry.reserveId);
+      } else if (incomeEntry && btnId.startsWith("income_tax_cpp_reserve")) {
+        button.setAttribute("data-reserve-id", incomeEntry.reserveId);
+      }
+      const updatedBtnId = button.getAttribute("data-reserve-id") || "";
+      const isSelected = isEmergency
+        ? false
+        : (updatedBtnId === selectedReserveId ||
+           (selectedReserveId.startsWith("tax_reserve") && updatedBtnId.startsWith("tax_reserve")) ||
+           (selectedReserveId.startsWith("income_tax_cpp_reserve") && updatedBtnId.startsWith("income_tax_cpp_reserve")));
+      button.classList.toggle("is-selected", isSelected);
+      button.setAttribute("aria-pressed", isSelected ? "true" : "false");
     });
 
     const elTargetFieldset = document.getElementById("wealthReserveTargetFieldset");
@@ -1576,7 +1599,7 @@
 
     const elCurrentLabel = document.getElementById("wealthReserveCurrentLabel");
     if (elCurrentLabel) {
-      elCurrentLabel.textContent = isEmergency ? "Current balance" : "Current September movement";
+      elCurrentLabel.textContent = isEmergency ? "Current balance" : "Current " + monthName + " movement";
     }
 
     const elCurrentValue = document.getElementById("wealthReserveCurrentValue");
@@ -1587,18 +1610,18 @@
     const copy = {
       add: {
         inputLabel: "Amount to add",
-        help: "The entered amount will be added to September's current movement.",
+        help: "The entered amount will be added to " + monthName + "'s current movement.",
         saveLabel: "Add Set-Aside"
       },
       pay: {
         inputLabel: "CRA payment amount",
-        help: "The entered amount will be subtracted from September and will reduce the authoritative reserve total.",
+        help: "The entered amount will be subtracted from " + monthName + " and will reduce the authoritative reserve total.",
         saveLabel: "Record CRA Payment"
       },
       replace: {
-        inputLabel: "Correct September net value",
-        help: "This replaces September's current net movement. A negative value is allowed when the full reserve remains non-negative.",
-        saveLabel: "Correct September Total"
+        inputLabel: "Correct " + monthName + " net value",
+        help: "This replaces " + monthName + "'s current net movement. A negative value is allowed when the full reserve remains non-negative.",
+        saveLabel: "Correct " + monthName + " Total"
       },
       emergency: {
         inputLabel: "New Emergency Fund balance",
@@ -1636,7 +1659,11 @@
     if (typeof document === "undefined" || !currentWealthData || !currentWealthData.reserveManagement) return;
 
     selectedReserveMode = "add";
-    selectedReserveId = "tax_reserve_2026_09";
+    const management = currentWealthData.reserveManagement;
+    const activeTax = (management.reserves || []).find(function(r) {
+      return r && (r.reserveId && r.reserveId.startsWith("tax_reserve"));
+    });
+    selectedReserveId = activeTax ? activeTax.reserveId : "tax_reserve_2026_09";
     renderReserveManagerSelection(true);
 
     const elBackdrop = document.getElementById("wealthReserveBackdrop");
