@@ -3438,6 +3438,115 @@
   }
 
 
+  /* =========================================
+     CUSTOM SVG GLYPH REGISTRY
+  ========================================= */
+
+  function getBucketSlug(bucket) {
+    if (!bucket) return "play";
+    switch (bucket) {
+      case "Play":
+        return "play";
+      case "Necessity":
+        return "necessity";
+      case "Small Business":
+        return "business";
+      case "Education":
+        return "education";
+      case "Giving":
+        return "giving";
+      default:
+        return bucket.toLowerCase().replace(/\s+/g, "-");
+    }
+  }
+
+  function getCategorySvg(category, bucket) {
+    switch (category) {
+      case "Fitness":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14M18 5v14M4 8v8M20 8v8M2 10v4M22 10v4M6 12h12"/></svg>';
+      case "Eating Out":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2M15 2v10M15 16v6M6 2v18M9 2v4a3 3 0 0 1-3 3"/></svg>';
+      case "Travel":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3.5c-.5-.5-2.5 0-4 1.5L13.5 8.5 5.3 6.7c-.8-.2-1.6.2-2 .9l-.3.5 5 4-3.5 3.5-2.5-.5-.9.9 2.7 2.7 2.7 2.7.9-.9-.5-2.5 3.5-3.5 4 5 .5-.3c.7-.4 1.1-1.2.9-2Z"/></svg>';
+      case "Entertainment":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01M2 10h20M2 14h20"/></svg>';
+      case "Amazon":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>';
+      case "Clothing":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>';
+      case "Health":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M12 9v6M9 12h6"/></svg>';
+      case "Household":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+      case "Grocery":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>';
+      case "Car & Transportation":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 3c-.4.8-.1 1.8.6 2.4.4.4 1 .7 1.6.7H6"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/></svg>';
+      case "Personal Care":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>';
+      case "Taxes":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>';
+      case "Subscription":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>';
+      case "Websites":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+      case "Marketing":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>';
+      case "Business":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+      case "Ai Subscriptions":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/></svg>';
+      case "Travel and Transportation":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>';
+      case "Courses":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>';
+      case "Tech":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+      case "Books":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+      case "Gifts":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>';
+      case "Charity":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
+      case "Misc":
+        return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
+      default:
+        return getBucketSvg(bucket);
+    }
+  }
+
+  function getBucketSvg(bucket) {
+    switch (bucket) {
+      case "Play":
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+      case "Necessity":
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+      case "Small Business":
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+      case "Education":
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>';
+      case "Giving":
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
+      default:
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    }
+  }
+
+  function getPaymentSvg(method) {
+    switch (method) {
+      case "Cash":
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>';
+      case "E-Transfer":
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3 21 7l-4 4"/><path d="M3 7h18"/><path d="M7 21l-4-4 4-4"/><path d="M21 17H3"/></svg>';
+      case "Credit Card":
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>';
+      case "Other":
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><circle cx="18" cy="12" r="1"/></svg>';
+      default:
+        return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    }
+  }
+
   function createExpenseCard(
     expense
   ) {
@@ -3447,250 +3556,165 @@
         "article"
       );
 
-
-    card.className =
-      "expense-card";
-
-
-    const main =
-      document.createElement(
-        "div"
-      );
-
-
-    main.className =
-      "expense-card-main";
-
-
-    const left =
-      document.createElement(
-        "div"
-      );
-
-
-    left.className =
-      "expense-left";
-
-
-    const icon =
-      document.createElement(
-        "div"
-      );
-
-
-    icon.className =
-      "expense-icon";
-
-
-    icon.textContent =
-      getBucketInitial(
+    const bucketSlug =
+      getBucketSlug(
         expense.bucket
       );
 
+    card.className =
+      "expense-card bucket-" +
+      bucketSlug;
 
-    const copy =
+    card.setAttribute(
+      "role",
+      "button"
+    );
+
+    card.setAttribute(
+      "tabindex",
+      "0"
+    );
+
+    card.setAttribute(
+      "aria-label",
+      "Edit " +
+        (expense.item || "expense") +
+        ", " +
+        formatCurrency(expense.cost)
+    );
+
+    card.addEventListener(
+      "click",
+      function() {
+        openEditExpense(
+          expense.id
+        );
+      }
+    );
+
+    card.addEventListener(
+      "keydown",
+      function(e) {
+        if (
+          e.key === "Enter" ||
+          e.key === " "
+        ) {
+          e.preventDefault();
+          openEditExpense(
+            expense.id
+          );
+        }
+      }
+    );
+
+    const glyphContainer =
       document.createElement(
         "div"
       );
 
+    glyphContainer.className =
+      "expense-glyph-container glyph-bucket-" +
+      bucketSlug;
 
-    copy.className =
-      "expense-copy";
+    glyphContainer.innerHTML =
+      getCategorySvg(
+        expense.category,
+        expense.bucket
+      );
 
+    const content =
+      document.createElement(
+        "div"
+      );
+
+    content.className =
+      "expense-card-content";
+
+    const topRow =
+      document.createElement(
+        "div"
+      );
+
+    topRow.className =
+      "expense-row-top";
 
     const title =
       document.createElement(
         "div"
       );
 
-
     title.className =
       "expense-title";
-
 
     title.textContent =
       expense.item ||
       "Untitled Expense";
-
-
-    const meta =
-      document.createElement(
-        "div"
-      );
-
-
-    meta.className =
-      "expense-meta";
-
-
-    meta.textContent =
-      [
-        expense.bucket,
-        expense.category
-      ]
-        .filter(Boolean)
-        .join(" · ");
-
-
-    copy.appendChild(title);
-
-    copy.appendChild(meta);
-
-    left.appendChild(icon);
-
-    left.appendChild(copy);
-
-
-    const right =
-      document.createElement(
-        "div"
-      );
-
-
-    right.className =
-      "expense-right";
-
 
     const amount =
       document.createElement(
         "div"
       );
 
-
     amount.className =
       "expense-amount";
-
 
     amount.textContent =
       formatCurrency(
         expense.cost
       );
 
+    topRow.appendChild(
+      title
+    );
 
-    const date =
+    topRow.appendChild(
+      amount
+    );
+
+    const subRow =
       document.createElement(
         "div"
       );
 
+    subRow.className =
+      "expense-row-sub";
 
-    date.className =
-      "expense-date";
-
-
-    date.textContent =
-      formatDisplayDate(
-        expense.date
-      );
-
-
-    right.appendChild(amount);
-
-    right.appendChild(date);
-
-    main.appendChild(left);
-
-    main.appendChild(right);
-
-
-    const footer =
+    const meta =
       document.createElement(
         "div"
       );
 
+    meta.className =
+      "expense-meta";
 
-    footer.className =
-      "expense-footer";
+    const metaParts = [
+      expense.category,
+      expense.bucket,
+      formatDisplayDate(expense.date)
+    ].filter(Boolean);
 
+    meta.textContent =
+      metaParts.join(" · ");
 
-    const payment =
-      document.createElement(
-        "span"
-      );
-
-
-    payment.className =
-      "payment-pill " +
-      getPaymentClass(
-        expense.paymentMethod
-      );
-
-
-    payment.textContent =
-      expense.paymentMethod ||
-      "Not set";
-
-
-    const actions =
-      document.createElement(
-        "div"
-      );
-
-
-    actions.className =
-      "card-actions";
-
-
-    const editButton =
-      createIconButton(
-        "edit"
-      );
-
-
-    editButton.addEventListener(
-      "click",
-      function() {
-
-        openEditExpense(
-          expense.id
-        );
-
-      }
+    subRow.appendChild(
+      meta
     );
 
-
-    const deleteButton =
-      createIconButton(
-        "delete"
-      );
-
-
-    deleteButton.addEventListener(
-      "click",
-      function() {
-
-        confirmAndDeleteExpense(
-          expense.id,
-          expense.item
-        );
-
-      }
+    content.appendChild(
+      topRow
     );
 
-
-    actions.appendChild(
-      editButton
+    content.appendChild(
+      subRow
     );
 
-
-    actions.appendChild(
-      deleteButton
+    card.appendChild(
+      glyphContainer
     );
 
-
-    footer.appendChild(
-      payment
+    card.appendChild(
+      content
     );
-
-
-    footer.appendChild(
-      actions
-    );
-
-
-    card.appendChild(main);
-
-    card.appendChild(footer);
-
 
     return card;
 
@@ -6223,6 +6247,17 @@
 
     }
 
+    if (
+      !editorSheet.classList.contains("hidden") &&
+      !editingExpenseId
+    ) {
+
+      closeEditor();
+
+      return;
+
+    }
+
 
     editingExpenseId = null;
 
@@ -6435,6 +6470,16 @@
     document.body.style.overflow =
       "hidden";
 
+    const addFab =
+      document.getElementById(
+        "addExpenseButton"
+      );
+
+    if (addFab) {
+      addFab.classList.add("is-open");
+      addFab.setAttribute("aria-label", "Close expense editor");
+    }
+
   }
 
 
@@ -6464,6 +6509,16 @@
       false
     );
 
+    const addFab =
+      document.getElementById(
+        "addExpenseButton"
+      );
+
+    if (addFab) {
+      addFab.classList.remove("is-open");
+      addFab.setAttribute("aria-label", "Add expense");
+    }
+
   }
 
 
@@ -6492,13 +6547,12 @@
           button.type =
             "button";
 
+          const slug =
+            getBucketSlug(name);
 
           button.className =
-            "choice-button";
-
-
-          button.textContent =
-            name;
+            "choice-button bucket-choice-btn bucket-btn-" +
+            slug;
 
 
           if (
@@ -6510,6 +6564,13 @@
             );
 
           }
+
+          button.innerHTML =
+            '<span class="choice-icon-wrap" aria-hidden="true">' +
+            getBucketSvg(name) +
+            '</span><span class="choice-text">' +
+            name +
+            '</span>';
 
 
           button.addEventListener(
@@ -6559,6 +6620,11 @@
       ] ||
       [];
 
+    const bucketSlug =
+      getBucketSlug(
+        selectedBucket
+      );
+
 
     categories.forEach(
       function(name) {
@@ -6574,11 +6640,8 @@
 
 
         button.className =
-          "choice-button";
-
-
-        button.textContent =
-          name;
+          "choice-button category-choice-tile cat-bucket-" +
+          bucketSlug;
 
 
         if (
@@ -6591,6 +6654,13 @@
           );
 
         }
+
+        button.innerHTML =
+          '<span class="cat-tile-glyph" aria-hidden="true">' +
+          getCategorySvg(name, selectedBucket) +
+          '</span><span class="cat-tile-label">' +
+          name +
+          '</span>';
 
 
         button.addEventListener(
@@ -6640,18 +6710,16 @@
         button.type =
           "button";
 
+        const isSelected =
+          method ===
+          selectedPaymentMethod;
 
         button.className =
           "payment-button";
 
 
-        button.textContent =
-          method;
-
-
         if (
-          method ===
-          selectedPaymentMethod
+          isSelected
         ) {
 
           button.classList.add(
@@ -6659,6 +6727,16 @@
           );
 
         }
+
+        button.innerHTML =
+          '<span class="choice-icon-wrap" aria-hidden="true">' +
+          getPaymentSvg(method) +
+          '</span><span class="choice-text">' +
+          method +
+          '</span>' +
+          (isSelected
+            ? '<span class="choice-check-badge" aria-hidden="true"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></svg></span>'
+            : '');
 
 
         button.addEventListener(
@@ -6805,6 +6883,23 @@
   }
 
 
+  function finishSaveWithFeedback(isUpdate, callback) {
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.classList.add("save-confirmed");
+      saveButton.textContent = isUpdate ? "✓ Updated" : "✓ Saved";
+    }
+    setTimeout(function() {
+      if (saveButton) {
+        saveButton.classList.remove("save-confirmed");
+        saveButton.disabled = false;
+        saveButton.textContent = isUpdate ? "Update Expense" : "Save Expense";
+      }
+      callback();
+    }, 220);
+  }
+
+
   function optimisticAddExpense(
     expense
   ) {
@@ -6839,7 +6934,9 @@
     beginPendingWrite();
 
 
-    closeEditor();
+    finishSaveWithFeedback(false, function() {
+      closeEditor();
+    });
 
 
     showToast(
@@ -7065,7 +7162,9 @@
     beginPendingWrite();
 
 
-    closeEditor();
+    finishSaveWithFeedback(true, function() {
+      closeEditor();
+    });
 
 
     showToast(
