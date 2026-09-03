@@ -1404,7 +1404,14 @@ function updateWealthAccountBalance(payload) {
     throw new Error("Payload must be an object.");
   }
 
-  if (payload.sheet || payload.range || payload.cell) {
+  if (
+    payload.sheet !== undefined ||
+    payload.spreadsheetId !== undefined ||
+    payload.range !== undefined ||
+    payload.cell !== undefined ||
+    payload.row !== undefined ||
+    payload.formula !== undefined
+  ) {
     throw new Error("Arbitrary sheet or cell coordinates are not permitted.");
   }
 
@@ -1427,6 +1434,10 @@ function updateWealthAccountBalance(payload) {
     if (!cleaned || isNaN(cleaned)) {
       throw new Error("Invalid balance: must be a finite number.");
     }
+    const decIndex = cleaned.indexOf(".");
+    if (decIndex !== -1 && (cleaned.length - decIndex - 1) > 2) {
+      throw new Error("Balance cannot have more than 2 decimal places.");
+    }
     num = parseFloat(cleaned);
   } else {
     throw new Error("Invalid balance format.");
@@ -1440,6 +1451,10 @@ function updateWealthAccountBalance(payload) {
   }
   if (num > 1000000000) {
     throw new Error("Balance exceeds maximum allowed limit.");
+  }
+
+  if (Math.abs(num * 100 - Math.round(num * 100)) > 1e-6) {
+    throw new Error("Balance cannot have more than 2 decimal places.");
   }
 
   const normalizedBalance = Math.round(num * 100) / 100;
