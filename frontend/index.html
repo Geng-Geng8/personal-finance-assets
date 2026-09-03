@@ -774,34 +774,44 @@
         </div>
 
         <div class="wealth-reserves-bar">
-          <button type="button" class="wealth-reserves-trigger" id="manageReservesButton" aria-label="Manage protected reserves" disabled>
-            <span class="wealth-reserves-trigger-left">
-              <svg class="wealth-shield-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-              </svg>
-              <span>Protected Reserves</span>
-            </span>
-            <span class="wealth-reserves-trigger-right">
-              <span class="wealth-reserves-total" id="wealthTotalReserves">$0.00</span>
-              <svg class="wealth-row-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-            </span>
-          </button>
-          <div class="wealth-reserves-breakdown">
-            <div class="wealth-reserve-subrow">
-              <span class="wealth-reserve-subname">Tax Reserve</span>
-              <span class="wealth-reserve-subval" id="wealthTaxReserve">$0.00</span>
+          <details class="wealth-reserves-accordion" id="wealthReservesAccordion">
+            <summary class="wealth-reserves-summary">
+              <span class="wealth-reserves-summary-left">
+                <svg class="wealth-shield-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                <span>Protected Reserves</span>
+              </span>
+              <span class="wealth-reserves-summary-right">
+                <span class="wealth-reserves-total" id="wealthTotalReserves">$0.00</span>
+                <svg class="wealth-reserves-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </span>
+            </summary>
+            <div class="wealth-reserves-breakdown">
+              <div class="wealth-reserve-subrow">
+                <span class="wealth-reserve-subname">Tax Reserve</span>
+                <span class="wealth-reserve-subval" id="wealthTaxReserve">$0.00</span>
+              </div>
+              <div class="wealth-reserve-subrow">
+                <span class="wealth-reserve-subname">Income Tax + CPP</span>
+                <span class="wealth-reserve-subval" id="wealthIncomeTaxCpp">$0.00</span>
+              </div>
+              <div class="wealth-reserve-subrow">
+                <span class="wealth-reserve-subname">Emergency Fund</span>
+                <span class="wealth-reserve-subval" id="wealthEmergencyFund">$0.00</span>
+              </div>
+              <div class="wealth-reserve-manage-row">
+                <button type="button" class="wealth-manage-reserves-btn" id="manageReservesButton" disabled>
+                  <span>Manage Reserves</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="wealth-reserve-subrow">
-              <span class="wealth-reserve-subname">Income Tax + CPP</span>
-              <span class="wealth-reserve-subval" id="wealthIncomeTaxCpp">$0.00</span>
-            </div>
-            <div class="wealth-reserve-subrow">
-              <span class="wealth-reserve-subname">Emergency Fund</span>
-              <span class="wealth-reserve-subval" id="wealthEmergencyFund">$0.00</span>
-            </div>
-          </div>
+          </details>
         </div>
       </section>
 

@@ -25,16 +25,22 @@ test("2. Cash Position uses a balance-sheet-style equation with whitespace and d
   assert.match(html, /class="[^"]*wealth-balance-divider[^"]*"/);
 });
 
-test("3. Cash Position Protected Reserves row integrates existing reserve management modal trigger", () => {
+test("3. Cash Position Protected Reserves is collapsed by default and integrates reserve management modal trigger", () => {
   const html = read("index.html");
+  // Details accordion collapsed by default (no open attribute)
+  assert.match(html, /<details\s+class="wealth-reserves-accordion"\s+id="wealthReservesAccordion">/);
   assert.match(html, /id="manageReservesButton"/);
   assert.match(html, /id="wealthTotalReserves"/);
   assert.match(html, /id="wealthTaxReserve"/);
   assert.match(html, /id="wealthIncomeTaxCpp"/);
   assert.match(html, /id="wealthEmergencyFund"/);
+
+  const css = read("styles.css");
+  assert.match(css, /\.wealth-reserves-accordion\[open\]\s*\.wealth-reserves-chevron\s*\{[^}]*transform:\s*rotate\(90deg\)/);
+  assert.match(css, /@keyframes\s+reservesExpand/);
 });
 
-test("4. Portfolio is one cohesive section with authoritative Total Invested and TFSA/FHSA/RRSP rows", () => {
+test("4. Portfolio is one cohesive section with vertical total hierarchy and authoritative TFSA/FHSA/RRSP rows", () => {
   const html = read("index.html");
   assert.match(html, /class="[^"]*wealth-portfolio-section[^"]*"/);
   assert.match(html, /id="wealthTotalInvested"/);
@@ -43,6 +49,8 @@ test("4. Portfolio is one cohesive section with authoritative Total Invested and
   assert.match(html, /id="wealthRrsp"/);
 
   const css = read("styles.css");
+  assert.match(css, /\.wealth-portfolio-hero\s*\{[^}]*flex-direction:\s*column/);
+  assert.match(css, /\.wealth-portfolio-hero\s*\{[^}]*align-items:\s*flex-start/);
   assert.match(css, /\.wealth-account-badge\.tfsa\s*\{[^}]*color:\s*#7c3aed/);
 });
 
@@ -64,12 +72,20 @@ test("6. Accounts ledger renders minimal chrome and thin separators without nest
   assert.match(css, /\.wealth-accounts-table\s*\{[^}]*background:\s*transparent/);
 });
 
-test("7. Reduced motion accessibility query is provided for transitions", () => {
+test("7. Spacing between major Wealth sections is tightened to 10px", () => {
   const css = read("styles.css");
-  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+  assert.match(css, /\.wealth-hero-card\s*\{[^}]*margin-bottom:\s*10px/);
+  assert.match(css, /\.wealth-sheet-section\s*\{[^}]*margin-bottom:\s*10px/);
 });
 
-test("8. Strict parity between root and frontend/ directories is preserved across all files", () => {
+test("8. Reduced motion accessibility query is provided for transitions", () => {
+  const css = read("styles.css");
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+  assert.match(css, /\.wealth-reserves-chevron/);
+  assert.match(css, /\.wealth-reserves-breakdown/);
+});
+
+test("9. Strict parity between root and frontend/ directories is preserved across all files", () => {
   const files = ["index.html", "styles.css", "app.js", "api.js"];
   for (const f of files) {
     const rootContent = read(f);
