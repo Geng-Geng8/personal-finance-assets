@@ -2991,14 +2991,30 @@
       );
 
 
-    document
-      .getElementById(
+    const resetInsightFiltersBtn =
+      document.getElementById(
         "resetInsightFiltersButton"
-      )
-      .addEventListener(
+      );
+
+    if (resetInsightFiltersBtn) {
+      resetInsightFiltersBtn.addEventListener(
         "click",
         resetInsightFilters
       );
+    }
+
+
+    const toggleInsightFiltersBtn =
+      document.getElementById(
+        "toggleInsightFiltersButton"
+      );
+
+    if (toggleInsightFiltersBtn) {
+      toggleInsightFiltersBtn.addEventListener(
+        "click",
+        toggleInsightFilters
+      );
+    }
 
   }
 
@@ -4043,11 +4059,77 @@
   }
 
 
+  function toggleInsightFilters() {
+
+    const body =
+      document.getElementById(
+        "insightFilterBody"
+      );
+
+    const button =
+      document.getElementById(
+        "toggleInsightFiltersButton"
+      );
+
+    if (!body || !button) {
+      return;
+    }
+
+    const isHidden =
+      body.classList.contains(
+        "hidden"
+      );
+
+    if (isHidden) {
+
+      body.classList.remove(
+        "hidden"
+      );
+
+      button.classList.add(
+        "is-open"
+      );
+
+      button.setAttribute(
+        "aria-expanded",
+        "true"
+      );
+
+    } else {
+
+      body.classList.add(
+        "hidden"
+      );
+
+      button.classList.remove(
+        "is-open"
+      );
+
+      button.setAttribute(
+        "aria-expanded",
+        "false"
+      );
+
+    }
+
+  }
+
+
   function updateInsightPeriodLabel() {
 
     let label =
       "All spending";
 
+    let rangePillText =
+      "All dates";
+
+    const hasActiveFilter = Boolean(
+      (insightFilters.dateRange && insightFilters.dateRange !== "all") ||
+      insightFilters.year ||
+      insightFilters.month ||
+      insightFilters.startDate ||
+      insightFilters.endDate
+    );
 
     if (
       insightFilters.year &&
@@ -4063,12 +4145,16 @@
         " " +
         insightFilters.year;
 
+      rangePillText = "Monthly";
+
     } else if (
       insightFilters.year
     ) {
 
       label =
         insightFilters.year;
+
+      rangePillText = "Yearly";
 
     } else if (
       insightFilters.dateRange !==
@@ -4080,15 +4166,46 @@
           insightFilters
         );
 
+      rangePillText = label;
+
     }
 
-
-    document
-      .getElementById(
+    const periodLabelEl =
+      document.getElementById(
         "insightPeriodLabel"
-      )
-      .textContent =
+      );
+
+    if (periodLabelEl) {
+      periodLabelEl.textContent =
         label;
+    }
+
+    const rangePillEl =
+      document.getElementById(
+        "insightRangePill"
+      );
+
+    if (rangePillEl) {
+      rangePillEl.textContent =
+        rangePillText;
+
+      rangePillEl.classList.toggle(
+        "active-filter",
+        hasActiveFilter
+      );
+    }
+
+    const resetBtn =
+      document.getElementById(
+        "resetInsightFiltersButton"
+      );
+
+    if (resetBtn) {
+      resetBtn.classList.toggle(
+        "hidden",
+        !hasActiveFilter
+      );
+    }
 
   }
 

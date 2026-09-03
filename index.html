@@ -310,145 +310,163 @@
 
     <!-- INSIGHTS PERIOD CONTROLS -->
 
-    <section class="insight-filter-card">
+    <section class="insight-filter-card" id="insightFilterCard">
 
       <div class="insight-filter-heading">
 
-        <div>
+        <div class="insight-filter-meta">
 
           <span class="small-label">
             VIEWING
           </span>
 
-          <strong id="insightPeriodLabel">
-            All spending
-          </strong>
-
-        </div>
-
-
-        <button id="resetInsightFiltersButton" class="reset-link" type="button">
-          Reset
-        </button>
-
-      </div>
-
-
-      <div class="period-help">
-
-        Choose a quick range or select a year and month.
-
-      </div>
-
-
-      <div class="insight-filter-grid">
-
-        <div class="quick-range-field">
-
-          <label for="insightDateRange">
-            Quick Range
-          </label>
-
-          <select id="insightDateRange" class="filter-select">
-
-            <option value="all">
+          <div class="insight-filter-title-wrap">
+            <strong id="insightPeriodLabel">
+              All spending
+            </strong>
+            <span class="insight-range-pill" id="insightRangePill">
               All dates
-            </option>
-
-            <option value="7">
-              Last 7 days
-            </option>
-
-            <option value="30">
-              Last 30 days
-            </option>
-
-            <option value="this_month">
-              This month
-            </option>
-
-            <option value="this_year">
-              This year
-            </option>
-
-            <option value="custom">
-              Custom range
-            </option>
-
-          </select>
+            </span>
+          </div>
 
         </div>
 
 
-        <div>
+        <div class="insight-filter-actions">
 
-          <label for="insightYear">
-            Year
-          </label>
+          <button id="resetInsightFiltersButton" class="reset-link hidden" type="button">
+            Reset
+          </button>
 
-          <select id="insightYear" class="filter-select">
-
-            <option value="">
-              All years
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <div>
-
-          <label for="insightMonth">
-            Month
-          </label>
-
-          <select id="insightMonth" class="filter-select" disabled="">
-
-            <option value="">
-              All months
-            </option>
-
-            <option value="1">January</option>
-            <option value="2">February</option>
-            <option value="3">March</option>
-            <option value="4">April</option>
-            <option value="5">May</option>
-            <option value="6">June</option>
-            <option value="7">July</option>
-            <option value="8">August</option>
-            <option value="9">September</option>
-            <option value="10">October</option>
-            <option value="11">November</option>
-            <option value="12">December</option>
-
-          </select>
+          <button id="toggleInsightFiltersButton" class="insight-filter-toggle-btn" type="button" aria-expanded="false" aria-controls="insightFilterBody">
+            <span>Filters</span>
+            <svg class="toggle-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
+          </button>
 
         </div>
 
       </div>
 
 
-      <div class="custom-insight-range hidden" id="customInsightRange">
+      <div class="insight-filter-body hidden" id="insightFilterBody">
 
-        <div>
+        <div class="period-help">
+          Choose a quick range or select a year and month.
+        </div>
 
-          <label for="insightStartDate">
-            Start date
-          </label>
 
-          <input type="date" id="insightStartDate" class="filter-select">
+        <div class="insight-filter-grid">
+
+          <div class="quick-range-field">
+
+            <label for="insightDateRange">
+              Quick Range
+            </label>
+
+            <select id="insightDateRange" class="filter-select">
+
+              <option value="all">
+                All dates
+              </option>
+
+              <option value="7">
+                Last 7 days
+              </option>
+
+              <option value="30">
+                Last 30 days
+              </option>
+
+              <option value="this_month">
+                This month
+              </option>
+
+              <option value="this_year">
+                This year
+              </option>
+
+              <option value="custom">
+                Custom range
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div>
+
+            <label for="insightYear">
+              Year
+            </label>
+
+            <select id="insightYear" class="filter-select">
+
+              <option value="">
+                All years
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div>
+
+            <label for="insightMonth">
+              Month
+            </label>
+
+            <select id="insightMonth" class="filter-select" disabled="">
+
+              <option value="">
+                All months
+              </option>
+
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+
+            </select>
+
+          </div>
 
         </div>
 
 
-        <div>
+        <div class="custom-insight-range hidden" id="customInsightRange">
 
-          <label for="insightEndDate">
-            End date
-          </label>
+          <div>
 
-          <input type="date" id="insightEndDate" class="filter-select">
+            <label for="insightStartDate">
+              Start date
+            </label>
+
+            <input type="date" id="insightStartDate" class="filter-select">
+
+          </div>
+
+
+          <div>
+
+            <label for="insightEndDate">
+              End date
+            </label>
+
+            <input type="date" id="insightEndDate" class="filter-select">
+
+          </div>
 
         </div>
 
@@ -504,7 +522,7 @@
 
     <!-- MONTHLY TREND -->
 
-    <section class="chart-card">
+    <section class="chart-card primary-chart">
 
       <div class="chart-heading">
 
