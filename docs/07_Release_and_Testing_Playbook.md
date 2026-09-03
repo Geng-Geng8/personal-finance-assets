@@ -11,7 +11,7 @@ Last Updated: 2026-09-03
 
 | Item | Baseline |
 | --- | --- |
-| Production main | `ba6a252e96d4aa779c381c082f211e1851c45d6f` |
+| Phase 2A application release SHA | `ba6a252e96d4aa779c381c082f211e1851c45d6f` (docs commits may advance `main` without changing deployed application code) |
 | Production Apps Script | Version 30 — Phase 2A Wealth Account Editing Production Candidate |
 | Production Web App | Existing deployment `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` |
 | Phase 2A release result | 141 / 141 automated tests passed (39 dedicated Stage 7 balance-editing tests) |

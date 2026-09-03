@@ -20,7 +20,7 @@ The current production release is Phase 2A: Wealth account editing is live in pr
 | Repository | [Geng-Geng8/personal-finance-assets](https://github.com/Geng-Geng8/personal-finance-assets) |
 | Production PWA | [GitHub Pages production](https://geng-geng8.github.io/personal-finance-assets/) |
 | Branch | `main` |
-| Current main SHA | `ba6a252e96d4aa779c381c082f211e1851c45d6f` |
+| Phase 2A application release SHA | `ba6a252e96d4aa779c381c082f211e1851c45d6f` (docs commits may advance `main` without changing deployed application code) |
 | Phase 2A branch | `stage-7-wealth-account-editing` merged into `main` |
 | Pre-Phase-2A rollback branch | `pre-phase-2a-wealth-edit-production` |
 | Pre-Phase-2A production SHA | `9cb076cc2bcf62f7b5c29d225bb9da1638939b30` |
@@ -174,7 +174,7 @@ Do not force-reset shared history. Prefer a reviewed revert commit for GitHub Pa
 
 ## Current status and immediate next phase
 
-**Production:** Phase 2A Wealth Account Editing is live (Apps Script Version 30, `main` at `ba6a252e96d4aa779c381c082f211e1851c45d6f`).  
+**Production:** Phase 2A Wealth Account Editing is live (Apps Script Version 30, application release commit `ba6a252e96d4aa779c381c082f211e1851c45d6f`).
 **Active Next Phase:** Phase 2B — reserve editing source audit (N2:N13, O2:O13, P14, labels, monthly semantics, and dependent formulas). Do not mutate production reserve cells without audit approval.
 
 ## Known constraints and discrepancies
@@ -185,7 +185,7 @@ Do not force-reset shared history. Prefer a reviewed revert commit for GitHub Pa
 4. The production Sheet reports time zone `America/New_York`; the Apps Script manifest reports `America/Toronto`. Current date formatting reads the Sheet time zone. Do not silently change either; audit the mismatch before time-sensitive changes.
 5. `config.js` contains unused OAuth-era values. They must not be described as active authentication.
 6. Older Drive architecture guidance proposed unauthenticated GET for expenses. That guidance is superseded and prohibited.
-7. Current Wealth account categorization is heuristic. Phase 2A requires explicit IDs and editability metadata.
+7. Phase 2A established explicit stable logical IDs, live formula verification, and editability metadata for all accounts, backed by the nine-account server whitelist.
 8. The clean-clone full test suite has one environment-dependent Stage 2 failure described above.
 
 ## Authority rule

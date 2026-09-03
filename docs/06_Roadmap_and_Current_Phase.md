@@ -9,7 +9,7 @@ Last Updated: 2026-09-03
 
 ## Current baseline
 
-Phase 2A Wealth Account Editing is in production at main SHA `ba6a252e96d4aa779c381c082f211e1851c45d6f` and Apps Script Version 30. The release record is 141/141 automated tests passed (restoring and expanding coverage from Stage 6's historical 102/102 baseline).
+Phase 2A Wealth Account Editing is in production at application release commit `ba6a252e96d4aa779c381c082f211e1851c45d6f` (on `main`; docs commits advance `main` without altering application code) and Apps Script Version 30. The release record is 141/141 automated tests passed (restoring and expanding coverage from Stage 6's historical 102/102 baseline).
 
 ## Phase 2A: editable approved manual Wealth accounts (COMPLETE / PRODUCTION)
 
@@ -17,7 +17,7 @@ Phase 2A Wealth Account Editing is in production at main SHA `ba6a252e96d4aa779c
 Allow the owner to update approved individual account balances from the Wealth screen while Google Sheets remains authoritative and recalculates every dependent total.
 
 **Status**  
-COMPLETE / PRODUCTION. Released to production with Apps Script Version 30 and GitHub Pages main `ba6a252e96d4aa779c381c082f211e1851c45d6f`. Exactly nine approved manual accounts are editable. Non-production integration gate passed; reversible production write passed, exact original balance restored, and dependent totals returned to baseline.
+COMPLETE / PRODUCTION. Released to production with Apps Script Version 30 and Phase 2A application release commit `ba6a252e96d4aa779c381c082f211e1851c45d6f`. Exactly nine approved manual accounts are editable. Non-production integration gate passed; reversible production write passed, exact original balance restored, and dependent totals returned to baseline.
 
 **Production API contract**
 
@@ -113,7 +113,7 @@ Active next phase. No reserve write contract is yet approved. A read-only source
 1. Read-only source audit of all reserve inputs and formulas.
 2. Confirm the intended monthly/annual workflow and whether P14 is a direct source or derived value.
 3. Define exact edit targets, validation, and dependency tests.
-4. Completed and stabilized Phase 2A (complete at `ba6a252e96d4aa779c381c082f211e1851c45d6f` / Version 30).
+4. Completed and stabilized Phase 2A (application release commit `ba6a252e96d4aa779c381c082f211e1851c45d6f` / Version 30).
 
 **Risks**
 

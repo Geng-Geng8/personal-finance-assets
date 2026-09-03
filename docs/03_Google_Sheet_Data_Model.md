@@ -62,7 +62,7 @@ Classification terms:
 
 ## Individual account table: H17:I28
 
-The exact Sheet labels differ slightly from the normalized product names. The stable IDs below are the authoritative **Phase 2A target contract**, not current Stage 6 implementation. Current `getWealth()` still returns only `name`, `balance`, and heuristic `type`.
+The exact Sheet labels differ slightly from the normalized product names. The stable IDs below are the authoritative **Phase 2A production contract**, implemented in production with explicit stable logical IDs, live formula inspection, and editability metadata.
 
 | Cell | Exact Sheet label | Product display name | Stable logical ID | Cell type | Initial Phase 2A status |
 | --- | --- | --- | --- | --- | --- |
