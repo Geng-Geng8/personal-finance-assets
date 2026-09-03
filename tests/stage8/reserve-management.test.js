@@ -21,6 +21,12 @@ function loadBackendContext(customData = {}) {
   const cellValues = Object.assign({
     N10: 100,
     O10: 200,
+    N11: 0,
+    O11: 0,
+    N12: 0,
+    O12: 0,
+    N13: 0,
+    O13: 0,
     P14: 6000,
     I17: 23000,
     I18: 81000,
@@ -43,6 +49,12 @@ function loadBackendContext(customData = {}) {
     H14: "=I29-P14-N14-O14",
     N10: "",
     O10: "",
+    N11: "",
+    O11: "",
+    N12: "",
+    O12: "",
+    N13: "",
+    O13: "",
     N14: "=SUM(N2:N13)",
     O14: "=SUM(O2:O13)",
     P14: "",
@@ -89,11 +101,13 @@ function loadBackendContext(customData = {}) {
   const writtenCells = [];
 
   function taxReserveValue() {
-    return (baseTaxReserveCents + Math.round(Number(cellValues.N10 || 0) * 100)) / 100;
+    const monthlySum = Number(cellValues.N10 || 0) + Number(cellValues.N11 || 0) + Number(cellValues.N12 || 0) + Number(cellValues.N13 || 0);
+    return (baseTaxReserveCents + Math.round(monthlySum * 100)) / 100;
   }
 
   function incomeReserveValue() {
-    return (baseIncomeReserveCents + Math.round(Number(cellValues.O10 || 0) * 100)) / 100;
+    const monthlySum = Number(cellValues.O10 || 0) + Number(cellValues.O11 || 0) + Number(cellValues.O12 || 0) + Number(cellValues.O13 || 0);
+    return (baseIncomeReserveCents + Math.round(monthlySum * 100)) / 100;
   }
 
   function availableCashValue() {
@@ -155,8 +169,20 @@ function loadBackendContext(customData = {}) {
       getScriptProperties: () => ({ getProperty: (key) => propertiesStore[key] || null })
     },
     SpreadsheetApp: {
-      openById: () => ({ getSheetByName: (name) => name === "2026-Budgets" ? mockSheet : null }),
+      openById: () => ({
+        getSheetByName: (name) => name === "2026-Budgets" ? mockSheet : null,
+        getSpreadsheetTimeZone: () => customData.timeZone || "America/Toronto"
+      }),
       flush: () => { flushCount++; }
+    },
+    Utilities: {
+      formatDate: (date, tz, format) => {
+        const dtf = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit" });
+        const parts = dtf.formatToParts(date);
+        const y = parts.find(p => p.type === "year").value;
+        const m = parts.find(p => p.type === "month").value;
+        return y + "-" + m;
+      }
     },
     LockService: {
       getScriptLock: () => ({
@@ -187,6 +213,7 @@ function loadBackendContext(customData = {}) {
         })
       })
     },
+    TEST_RESERVE_DATE_OVERRIDE_: customData.testDate || new Date("2026-09-15T12:00:00Z"),
     _getCellValues: () => cellValues,
     _getWrittenCells: () => writtenCells.slice(),
     _getWriteState: () => ({ lockAcquired, lockReleased, wasLockedDuringWrite, flushCount, wealthReadCount })
@@ -201,15 +228,27 @@ function responseJson(response) {
   return JSON.parse(response.content);
 }
 
-test("1. approved reserve IDs map only to the exact September and Emergency Fund targets", () => {
+test("1. approved reserve IDs map only to approved 2026 month rows (N10:O13) and Emergency Fund (P14)", () => {
   const ctx = loadBackendContext();
   assert.deepEqual(Object.keys(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST), [
     "tax_reserve_2026_09",
     "income_tax_cpp_reserve_2026_09",
+    "tax_reserve_2026_10",
+    "income_tax_cpp_reserve_2026_10",
+    "tax_reserve_2026_11",
+    "income_tax_cpp_reserve_2026_11",
+    "tax_reserve_2026_12",
+    "income_tax_cpp_reserve_2026_12",
     "emergency_fund"
   ]);
   assert.equal(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST.tax_reserve_2026_09.sourceCell, "N10");
   assert.equal(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST.income_tax_cpp_reserve_2026_09.sourceCell, "O10");
+  assert.equal(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST.tax_reserve_2026_10.sourceCell, "N11");
+  assert.equal(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST.income_tax_cpp_reserve_2026_10.sourceCell, "O11");
+  assert.equal(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST.tax_reserve_2026_11.sourceCell, "N12");
+  assert.equal(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST.income_tax_cpp_reserve_2026_11.sourceCell, "O12");
+  assert.equal(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST.tax_reserve_2026_12.sourceCell, "N13");
+  assert.equal(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST.income_tax_cpp_reserve_2026_12.sourceCell, "O13");
   assert.equal(ctx.WEALTH_RESERVE_EDITABLE_WHITELIST.emergency_fund.sourceCell, "P14");
 });
 
@@ -412,4 +451,84 @@ test("25. UI exposes the approved reserve actions without editable formula or hi
   assert.match(html, />Correct September Total</);
   assert.match(html, />Set Emergency Fund Balance</);
   assert.doesNotMatch(html, /<(?:input|select|textarea|button)[^>]*(?:N14|O14|H14|I29|P2:P13)/i);
+});
+
+test("26. September resolves N10/O10 and returns September metadata", () => {
+  const ctx = loadBackendContext({ testDate: new Date("2026-09-15T12:00:00Z") });
+  const wealth = ctx.getWealth();
+  assert.equal(wealth.reserveManagement.periodId, "2026-09");
+  assert.equal(wealth.reserveManagement.periodLabel, "September 2026");
+  ctx.updateWealthReserve({ reserveId: "tax_reserve_2026_09", operation: "add", amount: 15 });
+  assert.equal(ctx._getCellValues().N10, 115);
+  ctx.updateWealthReserve({ reserveId: "income_tax_cpp_reserve_2026_09", operation: "add", amount: 25 });
+  assert.equal(ctx._getCellValues().O10, 225);
+  assert.equal(ctx._getCellValues().N11, 0);
+  assert.equal(ctx._getCellValues().O11, 0);
+});
+
+test("27. October resolves N11/O11 and returns October metadata", () => {
+  const ctx = loadBackendContext({ testDate: new Date("2026-10-05T12:00:00Z") });
+  const wealth = ctx.getWealth();
+  assert.equal(wealth.reserveManagement.periodId, "2026-10");
+  assert.equal(wealth.reserveManagement.periodLabel, "October 2026");
+  ctx.updateWealthReserve({ reserveId: "tax_reserve_2026_10", operation: "add", amount: 50 });
+  assert.equal(ctx._getCellValues().N11, 50);
+  ctx.updateWealthReserve({ reserveId: "income_tax_cpp_reserve_2026_10", operation: "add", amount: 75 });
+  assert.equal(ctx._getCellValues().O11, 75);
+  assert.equal(ctx._getCellValues().N10, 100);
+  assert.equal(ctx._getCellValues().O10, 200);
+});
+
+test("28. November resolves N12/O12 and returns November metadata", () => {
+  const ctx = loadBackendContext({ testDate: new Date("2026-11-20T12:00:00Z") });
+  const wealth = ctx.getWealth();
+  assert.equal(wealth.reserveManagement.periodId, "2026-11");
+  assert.equal(wealth.reserveManagement.periodLabel, "November 2026");
+  ctx.updateWealthReserve({ reserveId: "tax_reserve_2026_11", operation: "add", amount: 30 });
+  assert.equal(ctx._getCellValues().N12, 30);
+  ctx.updateWealthReserve({ reserveId: "income_tax_cpp_reserve_2026_11", operation: "replace", amount: 80 });
+  assert.equal(ctx._getCellValues().O12, 80);
+});
+
+test("29. December resolves N13/O13 and returns December metadata", () => {
+  const ctx = loadBackendContext({ testDate: new Date("2026-12-10T12:00:00Z") });
+  const wealth = ctx.getWealth();
+  assert.equal(wealth.reserveManagement.periodId, "2026-12");
+  assert.equal(wealth.reserveManagement.periodLabel, "December 2026");
+  ctx.updateWealthReserve({ reserveId: "tax_reserve_2026_12", operation: "add", amount: 40 });
+  assert.equal(ctx._getCellValues().N13, 40);
+  ctx.updateWealthReserve({ reserveId: "income_tax_cpp_reserve_2026_12", operation: "add", amount: 60 });
+  assert.equal(ctx._getCellValues().O13, 60);
+});
+
+test("30. Tax and Income Tax/CPP resolve independently to the correct columns", () => {
+  const ctx = loadBackendContext({ testDate: new Date("2026-10-15T12:00:00Z") });
+  ctx.updateWealthReserve({ reserveId: "tax_reserve", operation: "add", amount: 10 });
+  assert.equal(ctx._getCellValues().N11, 10);
+  assert.equal(ctx._getCellValues().O11, 0);
+  ctx.updateWealthReserve({ reserveId: "income_tax_cpp_reserve", operation: "add", amount: 20 });
+  assert.equal(ctx._getCellValues().O11, 20);
+  assert.equal(ctx._getCellValues().N11, 10);
+});
+
+test("31. Emergency Fund remains P14 across all months", () => {
+  for (const dateStr of ["2026-09-01T12:00:00Z", "2026-10-01T12:00:00Z", "2026-11-01T12:00:00Z", "2026-12-01T12:00:00Z"]) {
+    const ctx = loadBackendContext({ testDate: new Date(dateStr) });
+    ctx.updateWealthReserve({ reserveId: "emergency_fund", operation: "replace", amount: 7500 });
+    assert.equal(ctx._getCellValues().P14, 7500);
+  }
+});
+
+test("32. unsupported month/year fails closed (2026-08 and 2027-01)", () => {
+  const ctxAugust = loadBackendContext({ testDate: new Date("2026-08-15T12:00:00Z") });
+  assert.throws(() => ctxAugust.updateWealthReserve({ reserveId: "tax_reserve", operation: "add", amount: 10 }), /Reserve management is not configured for period 2026-08/);
+
+  const ctxJanuary = loadBackendContext({ testDate: new Date("2027-01-05T12:00:00Z") });
+  assert.throws(() => ctxJanuary.updateWealthReserve({ reserveId: "tax_reserve", operation: "add", amount: 10 }), /Reserve management is not configured for period 2027-01/);
+});
+
+test("33. historical month modification is denied when another month is active", () => {
+  const ctxOctober = loadBackendContext({ testDate: new Date("2026-10-15T12:00:00Z") });
+  assert.throws(() => ctxOctober.updateWealthReserve({ reserveId: "tax_reserve_2026_09", operation: "add", amount: 10 }), /Invalid or non-editable reserve/);
+  assert.throws(() => ctxOctober.updateWealthReserve({ reserveId: "tax_reserve_2026_11", operation: "add", amount: 10 }), /Invalid or non-editable reserve/);
 });

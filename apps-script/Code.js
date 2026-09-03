@@ -1357,32 +1357,214 @@ var WEALTH_EDITABLE_WHITELIST = Object.freeze({
   }
 });
 
+var TEST_RESERVE_DATE_OVERRIDE_ = (typeof TEST_RESERVE_DATE_OVERRIDE_ !== "undefined" && TEST_RESERVE_DATE_OVERRIDE_) ? TEST_RESERVE_DATE_OVERRIDE_ : null;
+
+function getCurrentServerDate_() {
+  if (typeof TEST_RESERVE_DATE_OVERRIDE_ !== "undefined" && TEST_RESERVE_DATE_OVERRIDE_ && typeof TEST_RESERVE_DATE_OVERRIDE_.getTime === "function") {
+    return TEST_RESERVE_DATE_OVERRIDE_;
+  }
+  return new Date();
+}
+
+function getSpreadsheetTimeZone_() {
+  try {
+    const ss = getProductionSpreadsheet_();
+    if (ss && typeof ss.getSpreadsheetTimeZone === "function") {
+      const tz = ss.getSpreadsheetTimeZone();
+      if (tz) return tz;
+    }
+  } catch (e) {}
+  return "America/Toronto";
+}
+
+function formatYearMonthInTimeZone_(date, timeZone) {
+  if (typeof Utilities !== "undefined" && Utilities && typeof Utilities.formatDate === "function") {
+    return Utilities.formatDate(date, timeZone, "yyyy-MM");
+  }
+  try {
+    const dtf = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timeZone,
+      year: "numeric",
+      month: "2-digit"
+    });
+    const parts = dtf.formatToParts(date);
+    const y = parts.find(function(p) { return p.type === "year"; }).value;
+    const m = parts.find(function(p) { return p.type === "month"; }).value;
+    return y + "-" + m;
+  } catch (err) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    return y + "-" + m;
+  }
+}
+
+var WEALTH_RESERVE_2026_MONTH_CONFIG = Object.freeze({
+  "2026-09": Object.freeze({
+    periodId: "2026-09",
+    periodLabel: "September 2026",
+    monthName: "September",
+    row: 10,
+    taxCell: "N10",
+    incomeCell: "O10",
+    taxReserveId: "tax_reserve_2026_09",
+    incomeReserveId: "income_tax_cpp_reserve_2026_09"
+  }),
+  "2026-10": Object.freeze({
+    periodId: "2026-10",
+    periodLabel: "October 2026",
+    monthName: "October",
+    row: 11,
+    taxCell: "N11",
+    incomeCell: "O11",
+    taxReserveId: "tax_reserve_2026_10",
+    incomeReserveId: "income_tax_cpp_reserve_2026_10"
+  }),
+  "2026-11": Object.freeze({
+    periodId: "2026-11",
+    periodLabel: "November 2026",
+    monthName: "November",
+    row: 12,
+    taxCell: "N12",
+    incomeCell: "O12",
+    taxReserveId: "tax_reserve_2026_11",
+    incomeReserveId: "income_tax_cpp_reserve_2026_11"
+  }),
+  "2026-12": Object.freeze({
+    periodId: "2026-12",
+    periodLabel: "December 2026",
+    monthName: "December",
+    row: 13,
+    taxCell: "N13",
+    incomeCell: "O13",
+    taxReserveId: "tax_reserve_2026_12",
+    incomeReserveId: "income_tax_cpp_reserve_2026_12"
+  })
+});
+
+function getActive2026ReserveMonthConfig_() {
+  const timeZone = getSpreadsheetTimeZone_();
+  const now = getCurrentServerDate_();
+  const yearMonth = formatYearMonthInTimeZone_(now, timeZone);
+
+  if (!Object.prototype.hasOwnProperty.call(WEALTH_RESERVE_2026_MONTH_CONFIG, yearMonth)) {
+    throw new Error(
+      "Reserve management is not configured for period " + yearMonth +
+      ". Supported 2026 periods are September through December."
+    );
+  }
+
+  return WEALTH_RESERVE_2026_MONTH_CONFIG[yearMonth];
+}
+
 var WEALTH_RESERVE_EDITABLE_WHITELIST = Object.freeze({
-  tax_reserve_2026_09: {
+  tax_reserve_2026_09: Object.freeze({
     id: "tax_reserve_2026_09",
     name: "Tax Reserve",
+    periodId: "2026-09",
     sourceCell: "N10",
     summaryCell: "N14",
     expectedSummaryFormula: "=SUM(N2:N13)",
     allowedOperations: Object.freeze(["add", "pay", "replace"])
-  },
-  income_tax_cpp_reserve_2026_09: {
+  }),
+  income_tax_cpp_reserve_2026_09: Object.freeze({
     id: "income_tax_cpp_reserve_2026_09",
     name: "Income Tax / CPP",
+    periodId: "2026-09",
     sourceCell: "O10",
     summaryCell: "O14",
     expectedSummaryFormula: "=SUM(O2:O13)",
     allowedOperations: Object.freeze(["add", "pay", "replace"])
-  },
-  emergency_fund: {
+  }),
+  tax_reserve_2026_10: Object.freeze({
+    id: "tax_reserve_2026_10",
+    name: "Tax Reserve",
+    periodId: "2026-10",
+    sourceCell: "N11",
+    summaryCell: "N14",
+    expectedSummaryFormula: "=SUM(N2:N13)",
+    allowedOperations: Object.freeze(["add", "pay", "replace"])
+  }),
+  income_tax_cpp_reserve_2026_10: Object.freeze({
+    id: "income_tax_cpp_reserve_2026_10",
+    name: "Income Tax / CPP",
+    periodId: "2026-10",
+    sourceCell: "O11",
+    summaryCell: "O14",
+    expectedSummaryFormula: "=SUM(O2:O13)",
+    allowedOperations: Object.freeze(["add", "pay", "replace"])
+  }),
+  tax_reserve_2026_11: Object.freeze({
+    id: "tax_reserve_2026_11",
+    name: "Tax Reserve",
+    periodId: "2026-11",
+    sourceCell: "N12",
+    summaryCell: "N14",
+    expectedSummaryFormula: "=SUM(N2:N13)",
+    allowedOperations: Object.freeze(["add", "pay", "replace"])
+  }),
+  income_tax_cpp_reserve_2026_11: Object.freeze({
+    id: "income_tax_cpp_reserve_2026_11",
+    name: "Income Tax / CPP",
+    periodId: "2026-11",
+    sourceCell: "O12",
+    summaryCell: "O14",
+    expectedSummaryFormula: "=SUM(O2:O13)",
+    allowedOperations: Object.freeze(["add", "pay", "replace"])
+  }),
+  tax_reserve_2026_12: Object.freeze({
+    id: "tax_reserve_2026_12",
+    name: "Tax Reserve",
+    periodId: "2026-12",
+    sourceCell: "N13",
+    summaryCell: "N14",
+    expectedSummaryFormula: "=SUM(N2:N13)",
+    allowedOperations: Object.freeze(["add", "pay", "replace"])
+  }),
+  income_tax_cpp_reserve_2026_12: Object.freeze({
+    id: "income_tax_cpp_reserve_2026_12",
+    name: "Income Tax / CPP",
+    periodId: "2026-12",
+    sourceCell: "O13",
+    summaryCell: "O14",
+    expectedSummaryFormula: "=SUM(O2:O13)",
+    allowedOperations: Object.freeze(["add", "pay", "replace"])
+  }),
+  emergency_fund: Object.freeze({
     id: "emergency_fund",
     name: "Emergency Fund",
+    periodId: null,
     sourceCell: "P14",
     summaryCell: null,
     expectedSummaryFormula: null,
     allowedOperations: Object.freeze(["replace"])
-  }
+  })
 });
+
+function resolveActiveReserveTarget_(reserveId) {
+  const cleanId = String(reserveId || "").trim();
+  if (!cleanId) {
+    throw new Error("Invalid or non-editable reserve.");
+  }
+
+  if (cleanId === "emergency_fund") {
+    return WEALTH_RESERVE_EDITABLE_WHITELIST.emergency_fund;
+  }
+
+  const activeMonthConfig = getActive2026ReserveMonthConfig_();
+
+  let resolvedId = null;
+  if (cleanId === "tax_reserve" || cleanId === activeMonthConfig.taxReserveId) {
+    resolvedId = activeMonthConfig.taxReserveId;
+  } else if (cleanId === "income_tax_cpp_reserve" || cleanId === activeMonthConfig.incomeReserveId) {
+    resolvedId = activeMonthConfig.incomeReserveId;
+  }
+
+  if (!resolvedId || !Object.prototype.hasOwnProperty.call(WEALTH_RESERVE_EDITABLE_WHITELIST, resolvedId)) {
+    throw new Error("Invalid or non-editable reserve.");
+  }
+
+  return WEALTH_RESERVE_EDITABLE_WHITELIST[resolvedId];
+}
 
 var WEALTH_RESERVE_PERIOD = Object.freeze({
   id: "2026-09",
@@ -1447,8 +1629,25 @@ function getReserveManagement_(sheet) {
     EXPECTED_AVAILABLE_CASH_FORMULA
   );
 
-  function reserveMetadata(id) {
-    const target = WEALTH_RESERVE_EDITABLE_WHITELIST[id];
+  let activeMonthConfig = null;
+  let resolutionError = null;
+  try {
+    activeMonthConfig = getActive2026ReserveMonthConfig_();
+  } catch (err) {
+    resolutionError = err.message;
+  }
+
+  if (!activeMonthConfig) {
+    return {
+      periodId: "unsupported",
+      periodLabel: "Unsupported Period",
+      monthName: "Unsupported",
+      error: resolutionError,
+      reserves: []
+    };
+  }
+
+  function reserveMetadata(target) {
     const sourceRange = sheet.getRange(target.sourceCell);
     const sourceIsManual = !String(sourceRange.getFormula() || "").trim();
     const summaryIsValid = !target.summaryCell || hasApprovedWealthFormula_(
@@ -1466,12 +1665,13 @@ function getReserveManagement_(sheet) {
   }
 
   return {
-    periodId: WEALTH_RESERVE_PERIOD.id,
-    periodLabel: WEALTH_RESERVE_PERIOD.label,
+    periodId: activeMonthConfig.periodId,
+    periodLabel: activeMonthConfig.periodLabel,
+    monthName: activeMonthConfig.monthName,
     reserves: [
-      reserveMetadata("tax_reserve_2026_09"),
-      reserveMetadata("income_tax_cpp_reserve_2026_09"),
-      reserveMetadata("emergency_fund")
+      reserveMetadata(WEALTH_RESERVE_EDITABLE_WHITELIST[activeMonthConfig.taxReserveId]),
+      reserveMetadata(WEALTH_RESERVE_EDITABLE_WHITELIST[activeMonthConfig.incomeReserveId]),
+      reserveMetadata(WEALTH_RESERVE_EDITABLE_WHITELIST.emergency_fund)
     ]
   };
 }
@@ -1625,11 +1825,7 @@ function updateWealthReserve(payload) {
   }
 
   const reserveId = String(payload.reserveId || "").trim();
-  if (!reserveId || !WEALTH_RESERVE_EDITABLE_WHITELIST.hasOwnProperty(reserveId)) {
-    throw new Error("Invalid or non-editable reserve.");
-  }
-
-  const target = WEALTH_RESERVE_EDITABLE_WHITELIST[reserveId];
+  const target = resolveActiveReserveTarget_(reserveId);
   const operation = String(payload.operation || "").trim().toLowerCase();
   if (target.allowedOperations.indexOf(operation) === -1) {
     throw new Error("Invalid operation for this reserve.");
@@ -1639,7 +1835,7 @@ function updateWealthReserve(payload) {
   if ((operation === "add" || operation === "pay") && amountCents <= 0) {
     throw new Error("Add and pay amounts must be positive.");
   }
-  if (reserveId === "emergency_fund" && amountCents < 0) {
+  if (target.id === "emergency_fund" && amountCents < 0) {
     throw new Error("Emergency Fund cannot be negative.");
   }
 
