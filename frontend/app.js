@@ -1029,7 +1029,7 @@
     }
 
     try {
-      const updatedWealth = await financeApi.updateWealthBalance({
+      const updatedWealth = await financeApi.updateWealthAccountBalance({
         accountId: editingWealthAccountId,
         balance: Math.round(numVal * 100) / 100
       });

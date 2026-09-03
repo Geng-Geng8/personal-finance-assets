@@ -1236,70 +1236,60 @@ function parseSheetNumber_(val) {
   return isNaN(num) ? 0 : num;
 }
 
-const WEALTH_EDITABLE_WHITELIST = Object.freeze({
-  eqTfsa: {
-    id: "eqTfsa",
+var WEALTH_EDITABLE_WHITELIST = Object.freeze({
+  eq_tfsa: {
+    id: "eq_tfsa",
     expectedName: "EQ-TFSA",
     nameCell: "H17",
     balanceCell: "I17"
   },
-  wealthsimpleTfsa: {
-    id: "wealthsimpleTfsa",
+  wealthsimple_tfsa: {
+    id: "wealthsimple_tfsa",
     expectedName: "WEALTHSIMPLE- TFSA",
     nameCell: "H18",
     balanceCell: "I18"
   },
-  nationalBankTfsa: {
-    id: "nationalBankTfsa",
+  national_bank_tfsa: {
+    id: "national_bank_tfsa",
     expectedName: "National Bank TFSA",
     nameCell: "H19",
     balanceCell: "I19"
   },
-  nationalBankFhsa: {
-    id: "nationalBankFhsa",
-    expectedName: "National Bank FHSA",
-    nameCell: "H20",
-    balanceCell: "I20"
-  },
-  // nationalBankTfsaUsd (H21 / I21) contains formula =1800.57*1.36 and is strictly NOT editable
-  nationalBankRrsp: {
-    id: "nationalBankRrsp",
-    expectedName: "National Bank RRSP",
-    nameCell: "H22",
-    balanceCell: "I22"
-  },
-  simpliiChe: {
-    id: "simpliiChe",
+  // national_bank_fhsa (H20 / I20): J14 is a manual summary; read-only in Phase 2A
+  // national_bank_tfsa_usd (H21 / I21): formula-driven (=1800.57*1.36); read-only in Phase 2A
+  // national_bank_rrsp (H22 / I22): K14 is a manual summary; read-only in Phase 2A
+  simplii_chequing: {
+    id: "simplii_chequing",
     expectedName: "Simplii - Che",
     nameCell: "H23",
     balanceCell: "I23"
   },
-  simpliiSav: {
-    id: "simpliiSav",
+  simplii_savings: {
+    id: "simplii_savings",
     expectedName: "Simplii - Sav",
     nameCell: "H24",
     balanceCell: "I24"
   },
-  eqSav: {
-    id: "eqSav",
+  eq_savings: {
+    id: "eq_savings",
     expectedName: "EQ - Sav",
     nameCell: "H25",
     balanceCell: "I25"
   },
-  eqBankCard: {
-    id: "eqBankCard",
+  eq_bank_card: {
+    id: "eq_bank_card",
     expectedName: "EQ Bank Card",
     nameCell: "H26",
     balanceCell: "I26"
   },
-  eqGengCash: {
-    id: "eqGengCash",
+  eq_geng_cash: {
+    id: "eq_geng_cash",
     expectedName: "EQ - Geng-Cash",
     nameCell: "H27",
     balanceCell: "I27"
   },
-  tdSav: {
-    id: "tdSav",
+  td_savings: {
+    id: "td_savings",
     expectedName: "TD - Sav",
     nameCell: "H28",
     balanceCell: "I28"
@@ -1308,31 +1298,28 @@ const WEALTH_EDITABLE_WHITELIST = Object.freeze({
 
 function toAccountId_(name) {
   const map = {
-    "EQ-TFSA": "eqTfsa",
-    "WEALTHSIMPLE- TFSA": "wealthsimpleTfsa",
-    "National Bank TFSA": "nationalBankTfsa",
-    "National Bank FHSA": "nationalBankFhsa",
-    "National Bank FHSA ": "nationalBankFhsa",
-    "National Bank TFSA-USD": "nationalBankTfsaUsd",
-    "National Bank RRSP": "nationalBankRrsp",
-    "Simplii - Che": "simpliiChe",
-    "Simplii - Sav": "simpliiSav",
-    "EQ - Sav": "eqSav",
-    "EQ Bank Card": "eqBankCard",
-    "EQ - Geng-Cash": "eqGengCash",
-    "TD - Sav": "tdSav"
+    "EQ-TFSA": "eq_tfsa",
+    "WEALTHSIMPLE- TFSA": "wealthsimple_tfsa",
+    "National Bank TFSA": "national_bank_tfsa",
+    "National Bank FHSA": "national_bank_fhsa",
+    "National Bank FHSA ": "national_bank_fhsa",
+    "National Bank TFSA-USD": "national_bank_tfsa_usd",
+    "National Bank RRSP": "national_bank_rrsp",
+    "Simplii - Che": "simplii_chequing",
+    "Simplii - Sav": "simplii_savings",
+    "EQ - Sav": "eq_savings",
+    "EQ Bank Card": "eq_bank_card",
+    "EQ - Geng-Cash": "eq_geng_cash",
+    "TD - Sav": "td_savings"
   };
   const trimmed = String(name || "").trim();
   if (map[trimmed]) return map[trimmed];
   if (map[name]) return map[name];
   return trimmed
-    .replace(/[^a-zA-Z0-9]/g, " ")
-    .trim()
-    .split(/\s+/)
-    .map(function(w, i) {
-      return i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-    })
-    .join("");
+    .replace(/[^a-zA-Z0-9]/g, "_")
+    .toLowerCase()
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
 }
 
 function getWealth() {
@@ -1412,7 +1399,7 @@ function getWealth() {
   };
 }
 
-function updateWealthBalance(payload) {
+function updateWealthAccountBalance(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("Payload must be an object.");
   }
@@ -1520,8 +1507,8 @@ function apiRequest(request) {
         wealth: getWealth()
       };
 
-    case "updateWealthBalance":
-      return updateWealthBalance(payload);
+    case "updateWealthAccountBalance":
+      return updateWealthAccountBalance(payload);
 
     case "addExpense":
       return {

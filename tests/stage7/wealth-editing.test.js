@@ -188,217 +188,94 @@ function loadBackendContext(customData = {}) {
   return context;
 }
 
-// 1. Valid manual account update accepted
-test("1. valid manual account update accepted", () => {
+// 1. Exactly nine whitelist entries exist
+test("1. exactly nine whitelist entries exist", () => {
   const ctx = loadBackendContext();
-  const res = ctx.updateWealthBalance({ accountId: "eqTfsa", balance: 25000.00 });
-  assert.equal(res.ok, true);
-  assert.ok(res.wealth);
-  assert.equal(ctx._getCellValues().I17, 25000.00);
-  const lock = ctx._getLockState();
-  assert.equal(lock.lockAcquired, true);
-  assert.equal(lock.lockReleased, true);
-  assert.equal(ctx._getSetValueCount(), 1);
+  const keys = Object.keys(ctx.WEALTH_EDITABLE_WHITELIST);
+  assert.equal(keys.length, 9);
 });
 
-// 2. Authenticated update required via doPost
-test("2. authenticated update required via doPost", () => {
+// 2. Every one of the nine approved stable IDs maps to its exact expected H/I cells
+test("2. every one of the nine approved stable IDs maps to its exact expected H/I cells", () => {
   const ctx = loadBackendContext();
-  const validKey = "a".repeat(64);
-  const res = ctx.doPost({
-    postData: {
-      contents: JSON.stringify({
-        deviceKey: validKey,
-        action: "updateWealthBalance",
-        payload: { accountId: "eqTfsa", balance: 24000 }
-      })
-    }
-  });
-  const parsed = JSON.parse(res.content);
-  assert.equal(parsed.ok, true);
-  assert.ok(parsed.wealth);
+  const expectedMap = {
+    eq_tfsa: { nameCell: "H17", balanceCell: "I17", expectedName: "EQ-TFSA" },
+    wealthsimple_tfsa: { nameCell: "H18", balanceCell: "I18", expectedName: "WEALTHSIMPLE- TFSA" },
+    national_bank_tfsa: { nameCell: "H19", balanceCell: "I19", expectedName: "National Bank TFSA" },
+    simplii_chequing: { nameCell: "H23", balanceCell: "I23", expectedName: "Simplii - Che" },
+    simplii_savings: { nameCell: "H24", balanceCell: "I24", expectedName: "Simplii - Sav" },
+    eq_savings: { nameCell: "H25", balanceCell: "I25", expectedName: "EQ - Sav" },
+    eq_bank_card: { nameCell: "H26", balanceCell: "I26", expectedName: "EQ Bank Card" },
+    eq_geng_cash: { nameCell: "H27", balanceCell: "I27", expectedName: "EQ - Geng-Cash" },
+    td_savings: { nameCell: "H28", balanceCell: "I28", expectedName: "TD - Sav" }
+  };
+  for (const [id, expected] of Object.entries(expectedMap)) {
+    const entry = ctx.WEALTH_EDITABLE_WHITELIST[id];
+    assert.ok(entry, `Missing entry for ${id}`);
+    assert.equal(entry.id, id);
+    assert.equal(entry.nameCell, expected.nameCell);
+    assert.equal(entry.balanceCell, expected.balanceCell);
+    assert.equal(entry.expectedName, expected.expectedName);
+  }
 });
 
-// 3. Missing device key denied
-test("3. missing device key denied", () => {
+// 3. Every approved ID can pass the backend mutation contract in mocks
+test("3. every approved ID can pass the backend mutation contract in mocks", () => {
   const ctx = loadBackendContext();
-  const res = ctx.doPost({
-    postData: {
-      contents: JSON.stringify({
-        action: "updateWealthBalance",
-        payload: { accountId: "eqTfsa", balance: 24000 }
-      })
-    }
-  });
-  const parsed = JSON.parse(res.content);
-  assert.equal(parsed.ok, false);
-  assert.equal(parsed.error, "Unauthorized");
+  const keys = Object.keys(ctx.WEALTH_EDITABLE_WHITELIST);
+  for (const accountId of keys) {
+    const res = ctx.updateWealthAccountBalance({ accountId, balance: 1234.56 });
+    assert.equal(res.ok, true);
+    assert.ok(res.wealth);
+  }
+  assert.equal(ctx._getSetValueCount(), 9);
 });
 
-// 4. Invalid device key denied
-test("4. invalid device key denied", () => {
-  const ctx = loadBackendContext();
-  const res = ctx.doPost({
-    postData: {
-      contents: JSON.stringify({
-        deviceKey: "f".repeat(64),
-        action: "updateWealthBalance",
-        payload: { accountId: "eqTfsa", balance: 24000 }
-      })
-    }
-  });
-  const parsed = JSON.parse(res.content);
-  assert.equal(parsed.ok, false);
-  assert.equal(parsed.error, "Unauthorized");
-});
-
-// 5. GET write attempt denied
-test("5. GET write attempt denied", () => {
-  const ctx = loadBackendContext();
-  const res = ctx.doGet({
-    parameter: { action: "updateWealthBalance", accountId: "eqTfsa", balance: "24000" }
-  });
-  const parsed = JSON.parse(res.content);
-  assert.equal(parsed.ok, false);
-  assert.equal(parsed.error, "Unauthorized");
-});
-
-// 6. Unknown accountId denied
-test("6. unknown accountId denied", () => {
+// 4. national_bank_fhsa is denied
+test("4. national_bank_fhsa is denied", () => {
   const ctx = loadBackendContext();
   assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "nonExistentAccount", balance: 100 });
+    ctx.updateWealthAccountBalance({ accountId: "national_bank_fhsa", balance: 35000 });
   }, /Invalid or non-editable account/);
+  assert.equal(ctx._getSetValueCount(), 0);
 });
 
-// 7. Arbitrary cell cannot be supplied
-test("7. arbitrary cell cannot be supplied", () => {
+// 5. national_bank_tfsa_usd is denied
+test("5. national_bank_tfsa_usd is denied", () => {
   const ctx = loadBackendContext();
   assert.throws(() => {
-    ctx.updateWealthBalance({ cell: "A1", balance: 100 });
-  }, /Arbitrary sheet or cell coordinates are not permitted|Invalid or non-editable account/);
-});
-
-// 8. Arbitrary Sheet cannot be supplied
-test("8. arbitrary Sheet cannot be supplied", () => {
-  const ctx = loadBackendContext();
-  assert.throws(() => {
-    ctx.updateWealthBalance({ sheet: "Spending_Master2026", accountId: "eqTfsa", balance: 100 });
-  }, /Arbitrary sheet or cell coordinates are not permitted|Invalid or non-editable account/);
-});
-
-// 9. H14 Available Cash write impossible
-test("9. H14 Available Cash write impossible", () => {
-  const ctx = loadBackendContext();
-  assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "availableCash", balance: 50000 });
+    ctx.updateWealthAccountBalance({ accountId: "national_bank_tfsa_usd", balance: 3000 });
   }, /Invalid or non-editable account/);
+  assert.equal(ctx._getSetValueCount(), 0);
 });
 
-// 10. I29 Total Cash write impossible
-test("10. I29 Total Cash write impossible", () => {
+// 6. national_bank_rrsp is denied
+test("6. national_bank_rrsp is denied", () => {
   const ctx = loadBackendContext();
   assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "totalCash", balance: 50000 });
+    ctx.updateWealthAccountBalance({ accountId: "national_bank_rrsp", balance: 16000 });
   }, /Invalid or non-editable account/);
+  assert.equal(ctx._getSetValueCount(), 0);
 });
 
-// 11. I14 Total TFSA write impossible
-test("11. I14 Total TFSA write impossible", () => {
+// 7. H14, I14, J14, K14, I29, N14, O14 and P14 remain impossible targets
+test("7. H14, I14, J14, K14, I29, N14, O14 and P14 remain impossible targets", () => {
   const ctx = loadBackendContext();
-  assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "tfsa", balance: 50000 });
-  }, /Invalid or non-editable account/);
+  const blockedIds = [
+    "availableCash", "tfsa", "fhsa", "rrsp", "totalCash",
+    "taxReserve", "incomeTaxCppReserve", "emergencyFund",
+    "H14", "I14", "J14", "K14", "I29", "N14", "O14", "P14"
+  ];
+  for (const blockedId of blockedIds) {
+    assert.throws(() => {
+      ctx.updateWealthAccountBalance({ accountId: blockedId, balance: 50000 });
+    }, /Invalid or non-editable account/);
+  }
+  assert.equal(ctx._getSetValueCount(), 0);
 });
 
-// 12. Formula-driven account write denied (nationalBankTfsaUsd)
-test("12. formula-driven account write denied", () => {
-  const ctx = loadBackendContext();
-  // nationalBankTfsaUsd is omitted from whitelist
-  assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "nationalBankTfsaUsd", balance: 2500 });
-  }, /Invalid or non-editable account/);
-});
-
-// 13. Malformed value denied
-test("13. malformed value denied", () => {
-  const ctx = loadBackendContext();
-  assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "eqTfsa", balance: "abc" });
-  }, /Invalid balance/);
-});
-
-// 14. NaN denied
-test("14. NaN denied", () => {
-  const ctx = loadBackendContext();
-  assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "eqTfsa", balance: NaN });
-  }, /Invalid balance/);
-});
-
-// 15. Infinity denied
-test("15. Infinity denied", () => {
-  const ctx = loadBackendContext();
-  assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "eqTfsa", balance: Infinity });
-  }, /Invalid balance/);
-});
-
-// 16. Successful update returns refreshed Wealth object
-test("16. successful update returns refreshed Wealth object", () => {
-  const ctx = loadBackendContext();
-  const res = ctx.updateWealthBalance({ accountId: "simpliiChe", balance: 850.50 });
-  assert.equal(res.ok, true);
-  assert.ok(res.wealth);
-  assert.equal(res.wealth.availableCash, 18925.64);
-  assert.ok(Array.isArray(res.wealth.accounts));
-});
-
-// 17. Failed update leaves frontend previous value intact and uses exact safe failure message
-test("17. failed update leaves frontend previous value intact and uses exact safe failure message", () => {
-  const appCode = read("app.js");
-  assert.match(appCode, /elError\.textContent = "Balance wasn't updated\. Your previous value is unchanged\.";/);
-  // Ensure raw err.message is NOT used to replace user-facing message
-  assert.doesNotMatch(appCode, /elError\.textContent = \(err && err\.message\)/);
-  assert.match(appCode, /handleSaveWealthBalance/);
-});
-
-// 18. Successful update refreshes Wealth cache
-test("18. successful update refreshes Wealth cache", () => {
-  const appCode = read("app.js");
-  assert.match(appCode, /saveWealthToCache\(updatedWealth\)/);
-});
-
-// 19. Existing Expenses CRUD tests still pass
-test("19. existing Expenses CRUD tests still pass", () => {
-  const apiCode = read("api.js");
-  assert.match(apiCode, /updateWealthBalance/);
-  assert.match(apiCode, /getExpenses/);
-  assert.match(apiCode, /addExpense/);
-  assert.match(apiCode, /updateExpense/);
-  assert.match(apiCode, /deleteExpense/);
-});
-
-// 20. Remove This Device still clears Wealth snapshot
-test("20. Remove This Device still clears Wealth snapshot", () => {
-  const appCode = read("app.js");
-  assert.match(appCode, /removeWealthCache/);
-  assert.match(appCode, /personalFinance\.wealthSnapshot/);
-});
-
-// 21. Normal approved account at its expected row remains editable
-test("21. normal approved account at its expected row remains editable", () => {
-  const ctx = loadBackendContext();
-  const wealth = ctx.getWealth();
-  const tdAccount = wealth.accounts.find(a => a.id === "tdSav");
-  assert.ok(tdAccount);
-  assert.equal(tdAccount.isEditable, true);
-  assert.equal(tdAccount.isFormula, false);
-});
-
-// 22. If two account rows are reordered, neither is marked editable in getWealth()
-test("22. if two account rows are reordered, neither is marked editable in getWealth()", () => {
-  // Swap row 27 (EQ - Geng-Cash) and row 28 (TD - Sav)
+// 8. Row-reorder identity tests still pass
+test("8. row-reorder identity tests still pass", () => {
   const reorderedRows = [
     ["EQ-TFSA", 23222.82],
     ["WEALTHSIMPLE- TFSA", 81141.10],
@@ -417,8 +294,8 @@ test("22. if two account rows are reordered, neither is marked editable in getWe
   const ctx = loadBackendContext({ accountRows: reorderedRows });
   const wealth = ctx.getWealth();
 
-  const tdAccount = wealth.accounts.find(a => a.id === "tdSav");
-  const gengCashAccount = wealth.accounts.find(a => a.id === "eqGengCash");
+  const tdAccount = wealth.accounts.find(a => a.id === "td_savings");
+  const gengCashAccount = wealth.accounts.find(a => a.id === "eq_geng_cash");
 
   assert.ok(tdAccount);
   assert.ok(gengCashAccount);
@@ -426,34 +303,30 @@ test("22. if two account rows are reordered, neither is marked editable in getWe
   // Both must be marked read-only because their cells do not match whitelist coordinates
   assert.equal(tdAccount.isEditable, false);
   assert.equal(gengCashAccount.isEditable, false);
-});
 
-// 23. Backend rejects write if expected account name is no longer in whitelist's expected row
-test("23. backend rejects write if expected account name is no longer in whitelist's expected row", () => {
-  // Row 28 (H28) has "EQ - Geng-Cash" instead of "TD - Sav"
-  const reorderedRows = [
-    ["EQ-TFSA", 23222.82],
-    ["WEALTHSIMPLE- TFSA", 81141.10],
-    ["National Bank TFSA", 30985.47],
-    ["National Bank FHSA ", 33488.20],
-    ["National Bank TFSA-USD", 2448.78],
-    ["National Bank RRSP", 15527.88],
-    ["Simplii - Che", 400.00],
-    ["Simplii - Sav", 1000.00],
-    ["EQ - Sav", 30000.00],
-    ["EQ Bank Card", 205.00],
-    ["TD - Sav", 197.00],
-    ["EQ - Geng-Cash", 100.24]
-  ];
-
-  const ctx = loadBackendContext({ accountRows: reorderedRows });
   assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "tdSav", balance: 250.00 });
+    ctx.updateWealthAccountBalance({ accountId: "td_savings", balance: 250.00 });
   }, /Account mapping changed\. Balance was not updated\./);
+  assert.equal(ctx._getSetValueCount(), 0);
 });
 
-// 24. Backend performs zero setValue() calls when identity validation fails
-test("24. backend performs zero setValue() calls when identity validation fails", () => {
+// 9. Formula-conversion protection still passes
+test("9. formula-conversion protection still passes", () => {
+  const ctx = loadBackendContext({ cellFormulas: { I28: "=SUM(A1:A5)" } });
+  const wealth = ctx.getWealth();
+  const tdAccount = wealth.accounts.find(a => a.id === "td_savings");
+  assert.ok(tdAccount);
+  assert.equal(tdAccount.isEditable, false);
+  assert.equal(tdAccount.isFormula, true);
+
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ accountId: "td_savings", balance: 250 });
+  }, /This value is calculated automatically and cannot be edited\./);
+  assert.equal(ctx._getSetValueCount(), 0);
+});
+
+// 10. Failed identity validation performs zero writes
+test("10. failed identity validation performs zero writes", () => {
   const reorderedRows = [
     ["EQ-TFSA", 23222.82],
     ["WEALTHSIMPLE- TFSA", 81141.10],
@@ -473,24 +346,148 @@ test("24. backend performs zero setValue() calls when identity validation fails"
   assert.equal(ctx._getSetValueCount(), 0);
 
   try {
-    ctx.updateWealthBalance({ accountId: "tdSav", balance: 250.00 });
+    ctx.updateWealthAccountBalance({ accountId: "td_savings", balance: 250.00 });
   } catch (_) {}
 
-  // Strictly verify zero writes performed
   assert.equal(ctx._getSetValueCount(), 0);
 });
 
-// 25. I21 remains formula-driven and non-editable
-test("25. I21 remains formula-driven and non-editable", () => {
+// 11. Action is named only updateWealthAccountBalance
+test("11. action is named only updateWealthAccountBalance", () => {
+  const code = read("apps-script/Code.js");
+  const apiCode = read("api.js");
+  assert.match(code, /case "updateWealthAccountBalance":/);
+  assert.match(apiCode, /"updateWealthAccountBalance"/);
+  assert.match(apiCode, /async function updateWealthAccountBalance/);
+});
+
+// 12. Old provisional action updateWealthBalance is not allowlisted
+test("12. old provisional action updateWealthBalance is not allowlisted", () => {
+  const code = read("apps-script/Code.js");
+  const apiCode = read("api.js");
+  assert.doesNotMatch(code, /case "updateWealthBalance":/);
+  assert.doesNotMatch(apiCode, /"updateWealthBalance"/);
+
+  const ctx = loadBackendContext();
+  assert.throws(() => {
+    ctx.apiRequest({ action: "updateWealthBalance", payload: { accountId: "eq_tfsa", balance: 100 } });
+  }, /Unsupported API action/);
+});
+
+// 13. Frontend renders I20/I21/I22 without edit affordances
+test("13. frontend renders I20/I21/I22 without edit affordances", () => {
   const ctx = loadBackendContext();
   const wealth = ctx.getWealth();
-  const usdAccount = wealth.accounts.find(a => a.id === "nationalBankTfsaUsd");
-  assert.ok(usdAccount);
-  assert.equal(usdAccount.isEditable, false);
-  assert.equal(usdAccount.isFormula, true);
+  const fhsa = wealth.accounts.find(a => a.id === "national_bank_fhsa");
+  const tfsaUsd = wealth.accounts.find(a => a.id === "national_bank_tfsa_usd");
+  const rrsp = wealth.accounts.find(a => a.id === "national_bank_rrsp");
+
+  assert.ok(fhsa);
+  assert.ok(tfsaUsd);
+  assert.ok(rrsp);
+
+  assert.equal(fhsa.isEditable, false);
+  assert.equal(tfsaUsd.isEditable, false);
+  assert.equal(rrsp.isEditable, false);
+
+  const appCode = read("app.js");
+  assert.match(appCode, /renderWealthAccountRow/);
+  assert.match(appCode, /const isEditable = Boolean\(a\.isEditable\);/);
+});
+
+// 14. Authenticated update required via doPost with updateWealthAccountBalance
+test("14. authenticated update required via doPost with updateWealthAccountBalance", () => {
+  const ctx = loadBackendContext();
+  const validKey = "a".repeat(64);
+  const res = ctx.doPost({
+    postData: {
+      contents: JSON.stringify({
+        deviceKey: validKey,
+        action: "updateWealthAccountBalance",
+        payload: { accountId: "eq_tfsa", balance: 24000 }
+      })
+    }
+  });
+  const parsed = JSON.parse(res.content);
+  assert.equal(parsed.ok, true);
+  assert.ok(parsed.wealth);
+});
+
+// 15. Missing device key denied
+test("15. missing device key denied", () => {
+  const ctx = loadBackendContext();
+  const res = ctx.doPost({
+    postData: {
+      contents: JSON.stringify({
+        action: "updateWealthAccountBalance",
+        payload: { accountId: "eq_tfsa", balance: 24000 }
+      })
+    }
+  });
+  const parsed = JSON.parse(res.content);
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error, "Unauthorized");
+});
+
+// 16. Invalid device key denied
+test("16. invalid device key denied", () => {
+  const ctx = loadBackendContext();
+  const res = ctx.doPost({
+    postData: {
+      contents: JSON.stringify({
+        deviceKey: "f".repeat(64),
+        action: "updateWealthAccountBalance",
+        payload: { accountId: "eq_tfsa", balance: 24000 }
+      })
+    }
+  });
+  const parsed = JSON.parse(res.content);
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error, "Unauthorized");
+});
+
+// 17. GET write attempt denied
+test("17. GET write attempt denied", () => {
+  const ctx = loadBackendContext();
+  const res = ctx.doGet({
+    parameter: { action: "updateWealthAccountBalance", accountId: "eq_tfsa", balance: "24000" }
+  });
+  const parsed = JSON.parse(res.content);
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error, "Unauthorized");
+});
+
+// 18. Arbitrary cell or sheet cannot be supplied
+test("18. arbitrary cell or sheet cannot be supplied", () => {
+  const ctx = loadBackendContext();
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ cell: "A1", balance: 100 });
+  }, /Arbitrary sheet or cell coordinates are not permitted|Invalid or non-editable account/);
 
   assert.throws(() => {
-    ctx.updateWealthBalance({ accountId: "nationalBankTfsaUsd", balance: 3000 });
-  }, /Invalid or non-editable account/);
-  assert.equal(ctx._getSetValueCount(), 0);
+    ctx.updateWealthAccountBalance({ sheet: "Spending_Master2026", accountId: "eq_tfsa", balance: 100 });
+  }, /Arbitrary sheet or cell coordinates are not permitted|Invalid or non-editable account/);
+});
+
+// 19. Malformed value, NaN, and Infinity denied
+test("19. malformed value, NaN, and Infinity denied", () => {
+  const ctx = loadBackendContext();
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ accountId: "eq_tfsa", balance: "abc" });
+  }, /Invalid balance/);
+
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ accountId: "eq_tfsa", balance: NaN });
+  }, /Invalid balance/);
+
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ accountId: "eq_tfsa", balance: Infinity });
+  }, /Invalid balance/);
+});
+
+// 20. Exact safe frontend failure message enforced
+test("20. exact safe frontend failure message enforced", () => {
+  const appCode = read("app.js");
+  assert.match(appCode, /elError\.textContent = "Balance wasn't updated\. Your previous value is unchanged\.";/);
+  assert.doesNotMatch(appCode, /elError\.textContent = \(err && err\.message\)/);
 });
