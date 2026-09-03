@@ -79,12 +79,16 @@
   const SNAPSHOT_UPDATED_AT_KEY = "personalFinance.expenseSnapshotUpdatedAt";
   const WEALTH_SNAPSHOT_KEY = "personalFinance.wealthSnapshot";
   const WEALTH_SNAPSHOT_UPDATED_AT_KEY = "personalFinance.wealthSnapshotUpdatedAt";
+  const SPENDING_BUCKETS_SNAPSHOT_KEY = "personalFinance.spendingBucketsSnapshot";
+  const SPENDING_BUCKETS_UPDATED_AT_KEY = "personalFinance.spendingBucketsSnapshotUpdatedAt";
   const EXPENSE_CACHE_KEY = SNAPSHOT_CACHE_KEY;
   const EXPENSE_CACHE_VERSION = 1;
 
   let currentInsightsSubView = "spending";
   let currentWealthData = null;
   let isFetchingWealth = false;
+  let currentSpendingBuckets = null;
+  let isFetchingSpendingBuckets = false;
 
   const APP_INIT_TIMESTAMP = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
   let startupTimingLogged = false;
@@ -408,6 +412,7 @@
 
     if (!isBackgroundOnly) {
       const restored = restoreExpensesFromCache();
+      restoreSpendingBucketsFromCache();
       if (restored && hideAuthGateFn) {
         hideAuthGateFn();
         updateSyncStatus("updating");
@@ -418,6 +423,7 @@
       showLoading: !hasRenderedExpenseData,
       forceServerRefresh: false
     });
+    fetchSpendingBucketsData(false);
   }
 
   function clearAuthorizedSession() {
@@ -435,6 +441,9 @@
     }
 
     removeExpenseCache();
+    removeSpendingBucketsCache();
+    currentSpendingBuckets = null;
+    renderSpendingBuckets(null);
   }
 
   let showDeviceSetupScreenFn = null;
@@ -805,6 +814,109 @@
       }
     } finally {
       isFetchingWealth = false;
+    }
+  }
+
+  /* =========================================
+     STAGE 3 SPENDING BUCKETS (AVAILABLE TO SPEND)
+  ========================================= */
+
+  function formatBucketCurrency(val) {
+    if (val === null || val === undefined || isNaN(Number(val))) return "—";
+    const num = Number(val);
+    const hasCents = Math.abs(num % 1) >= 0.005;
+    return new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+      minimumFractionDigits: hasCents ? 2 : 0,
+      maximumFractionDigits: 2
+    }).format(num);
+  }
+
+  function renderSpendingBuckets(data) {
+    if (typeof document === "undefined") return;
+
+    const elPlay = document.getElementById("playAvailableAmount");
+    const elNecessity = document.getElementById("necessityAvailableAmount");
+    const elBusiness = document.getElementById("smallBusinessAvailableAmount");
+    const elEducation = document.getElementById("educationAvailableAmount");
+    const elGiving = document.getElementById("givingAvailableAmount");
+
+    if (!data || typeof data !== "object") {
+      if (elPlay) elPlay.textContent = "—";
+      if (elNecessity) elNecessity.textContent = "—";
+      if (elBusiness) elBusiness.textContent = "—";
+      if (elEducation) elEducation.textContent = "—";
+      if (elGiving) elGiving.textContent = "—";
+      return;
+    }
+
+    if (elPlay) {
+      elPlay.textContent = formatBucketCurrency(data.play);
+    }
+    if (elNecessity) {
+      elNecessity.textContent = formatBucketCurrency(data.necessity);
+    }
+    if (elBusiness) {
+      elBusiness.textContent = formatBucketCurrency(data.smallBusiness);
+    }
+    if (elEducation) {
+      elEducation.textContent = formatBucketCurrency(data.education);
+    }
+    if (elGiving) {
+      elGiving.textContent = formatBucketCurrency(data.giving);
+    }
+  }
+
+  function restoreSpendingBucketsFromCache() {
+    try {
+      if (typeof window === "undefined" || !window.localStorage) return false;
+      const raw = window.localStorage.getItem(SPENDING_BUCKETS_SNAPSHOT_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (data && typeof data === "object" && data.play !== undefined) {
+        currentSpendingBuckets = data;
+        renderSpendingBuckets(data);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function saveSpendingBucketsToCache(data) {
+    try {
+      if (typeof window === "undefined" || !window.localStorage) return;
+      window.localStorage.setItem(SPENDING_BUCKETS_SNAPSHOT_KEY, JSON.stringify(data));
+      window.localStorage.setItem(SPENDING_BUCKETS_UPDATED_AT_KEY, new Date().toISOString());
+    } catch (_) {}
+  }
+
+  function removeSpendingBucketsCache() {
+    try {
+      if (typeof window === "undefined" || !window.localStorage) return;
+      window.localStorage.removeItem(SPENDING_BUCKETS_SNAPSHOT_KEY);
+      window.localStorage.removeItem(SPENDING_BUCKETS_UPDATED_AT_KEY);
+    } catch (_) {}
+  }
+
+  async function fetchSpendingBucketsData(forceRefresh) {
+    if (isFetchingSpendingBuckets) return;
+    if (typeof financeApi === "undefined" || !financeApi.hasDeviceKey()) return;
+    isFetchingSpendingBuckets = true;
+
+    try {
+      const buckets = await financeApi.getSpendingBuckets();
+      if (buckets && typeof buckets === "object" && buckets.play !== undefined) {
+        currentSpendingBuckets = buckets;
+        saveSpendingBucketsToCache(buckets);
+        renderSpendingBuckets(buckets);
+      }
+    } catch (err) {
+      if (!currentSpendingBuckets) {
+        renderSpendingBuckets(null);
+      }
+    } finally {
+      isFetchingSpendingBuckets = false;
     }
   }
 
@@ -2264,6 +2376,8 @@
         true
 
     });
+
+    fetchSpendingBucketsData(true);
 
   }
 

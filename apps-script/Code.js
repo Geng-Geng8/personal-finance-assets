@@ -1828,6 +1828,31 @@ function updateWealthAccountBalance(payload) {
 }
 
 /* =========================================
+   STAGE 3 SPENDING BUCKETS (AVAILABLE TO SPEND)
+========================================= */
+
+function getSpendingBuckets() {
+  const sheet = getWealthSheet_();
+
+  // Read B14:F14 (Row 14, Cols B to F)
+  // B14 = Necessity (formula-driven remainder)
+  // C14 = Small Business (manual input)
+  // D14 = Education (manual input)
+  // E14 = Giving (manual input)
+  // F14 = Play (manual input)
+  const row14 = sheet.getRange("B14:F14").getValues()[0] || [];
+
+  return {
+    necessity: parseSheetNumber_(row14[0]),
+    smallBusiness: parseSheetNumber_(row14[1]),
+    education: parseSheetNumber_(row14[2]),
+    giving: parseSheetNumber_(row14[3]),
+    play: parseSheetNumber_(row14[4]),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+/* =========================================
    AUTHENTICATED API ENTRY POINT (STAGE 3)
 ========================================= */
 
@@ -1850,6 +1875,12 @@ function apiRequest(request) {
       return {
         ok: true,
         wealth: getWealth()
+      };
+
+    case "getSpendingBuckets":
+      return {
+        ok: true,
+        buckets: getSpendingBuckets()
       };
 
     case "updateWealthAccountBalance":

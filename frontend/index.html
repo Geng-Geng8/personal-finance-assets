@@ -162,6 +162,98 @@
     </section>
 
 
+    <!-- =========================================
+         STAGE 3 AVAILABLE TO SPEND
+    ========================================== -->
+    <section class="available-spend-section" id="availableSpendSection" aria-label="Available to Spend">
+
+      <div class="available-spend-header">
+        <h2 class="available-spend-title">AVAILABLE TO SPEND</h2>
+      </div>
+
+      <!-- PLAY HERO CARD (PRIMARY) -->
+      <div class="play-hero-card" id="playHeroCard">
+        <div class="play-hero-top">
+          <span class="play-hero-badge">
+            <span class="play-hero-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            </span>
+            <span class="play-hero-label">PLAY</span>
+          </span>
+        </div>
+        <div class="play-hero-body">
+          <div class="play-hero-amount" id="playAvailableAmount">—</div>
+          <span class="play-hero-caption">available</span>
+        </div>
+      </div>
+
+      <!-- SECONDARY BUCKETS (2x2 GRID) -->
+      <div class="secondary-buckets-grid">
+
+        <!-- NECESSITY -->
+        <div class="secondary-bucket-card bucket-card-necessity" id="bucketCardNecessity">
+          <div class="secondary-bucket-top">
+            <span class="secondary-bucket-glyph glyph-bucket-necessity" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </span>
+            <div class="secondary-bucket-name-row">
+              <span class="secondary-bucket-name">Necessity</span>
+              <span class="bucket-calc-tag" title="Formula-driven remainder">AUTO</span>
+            </div>
+          </div>
+          <div class="secondary-bucket-amount" id="necessityAvailableAmount">—</div>
+        </div>
+
+        <!-- SMALL BUSINESS -->
+        <div class="secondary-bucket-card bucket-card-business" id="bucketCardBusiness">
+          <div class="secondary-bucket-top">
+            <span class="secondary-bucket-glyph glyph-bucket-business" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+            </span>
+            <span class="secondary-bucket-name">Small Business</span>
+          </div>
+          <div class="secondary-bucket-amount" id="smallBusinessAvailableAmount">—</div>
+        </div>
+
+        <!-- EDUCATION -->
+        <div class="secondary-bucket-card bucket-card-education" id="bucketCardEducation">
+          <div class="secondary-bucket-top">
+            <span class="secondary-bucket-glyph glyph-bucket-education" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+              </svg>
+            </span>
+            <span class="secondary-bucket-name">Education</span>
+          </div>
+          <div class="secondary-bucket-amount" id="educationAvailableAmount">—</div>
+        </div>
+
+        <!-- GIVING -->
+        <div class="secondary-bucket-card bucket-card-giving" id="bucketCardGiving">
+          <div class="secondary-bucket-top">
+            <span class="secondary-bucket-glyph glyph-bucket-giving" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+              </svg>
+            </span>
+            <span class="secondary-bucket-name">Giving</span>
+          </div>
+          <div class="secondary-bucket-amount" id="givingAvailableAmount">—</div>
+        </div>
+
+      </div>
+
+    </section>
+
+
     <!-- SEARCH -->
 
     <section class="search-section">
