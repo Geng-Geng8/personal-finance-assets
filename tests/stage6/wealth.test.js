@@ -66,6 +66,9 @@ function loadBackendContext(mockSheetData = {}) {
         return {
           getValues() {
             return accountRows;
+          },
+          getFormulas() {
+            return accountRows.map(() => ["", ""]);
           }
         };
       }

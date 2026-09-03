@@ -1236,6 +1236,94 @@ function parseSheetNumber_(val) {
   return isNaN(num) ? 0 : num;
 }
 
+const WEALTH_EDITABLE_WHITELIST = Object.freeze({
+  eqTfsa: {
+    id: "eqTfsa",
+    displayName: "EQ-TFSA",
+    cell: "I17"
+  },
+  wealthsimpleTfsa: {
+    id: "wealthsimpleTfsa",
+    displayName: "WEALTHSIMPLE- TFSA",
+    cell: "I18"
+  },
+  nationalBankTfsa: {
+    id: "nationalBankTfsa",
+    displayName: "National Bank TFSA",
+    cell: "I19"
+  },
+  nationalBankFhsa: {
+    id: "nationalBankFhsa",
+    displayName: "National Bank FHSA",
+    cell: "I20"
+  },
+  // nationalBankTfsaUsd (I21) contains formula =1800.57*1.36 and is strictly NOT editable
+  nationalBankRrsp: {
+    id: "nationalBankRrsp",
+    displayName: "National Bank RRSP",
+    cell: "I22"
+  },
+  simpliiChe: {
+    id: "simpliiChe",
+    displayName: "Simplii - Che",
+    cell: "I23"
+  },
+  simpliiSav: {
+    id: "simpliiSav",
+    displayName: "Simplii - Sav",
+    cell: "I24"
+  },
+  eqSav: {
+    id: "eqSav",
+    displayName: "EQ - Sav",
+    cell: "I25"
+  },
+  eqBankCard: {
+    id: "eqBankCard",
+    displayName: "EQ Bank Card",
+    cell: "I26"
+  },
+  eqGengCash: {
+    id: "eqGengCash",
+    displayName: "EQ - Geng-Cash",
+    cell: "I27"
+  },
+  tdSav: {
+    id: "tdSav",
+    displayName: "TD - Sav",
+    cell: "I28"
+  }
+});
+
+function toAccountId_(name) {
+  const map = {
+    "EQ-TFSA": "eqTfsa",
+    "WEALTHSIMPLE- TFSA": "wealthsimpleTfsa",
+    "National Bank TFSA": "nationalBankTfsa",
+    "National Bank FHSA": "nationalBankFhsa",
+    "National Bank FHSA ": "nationalBankFhsa",
+    "National Bank TFSA-USD": "nationalBankTfsaUsd",
+    "National Bank RRSP": "nationalBankRrsp",
+    "Simplii - Che": "simpliiChe",
+    "Simplii - Sav": "simpliiSav",
+    "EQ - Sav": "eqSav",
+    "EQ Bank Card": "eqBankCard",
+    "EQ - Geng-Cash": "eqGengCash",
+    "TD - Sav": "tdSav"
+  };
+  const trimmed = String(name || "").trim();
+  if (map[trimmed]) return map[trimmed];
+  if (map[name]) return map[name];
+  return trimmed
+    .replace(/[^a-zA-Z0-9]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map(function(w, i) {
+      return i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join("");
+}
+
 function getWealth() {
   const sheet = getWealthSheet_();
 
@@ -1256,9 +1344,10 @@ function getWealth() {
 
   // Read H17:I28 = Account names and balances
   const accountRows = sheet.getRange("H17:I28").getValues() || [];
+  const accountFormulas = sheet.getRange("H17:I28").getFormulas() || [];
 
   const accounts = accountRows
-    .map(function(row) {
+    .map(function(row, idx) {
       const name = String(row[0] || "").trim();
       if (!name) return null;
       const balance = parseSheetNumber_(row[1]);
@@ -1270,10 +1359,18 @@ function getWealth() {
                            lower.includes("crypto") ||
                            lower.includes("stock") ||
                            lower.includes("brokerage");
+      const id = toAccountId_(name);
+      const formula = String((accountFormulas[idx] && accountFormulas[idx][1]) || "").trim();
+      const hasFormula = formula.length > 0 && formula.startsWith("=");
+      const isEditable = !hasFormula && WEALTH_EDITABLE_WHITELIST.hasOwnProperty(id);
+
       return {
+        id: id,
         name: name,
         balance: balance,
-        type: isInvestment ? "investment" : "cash"
+        type: isInvestment ? "investment" : "cash",
+        isEditable: isEditable,
+        isFormula: hasFormula
       };
     })
     .filter(Boolean);
@@ -1292,6 +1389,82 @@ function getWealth() {
     accounts: accounts,
     updatedAt: new Date().toISOString()
   };
+}
+
+function updateWealthBalance(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Payload must be an object.");
+  }
+
+  if (payload.sheet || payload.range || payload.cell) {
+    throw new Error("Arbitrary sheet or cell coordinates are not permitted.");
+  }
+
+  const accountId = String(payload.accountId || "").trim();
+  if (!accountId || !WEALTH_EDITABLE_WHITELIST.hasOwnProperty(accountId)) {
+    throw new Error("Invalid or non-editable account.");
+  }
+
+  const target = WEALTH_EDITABLE_WHITELIST[accountId];
+
+  if (payload.balance === undefined || payload.balance === null || payload.balance === "") {
+    throw new Error("Balance is required.");
+  }
+
+  let num;
+  if (typeof payload.balance === "number") {
+    num = payload.balance;
+  } else if (typeof payload.balance === "string") {
+    const cleaned = payload.balance.replace(/[\$,\s]/g, "");
+    if (!cleaned || isNaN(cleaned)) {
+      throw new Error("Invalid balance: must be a finite number.");
+    }
+    num = parseFloat(cleaned);
+  } else {
+    throw new Error("Invalid balance format.");
+  }
+
+  if (!Number.isFinite(num) || Number.isNaN(num)) {
+    throw new Error("Invalid balance: must be a finite number.");
+  }
+  if (num < 0) {
+    throw new Error("Asset balance cannot be negative.");
+  }
+  if (num > 1000000000) {
+    throw new Error("Balance exceeds maximum allowed limit.");
+  }
+
+  const normalizedBalance = Math.round(num * 100) / 100;
+
+  const lock = LockService.getScriptLock();
+  const hasLock = lock.tryLock(30000);
+  if (!hasLock) {
+    throw new Error("Server is busy. Please try again.");
+  }
+
+  try {
+    const sheet = getWealthSheet_();
+    const cellRange = sheet.getRange(target.cell);
+
+    // Double safety layer: formula protection
+    const currentFormula = cellRange.getFormula();
+    if (currentFormula && String(currentFormula).trim().length > 0) {
+      throw new Error("This value is calculated automatically and cannot be edited.");
+    }
+
+    // Write normalized numeric value
+    cellRange.setValue(normalizedBalance);
+    SpreadsheetApp.flush();
+
+    // Read authoritative refreshed Wealth data
+    const freshWealth = getWealth();
+    return {
+      ok: true,
+      wealth: freshWealth
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* =========================================
@@ -1318,6 +1491,9 @@ function apiRequest(request) {
         ok: true,
         wealth: getWealth()
       };
+
+    case "updateWealthBalance":
+      return updateWealthBalance(payload);
 
     case "addExpense":
       return {

@@ -1299,6 +1299,65 @@
   </section>
 
 
+  <!-- =========================================
+       STAGE 7 WEALTH BALANCE EDIT BOTTOM SHEET
+  ========================================== -->
+
+  <div class="sheet-backdrop hidden" id="wealthEditBackdrop"></div>
+
+  <section class="editor-sheet wealth-edit-sheet hidden" id="wealthEditSheet" role="dialog" aria-modal="true" aria-labelledby="wealthEditTitle">
+    <div class="sheet-handle"></div>
+
+    <div class="editor-header premium-editor-header">
+      <button
+        class="editor-close"
+        id="closeWealthEditButton"
+        type="button"
+        aria-label="Close balance editor"
+      >
+        ×
+      </button>
+
+      <div class="premium-editor-heading">
+        <p class="eyebrow" id="wealthEditTitle">UPDATE BALANCE</p>
+        <h3 id="wealthEditAccountName" class="wealth-edit-account-name">Account Name</h3>
+      </div>
+    </div>
+
+    <div class="wealth-edit-sheet-content">
+      <div class="wealth-edit-current-banner">
+        <span class="wealth-edit-label">Current balance</span>
+        <span class="wealth-edit-current-val" id="wealthEditCurrentBalance">$0.00</span>
+      </div>
+
+      <div class="wealth-edit-field">
+        <label for="wealthEditInput" class="wealth-edit-label">New balance</label>
+        <div class="wealth-edit-input-box">
+          <span class="wealth-edit-currency-symbol">$</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="1000000000"
+            id="wealthEditInput"
+            class="wealth-edit-native-input"
+            placeholder="0.00"
+            inputmode="decimal"
+            required
+          >
+        </div>
+      </div>
+
+      <div id="wealthEditError" class="wealth-edit-error-banner hidden" role="alert"></div>
+
+      <div class="editor-actions wealth-edit-actions-footer">
+        <button type="button" id="cancelWealthEditButton" class="ghost-button">Cancel</button>
+        <button type="button" id="saveWealthEditButton" class="primary-button wealth-save-balance-btn">Save Balance</button>
+      </div>
+    </div>
+  </section>
+
+
   <!-- TOAST -->
 
   <div class="toast hidden" id="toast"></div>

@@ -865,6 +865,30 @@
     const elCount = document.getElementById("wealthAccountsCount");
     if (elCount) elCount.textContent = accounts.length + (accounts.length === 1 ? " account" : " accounts");
 
+    function renderWealthAccountRow(a) {
+      if (!a) return "";
+      const isEditable = Boolean(a.isEditable);
+      if (isEditable) {
+        return '<button type="button" class="wealth-account-row wealth-account-row-editable" data-account-id="' + escapeHtml(a.id || "") + '" aria-label="Edit balance for ' + escapeHtml(a.name) + '">' +
+          '<span class="wealth-account-name">' + escapeHtml(a.name) + '</span>' +
+          '<span class="wealth-account-right">' +
+            '<span class="wealth-account-balance">' + formatCurrency(a.balance) + '</span>' +
+            '<svg class="wealth-account-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+              '<polyline points="9 18 15 12 9 6"></polyline>' +
+            '</svg>' +
+          '</span>' +
+        '</button>';
+      }
+
+      return '<div class="wealth-account-row wealth-account-row-readonly">' +
+        '<span class="wealth-account-name">' +
+          escapeHtml(a.name) +
+          (a.isFormula ? ' <span class="wealth-calc-badge">Calculated</span>' : '') +
+        '</span>' +
+        '<span class="wealth-account-balance">' + formatCurrency(a.balance) + '</span>' +
+      '</div>';
+    }
+
     const cashAccounts = accounts.filter(function(a) { return a && a.type === "cash"; });
     const investAccounts = accounts.filter(function(a) { return a && a.type !== "cash"; });
 
@@ -873,12 +897,7 @@
       if (cashAccounts.length === 0) {
         elCashList.innerHTML = '<div class="wealth-empty-row">No cash accounts found</div>';
       } else {
-        elCashList.innerHTML = cashAccounts.map(function(a) {
-          return '<div class="wealth-account-row">' +
-            '<span class="wealth-account-name">' + escapeHtml(a.name) + '</span>' +
-            '<span class="wealth-account-balance">' + formatCurrency(a.balance) + '</span>' +
-            '</div>';
-        }).join("");
+        elCashList.innerHTML = cashAccounts.map(renderWealthAccountRow).join("");
       }
     }
 
@@ -887,12 +906,153 @@
       if (investAccounts.length === 0) {
         elInvestList.innerHTML = '<div class="wealth-empty-row">No investment accounts found</div>';
       } else {
-        elInvestList.innerHTML = investAccounts.map(function(a) {
-          return '<div class="wealth-account-row">' +
-            '<span class="wealth-account-name">' + escapeHtml(a.name) + '</span>' +
-            '<span class="wealth-account-balance">' + formatCurrency(a.balance) + '</span>' +
-            '</div>';
-        }).join("");
+        elInvestList.innerHTML = investAccounts.map(renderWealthAccountRow).join("");
+      }
+    }
+
+    setupWealthAccountsDelegation();
+  }
+
+  let editingWealthAccountId = null;
+  let isSavingWealthBalance = false;
+
+  function setupWealthAccountsDelegation() {
+    if (typeof document === "undefined") return;
+    const elCash = document.getElementById("wealthCashAccountsList");
+    const elInvest = document.getElementById("wealthInvestAccountsList");
+
+    function handleAccountClick(e) {
+      const btn = e.target.closest(".wealth-account-row-editable");
+      if (!btn) return;
+      const accountId = btn.getAttribute("data-account-id");
+      if (accountId) {
+        openWealthBalanceEditor(accountId);
+      }
+    }
+
+    if (elCash && !elCash.dataset.hasWealthClick) {
+      elCash.addEventListener("click", handleAccountClick);
+      elCash.dataset.hasWealthClick = "true";
+    }
+    if (elInvest && !elInvest.dataset.hasWealthClick) {
+      elInvest.addEventListener("click", handleAccountClick);
+      elInvest.dataset.hasWealthClick = "true";
+    }
+  }
+
+  function openWealthBalanceEditor(accountId) {
+    if (typeof document === "undefined" || !currentWealthData || !Array.isArray(currentWealthData.accounts)) return;
+    const account = currentWealthData.accounts.find(function(a) { return a && a.id === accountId; });
+    if (!account || !account.isEditable) return;
+
+    editingWealthAccountId = account.id;
+
+    const elTitle = document.getElementById("wealthEditAccountName");
+    if (elTitle) elTitle.textContent = account.name;
+
+    const elCurrent = document.getElementById("wealthEditCurrentBalance");
+    if (elCurrent) elCurrent.textContent = formatCurrency(account.balance);
+
+    const elInput = document.getElementById("wealthEditInput");
+    if (elInput) {
+      elInput.value = (typeof account.balance === "number" && !isNaN(account.balance)) ? account.balance.toFixed(2) : "";
+    }
+
+    const elError = document.getElementById("wealthEditError");
+    if (elError) {
+      elError.textContent = "";
+      elError.classList.add("hidden");
+    }
+
+    const elSaveBtn = document.getElementById("saveWealthEditButton");
+    if (elSaveBtn) {
+      elSaveBtn.disabled = false;
+      elSaveBtn.textContent = "Save Balance";
+    }
+
+    const elBackdrop = document.getElementById("wealthEditBackdrop");
+    const elSheet = document.getElementById("wealthEditSheet");
+    if (elBackdrop) elBackdrop.classList.remove("hidden");
+    if (elSheet) elSheet.classList.remove("hidden");
+
+    if (elInput) {
+      setTimeout(function() {
+        elInput.focus();
+        elInput.select();
+      }, 80);
+    }
+  }
+
+  function closeWealthBalanceEditor() {
+    if (isSavingWealthBalance || typeof document === "undefined") return;
+    editingWealthAccountId = null;
+
+    const elBackdrop = document.getElementById("wealthEditBackdrop");
+    const elSheet = document.getElementById("wealthEditSheet");
+    if (elSheet) elSheet.classList.add("hidden");
+    if (elBackdrop) elBackdrop.classList.add("hidden");
+  }
+
+  async function handleSaveWealthBalance() {
+    if (isSavingWealthBalance || !editingWealthAccountId || typeof document === "undefined") return;
+
+    const elInput = document.getElementById("wealthEditInput");
+    const elError = document.getElementById("wealthEditError");
+    const elSaveBtn = document.getElementById("saveWealthEditButton");
+
+    const rawVal = elInput ? elInput.value.trim() : "";
+    if (!rawVal) {
+      if (elError) {
+        elError.textContent = "Please enter a valid balance.";
+        elError.classList.remove("hidden");
+      }
+      return;
+    }
+
+    const numVal = parseFloat(rawVal);
+    if (!Number.isFinite(numVal) || Number.isNaN(numVal) || numVal < 0) {
+      if (elError) {
+        elError.textContent = "Please enter a positive numeric balance.";
+        elError.classList.remove("hidden");
+      }
+      return;
+    }
+
+    isSavingWealthBalance = true;
+    if (elSaveBtn) {
+      elSaveBtn.disabled = true;
+      elSaveBtn.textContent = "Saving…";
+    }
+    if (elError) {
+      elError.textContent = "";
+      elError.classList.add("hidden");
+    }
+
+    try {
+      const updatedWealth = await financeApi.updateWealthBalance({
+        accountId: editingWealthAccountId,
+        balance: Math.round(numVal * 100) / 100
+      });
+
+      if (updatedWealth && typeof updatedWealth === "object") {
+        currentWealthData = updatedWealth;
+        saveWealthToCache(updatedWealth);
+        renderWealthView(updatedWealth);
+        isSavingWealthBalance = false;
+        closeWealthBalanceEditor();
+        updateSyncStatus("live", "Balance updated");
+      } else {
+        throw new Error("Invalid response from server.");
+      }
+    } catch (err) {
+      isSavingWealthBalance = false;
+      if (elSaveBtn) {
+        elSaveBtn.disabled = false;
+        elSaveBtn.textContent = "Save Balance";
+      }
+      if (elError) {
+        elError.textContent = (err && err.message) || "Balance wasn't updated. Your previous value is unchanged.";
+        elError.classList.remove("hidden");
       }
     }
   }
@@ -1588,6 +1748,28 @@
     if (tabWealth) {
       tabWealth.addEventListener("click", function() {
         setInsightsSubView("wealth");
+      });
+    }
+
+    const closeWealthEditBtn = document.getElementById("closeWealthEditButton");
+    const cancelWealthEditBtn = document.getElementById("cancelWealthEditButton");
+    const saveWealthEditBtn = document.getElementById("saveWealthEditButton");
+    const wealthEditBackdrop = document.getElementById("wealthEditBackdrop");
+    const wealthEditInput = document.getElementById("wealthEditInput");
+
+    if (closeWealthEditBtn) closeWealthEditBtn.addEventListener("click", closeWealthBalanceEditor);
+    if (cancelWealthEditBtn) cancelWealthEditBtn.addEventListener("click", closeWealthBalanceEditor);
+    if (wealthEditBackdrop) wealthEditBackdrop.addEventListener("click", closeWealthBalanceEditor);
+    if (saveWealthEditBtn) saveWealthEditBtn.addEventListener("click", handleSaveWealthBalance);
+    if (wealthEditInput) {
+      wealthEditInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleSaveWealthBalance();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          closeWealthBalanceEditor();
+        }
       });
     }
 
