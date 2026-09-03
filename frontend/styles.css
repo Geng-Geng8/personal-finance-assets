@@ -1543,6 +1543,7 @@
   #spendingSubView .chart-card.primary-chart {
     border-color: #cbd5e1;
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.035);
+    padding: 13px 15px 11px;
   }
 
   #spendingSubView .chart-heading {
@@ -1575,7 +1576,7 @@
 
   #spendingSubView .trend-chart {
     width: 100%;
-    min-height: 195px;
+    min-height: 0;
     overflow: hidden;
     border-radius: 12px;
   }
@@ -1587,12 +1588,12 @@
   }
 
   #spendingSubView .single-month-trend {
-    min-height: 175px;
+    min-height: 125px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 16px 12px;
+    padding: 12px 10px 8px;
     text-align: center;
   }
 
@@ -1604,9 +1605,9 @@
   }
 
   #spendingSubView .single-month-value {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     color: var(--accent);
-    font-size: 30px;
+    font-size: 28px;
     font-weight: 800;
     line-height: 1;
     letter-spacing: -0.04em;
@@ -1633,6 +1634,128 @@
     margin-top: 10px;
     color: #94a3b8;
     font-size: 10px;
+  }
+
+  /* ========================================
+     STAGE 2 POLISH: RANKED CATEGORY LIST
+  ======================================== */
+
+  #spendingSubView .ranked-category-container {
+    width: 100%;
+  }
+
+  #spendingSubView .ranked-category-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #spendingSubView .category-rank-row {
+    padding: 6px 0;
+    border-bottom: 1px solid #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  #spendingSubView .category-rank-row:last-child {
+    border-bottom: 0;
+  }
+
+  #spendingSubView .category-rank-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #spendingSubView .category-rank-name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  #spendingSubView .category-rank-marker {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  #spendingSubView .category-rank-name {
+    color: #1e293b;
+    font-size: 12.5px;
+    font-weight: 650;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  #spendingSubView .category-rank-amount {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  #spendingSubView .category-rank-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 15px;
+  }
+
+  #spendingSubView .category-rank-track {
+    flex: 1;
+    height: 4px;
+    background: #f1f5f9;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  #spendingSubView .category-rank-bar {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 180ms ease;
+  }
+
+  #spendingSubView .category-rank-pct {
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-width: 38px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  #spendingSubView .category-toggle-btn {
+    width: 100%;
+    min-height: 35px;
+    margin-top: 8px;
+    padding: 7px 12px;
+    border: 1px solid #d4dae5;
+    border-radius: 11px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 650;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      transform 120ms ease;
+  }
+
+  #spendingSubView .category-toggle-btn:active {
+    transform: scale(0.98);
   }
 
   #spendingSubView .donut-layout {

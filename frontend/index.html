@@ -580,7 +580,7 @@
 
     <!-- CATEGORY -->
 
-    <section class="chart-card">
+    <section class="chart-card category-breakdown-card">
 
       <div class="chart-heading">
 
@@ -599,11 +599,13 @@
       </div>
 
 
-      <div class="donut-layout">
+      <div id="categoryListContainer" class="ranked-category-container">
 
-        <div id="categoryDonut" class="donut-container"></div>
+        <div id="categoryRankedList" class="ranked-category-list"></div>
 
-        <div id="categoryLegend" class="chart-legend"></div>
+        <button id="toggleAllCategoriesButton" class="category-toggle-btn hidden" type="button">
+          <span id="toggleAllCategoriesText">Show all categories</span>
+        </button>
 
       </div>
 

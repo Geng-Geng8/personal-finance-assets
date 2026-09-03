@@ -3016,6 +3016,25 @@
       );
     }
 
+
+    const toggleCategoriesBtn =
+      document.getElementById(
+        "toggleAllCategoriesButton"
+      );
+
+    if (toggleCategoriesBtn) {
+      toggleCategoriesBtn.addEventListener(
+        "click",
+        function() {
+          showAllCategories = !showAllCategories;
+          renderCategoryList(
+            currentCategoryData,
+            currentCategoryTotal
+          );
+        }
+      );
+    }
+
   }
 
 
@@ -4054,6 +4073,10 @@
       );
 
 
+    showAllCategories =
+      false;
+
+
     applyInsightFilters();
 
   }
@@ -4316,9 +4339,7 @@
     );
 
 
-    renderDonutChart(
-      "categoryDonut",
-      "categoryLegend",
+    renderCategoryList(
       categoryData,
       total
     );
@@ -4503,15 +4524,15 @@
 
     const width = 640;
 
-    const height = 230;
+    const height = 175;
 
     const left = 48;
 
     const right = 16;
 
-    const top = 18;
+    const top = 14;
 
-    const bottom = 42;
+    const bottom = 30;
 
 
     const plotWidth =
@@ -4646,7 +4667,7 @@
         labels += `
           <text
             x="${point.x}"
-            y="${height - 12}"
+            y="${height - 8}"
             text-anchor="middle"
             font-size="10"
             fill="#9197a3"
@@ -5035,6 +5056,142 @@
       " " +
       parts[0]
     );
+
+  }
+
+
+  /* =========================================
+     STAGE 2 POLISH: RANKED CATEGORY LIST
+  ========================================= */
+
+  let showAllCategories = false;
+  let currentCategoryData = [];
+  let currentCategoryTotal = 0;
+
+  function getCategoryColor(categoryName, index) {
+
+    for (const [bucket, cats] of Object.entries(CATEGORY_MAP)) {
+      if (cats.includes(categoryName)) {
+        if (bucket === "Play") return "#ec4899";
+        if (bucket === "Necessity") return "#3b82f6";
+        if (bucket === "Small Business") return "#8b5cf6";
+        if (bucket === "Education") return "#f59e0b";
+        if (bucket === "Giving") return "#10b981";
+      }
+    }
+
+    return CHART_COLORS[index % CHART_COLORS.length];
+
+  }
+
+
+  function renderCategoryList(data, total) {
+
+    currentCategoryData = data || [];
+    currentCategoryTotal = total || 0;
+
+    const listEl =
+      document.getElementById(
+        "categoryRankedList"
+      );
+
+    const toggleBtn =
+      document.getElementById(
+        "toggleAllCategoriesButton"
+      );
+
+    const toggleText =
+      document.getElementById(
+        "toggleAllCategoriesText"
+      );
+
+    if (!listEl) {
+      return;
+    }
+
+    listEl.innerHTML = "";
+
+    if (!currentCategoryData.length || currentCategoryTotal <= 0) {
+
+      listEl.innerHTML = `
+        <div class="chart-empty">
+          No spending for this period.
+        </div>
+      `;
+
+      if (toggleBtn) {
+        toggleBtn.classList.add("hidden");
+      }
+
+      return;
+
+    }
+
+    const itemsToShow = showAllCategories
+      ? currentCategoryData
+      : currentCategoryData.slice(0, 8);
+
+    let html = "";
+
+    itemsToShow.forEach(function(item, index) {
+
+      const pctNum = (
+        (item.value / currentCategoryTotal) * 100
+      );
+
+      const percent = pctNum.toFixed(1);
+
+      const barWidth = Math.min(
+        100,
+        Math.max(1, pctNum)
+      ).toFixed(1);
+
+      const color = getCategoryColor(
+        item.label,
+        index
+      );
+
+      html += `
+        <div class="category-rank-row">
+          <div class="category-rank-top">
+            <div class="category-rank-name-wrap">
+              <span class="category-rank-marker" style="background-color: ${color};"></span>
+              <span class="category-rank-name">${escapeHtml(item.label)}</span>
+            </div>
+            <span class="category-rank-amount">${escapeHtml(formatCurrency(item.value))}</span>
+          </div>
+          <div class="category-rank-bar-wrap">
+            <div class="category-rank-track">
+              <div class="category-rank-bar" style="width: ${barWidth}%; background-color: ${color};"></div>
+            </div>
+            <span class="category-rank-pct">${percent}%</span>
+          </div>
+        </div>
+      `;
+
+    });
+
+    listEl.innerHTML = html;
+
+    if (toggleBtn) {
+
+      if (currentCategoryData.length > 8) {
+
+        toggleBtn.classList.remove("hidden");
+
+        if (toggleText) {
+          toggleText.textContent = showAllCategories
+            ? "Show fewer categories"
+            : "Show all categories";
+        }
+
+      } else {
+
+        toggleBtn.classList.add("hidden");
+
+      }
+
+    }
 
   }
 

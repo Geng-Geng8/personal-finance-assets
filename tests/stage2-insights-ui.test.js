@@ -183,3 +183,67 @@ test("updateInsightPeriodLabel reflects active filters and reset button visibili
   assert.equal(rangePill.classList.contains("active-filter"), false);
   assert.equal(resetBtn.classList.contains("hidden"), true, "Reset button should be hidden after reset");
 });
+
+test("Category defaults to top 8 and Show all / Show fewer toggle changes presentation only", () => {
+  const dom = createMockDom();
+
+  const listEl = dom.getElementById("categoryRankedList");
+  const toggleBtn = dom.getElementById("toggleAllCategoriesButton");
+  toggleBtn.classList.add("hidden");
+  const toggleText = dom.getElementById("toggleAllCategoriesText");
+
+  const ctx = loadAppContext(dom);
+
+  const sampleCategories = [
+    { label: "Business", value: 9000 },
+    { label: "Taxes", value: 6500 },
+    { label: "Grocery", value: 4000 },
+    { label: "Health", value: 3000 },
+    { label: "Fitness", value: 2000 },
+    { label: "Travel", value: 1500 },
+    { label: "Entertainment", value: 1200 },
+    { label: "Courses", value: 1000 },
+    { label: "Books", value: 800 },
+    { label: "Gifts", value: 600 },
+    { label: "Tech", value: 400 },
+    { label: "Clothing", value: 200 }
+  ];
+  const total = sampleCategories.reduce((sum, c) => sum + c.value, 0);
+
+  // 1. Initial render defaults to top 8
+  ctx.eval(`
+    showAllCategories = false;
+    renderCategoryList(${JSON.stringify(sampleCategories)}, ${total});
+  `);
+
+  function countRows(html) {
+    return (html.match(/class="category-rank-row"/g) || []).length;
+  }
+
+  assert.equal(countRows(listEl.innerHTML), 8, "Should display exactly 8 categories by default");
+  assert.equal(toggleBtn.classList.contains("hidden"), false, "Toggle button should be visible when > 8 categories");
+  assert.equal(toggleText.textContent, "Show all categories");
+  assert.match(listEl.innerHTML, /Business/);
+  assert.match(listEl.innerHTML, /Courses/);
+  assert.equal(listEl.innerHTML.includes("Books"), false, "9th item should be hidden initially");
+
+  // 2. Expand all categories
+  ctx.eval(`
+    showAllCategories = true;
+    renderCategoryList(${JSON.stringify(sampleCategories)}, ${total});
+  `);
+
+  assert.equal(countRows(listEl.innerHTML), 12, "Should display all 12 categories when expanded");
+  assert.equal(toggleText.textContent, "Show fewer categories");
+  assert.match(listEl.innerHTML, /Books/);
+  assert.match(listEl.innerHTML, /Clothing/);
+
+  // 3. Collapse back to top 8
+  ctx.eval(`
+    showAllCategories = false;
+    renderCategoryList(${JSON.stringify(sampleCategories)}, ${total});
+  `);
+
+  assert.equal(countRows(listEl.innerHTML), 8, "Should return to 8 categories when collapsed");
+  assert.equal(toggleText.textContent, "Show all categories");
+});
