@@ -64,6 +64,7 @@
 
   html {
     background: var(--bg);
+    scrollbar-gutter: stable;
   }
 
 
@@ -76,6 +77,8 @@
     background: var(--bg);
 
     color: var(--text);
+
+    scrollbar-gutter: stable;
 
     font-family:
       Inter,
@@ -112,13 +115,23 @@
   }
 
 
+  main,
+  .app-container,
   .app-shell {
 
     width: 100%;
 
     max-width: 680px;
 
-    margin: 0 auto;
+    margin-left: auto;
+
+    margin-right: auto;
+
+    box-sizing: border-box;
+
+  }
+
+  .app-shell {
 
     padding:
       calc(28px + var(--safe-top))

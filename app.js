@@ -353,6 +353,7 @@
 
     renderExpenseFilterPayments();
 
+    restoreSpendingBucketsFromCache();
 
     setupAuthGate();
 
@@ -399,26 +400,32 @@
   function startAuthorizedSession(options) {
     const isBackgroundOnly = Boolean(options && options.backgroundOnly);
 
+    // Cache-First: immediately render the bucket values from localStorage snapshot
+    restoreSpendingBucketsFromCache();
+
     if (appSessionStarted) {
       loadExpenses({
         showLoading: false,
         forceServerRefresh: true
       });
+      fetchSpendingBucketsData(false);
       return;
     }
 
     appSessionStarted = true;
-    startExpenseSyncTimer();
+    if (typeof startExpenseSyncTimer === "function") {
+      startExpenseSyncTimer();
+    }
 
     if (!isBackgroundOnly) {
       const restored = restoreExpensesFromCache();
-      restoreSpendingBucketsFromCache();
       if (restored && hideAuthGateFn) {
         hideAuthGateFn();
         updateSyncStatus("updating");
       }
     }
 
+    // Non-blocking concurrent triggers
     loadExpenses({
       showLoading: !hasRenderedExpenseData,
       forceServerRefresh: false
@@ -613,6 +620,7 @@
     });
 
     if (financeApi.hasDeviceKey()) {
+      restoreSpendingBucketsFromCache();
       const hasCache = restoreExpensesFromCache();
       if (hasCache) {
         hideAuthGate();
@@ -907,9 +915,21 @@
     try {
       const buckets = await financeApi.getSpendingBuckets();
       if (buckets && typeof buckets === "object" && buckets.play !== undefined) {
+        const prev = currentSpendingBuckets;
+        const hasChanged = !prev ||
+          prev.play !== buckets.play ||
+          prev.necessity !== buckets.necessity ||
+          prev.smallBusiness !== buckets.smallBusiness ||
+          prev.education !== buckets.education ||
+          prev.giving !== buckets.giving;
+
         currentSpendingBuckets = buckets;
         saveSpendingBucketsToCache(buckets);
-        renderSpendingBuckets(buckets);
+
+        // Silently update the numbers only if they differ from the snapshot
+        if (hasChanged) {
+          renderSpendingBuckets(buckets);
+        }
       }
     } catch (err) {
       if (!currentSpendingBuckets) {

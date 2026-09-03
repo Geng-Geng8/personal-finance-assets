@@ -702,4 +702,23 @@ test("19. app.js wires single bucket modal and card click handlers", () => {
   assert.ok(appJs.includes('saveSingleBucketAllocation'));
 });
 
+test("20. styles.css includes scrollbar-gutter: stable on html/body and wrapper sizing", () => {
+  const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8");
+
+  assert.ok(css.includes("scrollbar-gutter: stable"));
+  assert.ok(css.includes("max-width: 680px"));
+  assert.ok(css.includes("margin-left: auto"));
+  assert.ok(css.includes("margin-right: auto"));
+  assert.ok(css.includes("box-sizing: border-box"));
+});
+
+test("21. app.js loads spending buckets cache-first and only re-renders on live diff", () => {
+  const appJs = fs.readFileSync(path.join(repoRoot, "app.js"), "utf8");
+
+  assert.ok(appJs.includes("restoreSpendingBucketsFromCache();"));
+  assert.ok(appJs.includes("const hasChanged = !prev ||"));
+  assert.ok(appJs.includes("renderSpendingBuckets(buckets)"));
+});
+
+
 
