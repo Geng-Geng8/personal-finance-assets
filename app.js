@@ -969,7 +969,12 @@
     }
 
     if (backdrop) backdrop.classList.remove("hidden");
-    if (modal) modal.classList.remove("hidden");
+    if (modal) {
+      modal.classList.remove("hidden");
+      requestAnimationFrame(function() {
+        modal.classList.add("is-open");
+      });
+    }
   }
 
   function closeAllocationsModal() {
@@ -980,7 +985,10 @@
     const errBanner = document.getElementById("allocationsError");
 
     if (backdrop) backdrop.classList.add("hidden");
-    if (modal) modal.classList.add("hidden");
+    if (modal) {
+      modal.classList.remove("is-open");
+      modal.classList.add("hidden");
+    }
     if (errBanner) {
       errBanner.textContent = "";
       errBanner.classList.add("hidden");
@@ -1095,12 +1103,17 @@
     }
 
     if (backdrop) backdrop.classList.remove("hidden");
-    if (modal) modal.classList.remove("hidden");
+    if (modal) {
+      modal.classList.remove("hidden");
+      requestAnimationFrame(function() {
+        modal.classList.add("is-open");
+      });
+    }
 
     if (input) {
       setTimeout(() => {
         try { input.focus(); input.select(); } catch (_) {}
-      }, 50);
+      }, 300);
     }
   }
 
@@ -1113,7 +1126,10 @@
     const errBanner = document.getElementById("singleBucketError");
 
     if (backdrop) backdrop.classList.add("hidden");
-    if (modal) modal.classList.add("hidden");
+    if (modal) {
+      modal.classList.remove("is-open");
+      modal.classList.add("hidden");
+    }
     if (errBanner) {
       errBanner.textContent = "";
       errBanner.classList.add("hidden");
@@ -1374,13 +1390,18 @@
     const elBackdrop = document.getElementById("wealthEditBackdrop");
     const elSheet = document.getElementById("wealthEditSheet");
     if (elBackdrop) elBackdrop.classList.remove("hidden");
-    if (elSheet) elSheet.classList.remove("hidden");
+    if (elSheet) {
+      elSheet.classList.remove("hidden");
+      requestAnimationFrame(function() {
+        elSheet.classList.add("is-open");
+      });
+    }
 
     if (elInput) {
       setTimeout(function() {
         elInput.focus();
         elInput.select();
-      }, 80);
+      }, 300);
     }
   }
 
@@ -1390,7 +1411,10 @@
 
     const elBackdrop = document.getElementById("wealthEditBackdrop");
     const elSheet = document.getElementById("wealthEditSheet");
-    if (elSheet) elSheet.classList.add("hidden");
+    if (elSheet) {
+      elSheet.classList.remove("is-open");
+      elSheet.classList.add("hidden");
+    }
     if (elBackdrop) elBackdrop.classList.add("hidden");
 
     const elHelper = document.getElementById("wealthEditHelperText");
@@ -1578,14 +1602,22 @@
     const elBackdrop = document.getElementById("wealthReserveBackdrop");
     const elSheet = document.getElementById("wealthReserveSheet");
     if (elBackdrop) elBackdrop.classList.remove("hidden");
-    if (elSheet) elSheet.classList.remove("hidden");
+    if (elSheet) {
+      elSheet.classList.remove("hidden");
+      requestAnimationFrame(function() {
+        elSheet.classList.add("is-open");
+      });
+    }
   }
 
   function closeWealthReserveManager() {
     if (isSavingWealthReserve || typeof document === "undefined") return;
     const elBackdrop = document.getElementById("wealthReserveBackdrop");
     const elSheet = document.getElementById("wealthReserveSheet");
-    if (elSheet) elSheet.classList.add("hidden");
+    if (elSheet) {
+      elSheet.classList.remove("is-open");
+      elSheet.classList.add("hidden");
+    }
     if (elBackdrop) elBackdrop.classList.add("hidden");
   }
 
@@ -5953,6 +5985,10 @@
         "hidden"
       );
 
+    requestAnimationFrame(function() {
+      filterSheet.classList.add("is-open");
+    });
+
 
     document.body.style.overflow =
       "hidden";
@@ -5967,6 +6003,11 @@
         "hidden"
       );
 
+
+    filterSheet
+      .classList.remove(
+        "is-open"
+      );
 
     filterSheet
       .classList.add(
@@ -7176,6 +7217,10 @@
         "hidden"
       );
 
+    requestAnimationFrame(function() {
+      editorSheet.classList.add("is-open");
+    });
+
 
     document.body.style.overflow =
       "hidden";
@@ -7205,6 +7250,11 @@
         "hidden"
       );
 
+
+    editorSheet
+      .classList.remove(
+        "is-open"
+      );
 
     editorSheet
       .classList.add(

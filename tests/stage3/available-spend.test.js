@@ -727,6 +727,26 @@ test("22. styles.css @keyframes sheetSlideUp preserves horizontal centering with
   assert.ok(css.includes("transform: translate(-50%, 0)"));
 });
 
+test("23. styles.css forces GPU hardware acceleration and removes backdrop-filter blur", () => {
+  const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8");
+
+  assert.ok(css.includes("will-change: transform"));
+  assert.ok(css.includes("backface-visibility: hidden"));
+  assert.ok(css.includes("translateZ(0)"));
+  assert.ok(css.includes(".editor-sheet.is-open"));
+  assert.ok(!css.includes("backdrop-filter: blur(3px)"));
+});
+
+test("24. app.js decouples paint from animation using requestAnimationFrame for modals", () => {
+  const appJs = fs.readFileSync(path.join(repoRoot, "app.js"), "utf8");
+
+  assert.ok(appJs.includes('requestAnimationFrame(function() {\n        modal.classList.add("is-open");') ||
+            appJs.includes('modal.classList.add("is-open")'));
+  assert.ok(appJs.includes('requestAnimationFrame(function() {\n      editorSheet.classList.add("is-open");') ||
+            appJs.includes('editorSheet.classList.add("is-open")'));
+});
+
+
 
 
 

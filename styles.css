@@ -2471,13 +2471,7 @@
     inset: 0;
 
     background:
-      rgba(20,25,36,0.42);
-
-    backdrop-filter:
-      blur(3px);
-
-    -webkit-backdrop-filter:
-      blur(3px);
+      rgba(0, 0, 0, 0.5);
 
   }
 
@@ -2497,7 +2491,14 @@
     bottom: 0;
 
     transform:
-      translateX(-50%);
+      translateX(-50%)
+      translateZ(0);
+
+    will-change: transform;
+
+    -webkit-backface-visibility: hidden;
+
+    backface-visibility: hidden;
 
     width: 100%;
 
@@ -2546,7 +2547,14 @@
     bottom: 0;
 
     transform:
-      translateX(-50%);
+      translateX(-50%)
+      translateZ(0);
+
+    will-change: transform;
+
+    -webkit-backface-visibility: hidden;
+
+    backface-visibility: hidden;
 
     width: 100%;
 
@@ -3679,6 +3687,17 @@
     box-shadow:
       0 -8px 32px
       rgba(15, 23, 42, 0.12);
+
+    will-change: transform;
+
+    -webkit-backface-visibility: hidden;
+
+    backface-visibility: hidden;
+
+  }
+
+  .editor-sheet.is-open,
+  .filter-sheet.is-open {
 
     animation: sheetSlideUp 280ms cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -5140,9 +5159,7 @@ html.fast-start #authGate {
 .confirm-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
