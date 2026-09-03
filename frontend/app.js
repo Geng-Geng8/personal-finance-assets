@@ -1316,6 +1316,7 @@
     if (typeof document === "undefined") return;
     const elCash = document.getElementById("wealthCashAccountsList");
     const elInvest = document.getElementById("wealthInvestAccountsList");
+    const elCrypto = document.getElementById("wealthCryptoCard") || document.querySelector(".editable-crypto-card");
 
     function handleAccountClick(e) {
       const btn = e.target.closest(".wealth-account-row-editable");
@@ -1334,11 +1335,45 @@
       elInvest.addEventListener("click", handleAccountClick);
       elInvest.dataset.hasWealthClick = "true";
     }
+    if (elCrypto && !elCrypto.dataset.hasWealthClick) {
+      elCrypto.addEventListener("click", function() {
+        openWealthBalanceEditor("crypto");
+      });
+      elCrypto.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openWealthBalanceEditor("crypto");
+        }
+      });
+      elCrypto.dataset.hasWealthClick = "true";
+    }
   }
 
   function openWealthBalanceEditor(accountId) {
-    if (typeof document === "undefined" || !currentWealthData || !Array.isArray(currentWealthData.accounts)) return;
-    const account = currentWealthData.accounts.find(function(a) { return a && a.id === accountId; });
+    if (typeof document === "undefined") return;
+
+    let account = null;
+    if (accountId === "crypto") {
+      let cryptoVal = 0;
+      if (currentWealthData) {
+        cryptoVal = (currentWealthData.crypto !== undefined ? currentWealthData.crypto : currentWealthData.totalCrypto) || 0;
+      } else {
+        const cached = loadWealthFromCache();
+        if (cached) {
+          cryptoVal = (cached.crypto !== undefined ? cached.crypto : cached.totalCrypto) || 0;
+        }
+      }
+      account = {
+        id: "crypto",
+        name: "Crypto",
+        balance: cryptoVal,
+        isEditable: true,
+        editCurrency: "CAD",
+        editValue: cryptoVal
+      };
+    } else if (currentWealthData && Array.isArray(currentWealthData.accounts)) {
+      account = currentWealthData.accounts.find(function(a) { return a && a.id === accountId; });
+    }
     if (!account || !account.isEditable) return;
 
     editingWealthAccountId = account.id;
@@ -1375,6 +1410,11 @@
       elInput.value = (typeof editVal === "number" && !isNaN(editVal)) ? editVal.toFixed(2) : "";
     }
 
+    const elSheet = document.getElementById("wealthEditSheet");
+    if (elSheet) {
+      elSheet.dataset.accountId = account.id;
+    }
+
     const elError = document.getElementById("wealthEditError");
     if (elError) {
       elError.textContent = "";
@@ -1388,7 +1428,6 @@
     }
 
     const elBackdrop = document.getElementById("wealthEditBackdrop");
-    const elSheet = document.getElementById("wealthEditSheet");
     if (elBackdrop) elBackdrop.classList.remove("hidden");
     if (elSheet) {
       elSheet.classList.remove("hidden");
@@ -1414,6 +1453,7 @@
     if (elSheet) {
       elSheet.classList.remove("is-open");
       elSheet.classList.add("hidden");
+      delete elSheet.dataset.accountId;
     }
     if (elBackdrop) elBackdrop.classList.add("hidden");
 
@@ -2415,6 +2455,20 @@
           closeWealthBalanceEditor();
         }
       });
+    }
+
+    const cryptoCard = document.getElementById("wealthCryptoCard") || document.querySelector(".editable-crypto-card");
+    if (cryptoCard && !cryptoCard.dataset.hasWealthClick) {
+      cryptoCard.addEventListener("click", function() {
+        openWealthBalanceEditor("crypto");
+      });
+      cryptoCard.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openWealthBalanceEditor("crypto");
+        }
+      });
+      cryptoCard.dataset.hasWealthClick = "true";
     }
 
     const manageReservesBtn = document.getElementById("manageReservesButton");

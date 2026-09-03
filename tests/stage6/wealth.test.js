@@ -338,3 +338,27 @@ test("14. doPost without device key or invalid device key returns Unauthorized",
   assert.equal(parsedInvalid.ok, false);
   assert.equal(parsedInvalid.error, "Unauthorized");
 });
+
+// 15. index.html contains editable-crypto-card and wealthCryptoCard
+test("15. index.html contains editable-crypto-card and wealthCryptoCard", () => {
+  const html = read("index.html");
+  assert.match(html, /editable-crypto-card/);
+  assert.match(html, /id="wealthCryptoCard"/);
+  assert.match(html, /wealth-account-chevron/);
+});
+
+// 16. styles.css contains interactive styles for .editable-crypto-card
+test("16. styles.css contains interactive styles for .editable-crypto-card", () => {
+  const css = read("styles.css");
+  assert.match(css, /\.editable-crypto-card\s*\{[^}]*cursor:\s*pointer/);
+  assert.match(css, /\.editable-crypto-card:active\s*\{[^}]*transform:\s*scale\(0\.985\)/);
+});
+
+// 17. app.js handles crypto in openWealthBalanceEditor and setupWealthAccountsDelegation
+test("17. app.js handles crypto in openWealthBalanceEditor and setupWealthAccountsDelegation", () => {
+  const appJs = read("app.js");
+  assert.ok(appJs.includes('openWealthBalanceEditor("crypto")'));
+  assert.ok(appJs.includes('accountId === "crypto"'));
+  assert.ok(appJs.includes('elSheet.dataset.accountId = account.id;'));
+});
+

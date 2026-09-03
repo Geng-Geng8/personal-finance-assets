@@ -5601,6 +5601,38 @@ html.fast-start #authGate {
   border-left: 4px solid #f59e0b;
 }
 
+.editable-crypto-card {
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.editable-crypto-card:hover {
+  border-color: #cbd5e1;
+  border-left-color: #f59e0b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.editable-crypto-card:hover .wealth-account-chevron {
+  color: var(--text);
+  transform: translateX(2px);
+}
+
+.editable-crypto-card:active {
+  transform: scale(0.985);
+}
+
+.wealth-account-chevron-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
+}
+
 .wealth-crypto-content {
   padding: 4px 0;
 }
