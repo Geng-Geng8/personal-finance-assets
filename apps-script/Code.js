@@ -1456,6 +1456,54 @@ function getActive2026ReserveMonthConfig_() {
   return WEALTH_RESERVE_2026_MONTH_CONFIG[yearMonth];
 }
 
+function isMatchingMonthRowIdentity_(cellValue, expectedPeriodId, timeZone) {
+  if (cellValue === null || cellValue === undefined || cellValue === "") {
+    return false;
+  }
+
+  const monthConfig = WEALTH_RESERVE_2026_MONTH_CONFIG[expectedPeriodId];
+  if (!monthConfig) return false;
+
+  // 1. Authoritative Date object (Apps Script date cell value or JS Date)
+  if (cellValue && typeof cellValue.getTime === "function" && !isNaN(cellValue.getTime())) {
+    return formatYearMonthInTimeZone_(cellValue, timeZone) === expectedPeriodId;
+  }
+
+  // 2. String representation
+  if (typeof cellValue === "string") {
+    const raw = cellValue.trim();
+    if (!raw) return false;
+
+    if (raw.startsWith(expectedPeriodId)) {
+      return true;
+    }
+
+    const parsedDate = new Date(raw);
+    if (!isNaN(parsedDate.getTime())) {
+      const ym = formatYearMonthInTimeZone_(parsedDate, timeZone);
+      if (ym === expectedPeriodId) {
+        return true;
+      }
+    }
+
+    const lower = raw.toLowerCase();
+    const monthLower = monthConfig.monthName.toLowerCase();
+    const shortMonth = monthLower.slice(0, 3);
+
+    if (lower === monthLower || lower === shortMonth) {
+      return true;
+    }
+    if (lower.includes(monthLower) && lower.includes("2026")) {
+      return true;
+    }
+    if (lower.includes(shortMonth) && lower.includes("2026")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 var WEALTH_RESERVE_EDITABLE_WHITELIST = Object.freeze({
   tax_reserve_2026_09: Object.freeze({
     id: "tax_reserve_2026_09",
@@ -1847,6 +1895,30 @@ function updateWealthReserve(payload) {
 
   try {
     const sheet = getWealthSheet_();
+
+    // Re-resolve active reserve target inside lock to guard against crossing a month boundary
+    if (target.id !== "emergency_fund") {
+      const lockedTarget = resolveActiveReserveTarget_(reserveId);
+      if (
+        lockedTarget.id !== target.id ||
+        lockedTarget.sourceCell !== target.sourceCell ||
+        lockedTarget.periodId !== target.periodId
+      ) {
+        throw new Error("Active reserve month changed during request processing. Reserve was not updated.");
+      }
+    }
+
+    // Verify month row identity before monthly reserve writes
+    if (target.id !== "emergency_fund" && target.periodId) {
+      const rowMatch = target.sourceCell.match(/\d+/);
+      const rowNum = rowMatch ? parseInt(rowMatch[0], 10) : 0;
+      const rowIdentityVal = sheet.getRange("A" + rowNum).getValue();
+      const timeZone = getSpreadsheetTimeZone_();
+      if (!isMatchingMonthRowIdentity_(rowIdentityVal, target.periodId, timeZone)) {
+        throw new Error("Month row identity mismatch at row " + rowNum + ". Reserve was not updated.");
+      }
+    }
+
     const sourceRange = sheet.getRange(target.sourceCell);
 
     if (String(sourceRange.getFormula() || "").trim()) {
@@ -1893,7 +1965,26 @@ function updateWealthReserve(payload) {
       throw new Error("Emergency Fund cannot be negative.");
     }
 
-    // Recheck the approved topology immediately before the financial write.
+    // Recheck the active month resolution, month row identity, and topology immediately before the financial write.
+    if (target.id !== "emergency_fund") {
+      const prewriteTarget = resolveActiveReserveTarget_(reserveId);
+      if (
+        prewriteTarget.id !== target.id ||
+        prewriteTarget.sourceCell !== target.sourceCell ||
+        prewriteTarget.periodId !== target.periodId
+      ) {
+        throw new Error("Active reserve month changed during request processing. Reserve was not updated.");
+      }
+      if (target.periodId) {
+        const rowMatch = target.sourceCell.match(/\d+/);
+        const rowNum = rowMatch ? parseInt(rowMatch[0], 10) : 0;
+        const rowIdentityVal = sheet.getRange("A" + rowNum).getValue();
+        const timeZone = getSpreadsheetTimeZone_();
+        if (!isMatchingMonthRowIdentity_(rowIdentityVal, target.periodId, timeZone)) {
+          throw new Error("Month row identity mismatch at row " + rowNum + ". Reserve was not updated.");
+        }
+      }
+    }
     if (String(sourceRange.getFormula() || "").trim()) {
       throw new Error("This reserve source is calculated automatically and cannot be edited.");
     }

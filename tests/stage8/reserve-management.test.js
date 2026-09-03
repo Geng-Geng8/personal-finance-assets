@@ -19,6 +19,10 @@ function loadBackendContext(customData = {}) {
   const baseTaxReserveCents = customData.baseTaxReserveCents === undefined ? 90000 : customData.baseTaxReserveCents;
   const baseIncomeReserveCents = customData.baseIncomeReserveCents === undefined ? 180000 : customData.baseIncomeReserveCents;
   const cellValues = Object.assign({
+    A10: new Date("2026-09-15T12:00:00Z"),
+    A11: new Date("2026-10-15T12:00:00Z"),
+    A12: new Date("2026-11-15T12:00:00Z"),
+    A13: new Date("2026-12-15T12:00:00Z"),
     N10: 100,
     O10: 200,
     N11: 0,
@@ -46,6 +50,10 @@ function loadBackendContext(customData = {}) {
     J21: 1800
   }, customData.cellValues || {});
   const cellFormulas = Object.assign({
+    A10: "",
+    A11: "",
+    A12: "",
+    A13: "",
     H14: "=I29-P14-N14-O14",
     N10: "",
     O10: "",
@@ -190,6 +198,9 @@ function loadBackendContext(customData = {}) {
           if (customData.lockBusy) return false;
           lockAcquired = true;
           lockReleased = false;
+          if (customData.advanceDateOnLock) {
+            context.TEST_RESERVE_DATE_OVERRIDE_ = customData.advanceDateOnLock;
+          }
           return true;
         },
         releaseLock: () => {
@@ -531,4 +542,103 @@ test("33. historical month modification is denied when another month is active",
   const ctxOctober = loadBackendContext({ testDate: new Date("2026-10-15T12:00:00Z") });
   assert.throws(() => ctxOctober.updateWealthReserve({ reserveId: "tax_reserve_2026_09", operation: "add", amount: 10 }), /Invalid or non-editable reserve/);
   assert.throws(() => ctxOctober.updateWealthReserve({ reserveId: "tax_reserve_2026_11", operation: "add", amount: 10 }), /Invalid or non-editable reserve/);
+});
+
+test("34. month change between initial resolution and locked write fails closed without writing the old month", () => {
+  const ctx = loadBackendContext({
+    testDate: new Date("2026-09-30T12:00:00Z"),
+    advanceDateOnLock: new Date("2026-10-01T12:00:00Z")
+  });
+  assert.throws(() => {
+    ctx.updateWealthReserve({ reserveId: "tax_reserve_2026_09", operation: "add", amount: 50 });
+  }, /Active reserve month changed|Invalid or non-editable reserve/);
+
+  assert.equal(ctx._getCellValues().N10, 100);
+  assert.equal(ctx._getCellValues().N11, 0);
+  assert.equal(ctx._getWrittenCells().length, 0);
+  assert.equal(ctx._getWriteState().lockReleased, true);
+
+  const ctxGeneric = loadBackendContext({
+    testDate: new Date("2026-09-30T12:00:00Z"),
+    advanceDateOnLock: new Date("2026-10-01T12:00:00Z")
+  });
+  assert.throws(() => {
+    ctxGeneric.updateWealthReserve({ reserveId: "tax_reserve", operation: "add", amount: 50 });
+  }, /Active reserve month changed/);
+  assert.equal(ctxGeneric._getCellValues().N10, 100);
+  assert.equal(ctxGeneric._getCellValues().N11, 0);
+  assert.equal(ctxGeneric._getWrittenCells().length, 0);
+  assert.equal(ctxGeneric._getWriteState().lockReleased, true);
+});
+
+test("35. correct month row identity permits the write", () => {
+  const ctxDate = loadBackendContext({
+    testDate: new Date("2026-10-15T12:00:00Z"),
+    cellValues: { A11: new Date("2026-10-15T12:00:00Z") }
+  });
+  const resDate = ctxDate.updateWealthReserve({ reserveId: "tax_reserve_2026_10", operation: "add", amount: 35 });
+  assert.equal(resDate.ok, true);
+  assert.equal(ctxDate._getCellValues().N11, 35);
+
+  const ctxString = loadBackendContext({
+    testDate: new Date("2026-10-15T12:00:00Z"),
+    cellValues: { A11: "October 2026" }
+  });
+  const resString = ctxString.updateWealthReserve({ reserveId: "income_tax_cpp_reserve_2026_10", operation: "add", amount: 45 });
+  assert.equal(resString.ok, true);
+  assert.equal(ctxString._getCellValues().O11, 45);
+});
+
+test("36. incorrect or swapped month row identity blocks the write", () => {
+  const ctxSwapped = loadBackendContext({
+    testDate: new Date("2026-10-15T12:00:00Z"),
+    cellValues: { A11: "November 2026" }
+  });
+  assert.throws(() => {
+    ctxSwapped.updateWealthReserve({ reserveId: "tax_reserve_2026_10", operation: "add", amount: 20 });
+  }, /Month row identity mismatch at row 11/);
+  assert.equal(ctxSwapped._getCellValues().N11, 0);
+  assert.equal(ctxSwapped._getWrittenCells().length, 0);
+
+  const ctxBlank = loadBackendContext({
+    testDate: new Date("2026-09-15T12:00:00Z"),
+    cellValues: { A10: "" }
+  });
+  assert.throws(() => {
+    ctxBlank.updateWealthReserve({ reserveId: "tax_reserve_2026_09", operation: "add", amount: 20 });
+  }, /Month row identity mismatch at row 10/);
+  assert.equal(ctxBlank._getCellValues().N10, 100);
+  assert.equal(ctxBlank._getWrittenCells().length, 0);
+});
+
+test("37. Tax and Income Tax + CPP both use the same month-row guard", () => {
+  const ctxTax = loadBackendContext({
+    testDate: new Date("2026-11-15T12:00:00Z"),
+    cellValues: { A12: "Wrong Month" }
+  });
+  assert.throws(() => {
+    ctxTax.updateWealthReserve({ reserveId: "tax_reserve_2026_11", operation: "add", amount: 10 });
+  }, /Month row identity mismatch at row 12/);
+  assert.equal(ctxTax._getCellValues().N12, 0);
+
+  const ctxIncome = loadBackendContext({
+    testDate: new Date("2026-11-15T12:00:00Z"),
+    cellValues: { A12: "Wrong Month" }
+  });
+  assert.throws(() => {
+    ctxIncome.updateWealthReserve({ reserveId: "income_tax_cpp_reserve_2026_11", operation: "add", amount: 10 });
+  }, /Month row identity mismatch at row 12/);
+  assert.equal(ctxIncome._getCellValues().O12, 0);
+});
+
+test("38. Emergency Fund remains unaffected by month row identity or month boundaries", () => {
+  const ctx = loadBackendContext({
+    testDate: new Date("2026-10-15T12:00:00Z"),
+    advanceDateOnLock: new Date("2026-11-01T00:00:01Z"),
+    cellValues: { A10: "bad", A11: "bad", A12: "bad", A13: "bad" }
+  });
+  const res = ctx.updateWealthReserve({ reserveId: "emergency_fund", operation: "replace", amount: 8200 });
+  assert.equal(res.ok, true);
+  assert.equal(ctx._getCellValues().P14, 8200);
+  assert.deepEqual(ctx._getWrittenCells(), ["P14"]);
 });
