@@ -179,22 +179,31 @@ See `03_Google_Sheet_Data_Model.md` for the complete cell mapping and formula re
 The primary Phase 2B rollback targets:
 
 - Apps Script deployment rollback: edit the existing Web App deployment `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` to point to preserved **Version 30** (`Phase 2A Wealth Account Editing Production Candidate`).
-- Frontend rollback: revert or reset `main` to `5513e933733ed5930de3e21bbd6ae2aa5e227ef5` (pre-Phase-2B `main` base) or `ba6a252e96d4aa779c381c082f211e1851c45d6f` (Phase 2A application release SHA).
+- Frontend rollback: use a reviewed revert commit for the frontend targeting `5513e933733ed5930de3e21bbd6ae2aa5e227ef5` (pre-Phase-2B `main` base) or `ba6a252e96d4aa779c381c082f211e1851c45d6f` (Phase 2A application release SHA). Do not reset shared `main`.
 
 Historical checkpoints preserved for depth:
 - `pre-phase-2a-wealth-edit-production` at `9cb076cc2bcf62f7b5c29d225bb9da1638939b30` with Version 28.
 - `pre-stage-6-wealth-production` at `6c57290f3496cc44d06febc3284ee94e3259958f` with Version 23.
 - Historical immutable Apps Script versions: 20, 22, 23, 28, 30, 31.
 
-Do not force-reset shared history. Prefer a reviewed revert commit for GitHub Pages and edit the **existing** Apps Script Web App deployment to a preserved immutable version.
+Do not reset shared history. Use a reviewed revert commit for GitHub Pages and edit the **existing** Apps Script Web App deployment to a preserved immutable version (Version 30 for Phase 2B rollback).
 
 ## Test baseline and current verification
 
 - Phase 2B release record: **166 / 166 automated tests passed** (including 25 dedicated Stage 8 reserve-management tests, 39 Stage 7 balance-editing tests, and all prior safety/auth suites).
 - Phase 2A release record: **141 / 141 automated tests passed** (historical baseline).
 - Stage 6 release record: **102 / 102 automated tests passed** (historical baseline).
-- Non-production integration gate passed: verified against dedicated Apps Script test deployment and synthetic spreadsheet (all reserve operations tested, formula overwrite protection verified, LockService serialization verified, and test project purged).
-- Reversible production write passed: tested against production September Tax Reserve (N10) with a $0.01 addition; Tax Reserve (N14) and Available Cash (H14) recalculated correctly; original September source was restored exactly; Tax Reserve and Available Cash returned to baseline; no synthetic value remains in production.
+- Phase 2B validation record:
+  - 25/25 focused Phase 2B tests passed
+  - 166/166 full automated tests passed
+  - Apps Script Version 31 deployed to the existing production Web App
+  - non-mutating production security/read checks passed
+  - owner verified Expenses and Wealth loaded normally
+  - one reversible production September Tax Reserve write passed
+  - exact original source value was restored
+  - N14 and H14 returned to baseline
+  - no synthetic value remained in production
+- Historical Phase 2A non-production integration gate: verified against dedicated Apps Script test deployment and synthetic spreadsheet (all 9 accounts tested, formula overwrite protection verified, LockService serialization verified, and test project purged).
 
 ## Current status and immediate next phase
 

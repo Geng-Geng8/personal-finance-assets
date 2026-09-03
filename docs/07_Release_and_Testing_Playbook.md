@@ -21,9 +21,13 @@ Last Updated: 2026-09-03
 | Historical Stage 6 baseline | 102 / 102 automated tests passed (`pre-stage-6-wealth-production` at `6c57290f3496cc44d06febc3284ee94e3259958f` / Version 28) |
 
 Phase 2B validation status:
-- Local tests: 166/166 passed (`npm run check` and `npm test`).
-- Test deployment gate: passed on synthetic spreadsheet and dedicated test Apps Script deployment (reserve add/pay/replace tested, formula overwrite protection verified, LockService verified, test project purged).
-- Production verification: denial checks passed on production URL; reversible production Tax Reserve live write passed on September Tax Reserve (N10) with $0.01 addition, recalculation of N14 and H14 verified, exact restoration confirmed, baseline preserved, and zero synthetic residue remains.
+- 25/25 focused Phase 2B tests passed
+- 166/166 full automated tests passed (`npm run check` and `npm test`)
+- Apps Script Version 31 deployed to the existing production Web App
+- Non-mutating production security/read checks passed
+- Owner verified Expenses and Wealth loaded normally
+- One reversible production September Tax Reserve write passed: September Tax source (N10) increased by $0.01, N14 and H14 recalculated correctly, exact original source value was restored, N14 and H14 returned to baseline, and no synthetic value remained in production
+- Historical Phase 2A non-production integration gate: passed on synthetic spreadsheet `1hM8q7JhuZbUmQjJC5Mwx78vC5YBVSOVI6hTOlYmOyDc` and dedicated test Apps Script deployment (all 9 accounts mutated, formula protection verified, LockService verified, test project purged)
 
 ## Environment distinctions
 
@@ -156,7 +160,7 @@ Before production approval, verify:
 2. Determine whether the fault is frontend, backend, data, or deployment configuration.
 3. If a test write is incomplete, perform an authoritative read before any corrective write. Restore only a known original value with explicit approval.
 4. For backend rollback, edit the **existing** Web App deployment to the last verified immutable version. For Phase 2B rollback, select Version 30 (Phase 2A Wealth Account Editing Production Candidate). For Phase 2A rollback, select Version 28 (Stage 6 Wealth Read-Only Production). For Stage 6 rollback, select Version 23.
-5. For frontend rollback, revert or reset to `5513e933733ed5930de3e21bbd6ae2aa5e227ef5` (pre-Phase-2B base), `ba6a252e96d4aa779c381c082f211e1851c45d6f` (Phase 2A application release SHA), or `pre-phase-2a-wealth-edit-production` (`9cb076cc2bcf62f7b5c29d225bb9da1638939b30`). Avoid force-resetting shared history on main; prefer a reviewed revert commit.
+5. For frontend rollback, use a reviewed revert commit for the frontend targeting `5513e933733ed5930de3e21bbd6ae2aa5e227ef5` (pre-Phase-2B base), `ba6a252e96d4aa779c381c082f211e1851c45d6f` (Phase 2A application release SHA), or `pre-phase-2a-wealth-edit-production` (`9cb076cc2bcf62f7b5c29d225bb9da1638939b30`). Do not reset shared `main`; always use a reviewed revert commit.
 6. Verify the deployed GitHub Pages SHA and clear only appropriate static caches if needed; do not delete user finance data blindly.
 7. Run authenticated reads and all denial-path security checks.
 8. Confirm expense and Wealth data against the Sheet.
