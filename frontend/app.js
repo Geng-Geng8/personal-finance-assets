@@ -963,9 +963,30 @@
     const elCurrent = document.getElementById("wealthEditCurrentBalance");
     if (elCurrent) elCurrent.textContent = formatCurrency(account.balance);
 
+    const isUsd = account.editCurrency === "USD";
+    const editVal = (typeof account.editValue === "number" && !isNaN(account.editValue))
+      ? account.editValue
+      : account.balance;
+
+    const elInputLabel = document.getElementById("wealthEditInputLabel");
+    if (elInputLabel) {
+      elInputLabel.textContent = isUsd ? "USD Balance" : "New balance";
+    }
+
+    const elHelper = document.getElementById("wealthEditHelperText");
+    if (elHelper) {
+      if (isUsd) {
+        elHelper.textContent = "CAD value is calculated automatically using the current USD/CAD rate.";
+        elHelper.classList.remove("hidden");
+      } else {
+        elHelper.textContent = "";
+        elHelper.classList.add("hidden");
+      }
+    }
+
     const elInput = document.getElementById("wealthEditInput");
     if (elInput) {
-      elInput.value = (typeof account.balance === "number" && !isNaN(account.balance)) ? account.balance.toFixed(2) : "";
+      elInput.value = (typeof editVal === "number" && !isNaN(editVal)) ? editVal.toFixed(2) : "";
     }
 
     const elError = document.getElementById("wealthEditError");
@@ -1001,6 +1022,16 @@
     const elSheet = document.getElementById("wealthEditSheet");
     if (elSheet) elSheet.classList.add("hidden");
     if (elBackdrop) elBackdrop.classList.add("hidden");
+
+    const elHelper = document.getElementById("wealthEditHelperText");
+    if (elHelper) {
+      elHelper.textContent = "";
+      elHelper.classList.add("hidden");
+    }
+    const elInputLabel = document.getElementById("wealthEditInputLabel");
+    if (elInputLabel) {
+      elInputLabel.textContent = "New balance";
+    }
   }
 
   async function handleSaveWealthBalance() {

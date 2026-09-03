@@ -1236,63 +1236,124 @@ function parseSheetNumber_(val) {
   return isNaN(num) ? 0 : num;
 }
 
+var EXPECTED_FHSA_FORMULA = "=I20";
+var EXPECTED_RRSP_FORMULA = "=I22";
+var EXPECTED_TFSA_USD_FORMULA = '=J21*GOOGLEFINANCE("CURRENCY:USDCAD")';
+
 var WEALTH_EDITABLE_WHITELIST = Object.freeze({
   eq_tfsa: {
     id: "eq_tfsa",
     expectedName: "EQ-TFSA",
     nameCell: "H17",
-    balanceCell: "I17"
+    balanceCell: "I17",
+    displayBalanceCell: "I17",
+    writeCell: "I17",
+    editCurrency: "CAD"
   },
   wealthsimple_tfsa: {
     id: "wealthsimple_tfsa",
     expectedName: "WEALTHSIMPLE- TFSA",
     nameCell: "H18",
-    balanceCell: "I18"
+    balanceCell: "I18",
+    displayBalanceCell: "I18",
+    writeCell: "I18",
+    editCurrency: "CAD"
   },
   national_bank_tfsa: {
     id: "national_bank_tfsa",
     expectedName: "National Bank TFSA",
     nameCell: "H19",
-    balanceCell: "I19"
+    balanceCell: "I19",
+    displayBalanceCell: "I19",
+    writeCell: "I19",
+    editCurrency: "CAD"
   },
-  // national_bank_fhsa (H20 / I20): J14 is a manual summary; read-only in Phase 2A
-  // national_bank_tfsa_usd (H21 / I21): formula-driven (=1800.57*1.36); read-only in Phase 2A
-  // national_bank_rrsp (H22 / I22): K14 is a manual summary; read-only in Phase 2A
+  national_bank_fhsa: {
+    id: "national_bank_fhsa",
+    expectedName: "National Bank FHSA",
+    nameCell: "H20",
+    balanceCell: "I20",
+    displayBalanceCell: "I20",
+    writeCell: "I20",
+    requiredFormulaCell: "J14",
+    expectedFormula: EXPECTED_FHSA_FORMULA,
+    editCurrency: "CAD"
+  },
+  national_bank_tfsa_usd: {
+    id: "national_bank_tfsa_usd",
+    expectedName: "National Bank TFSA-USD",
+    nameCell: "H21",
+    balanceCell: "I21",
+    displayBalanceCell: "I21",
+    writeCell: "J21",
+    requiredFormulaCell: "I21",
+    expectedFormula: EXPECTED_TFSA_USD_FORMULA,
+    editCurrency: "USD"
+  },
+  national_bank_rrsp: {
+    id: "national_bank_rrsp",
+    expectedName: "National Bank RRSP",
+    nameCell: "H22",
+    balanceCell: "I22",
+    displayBalanceCell: "I22",
+    writeCell: "I22",
+    requiredFormulaCell: "K14",
+    expectedFormula: EXPECTED_RRSP_FORMULA,
+    editCurrency: "CAD"
+  },
   simplii_chequing: {
     id: "simplii_chequing",
     expectedName: "Simplii - Che",
     nameCell: "H23",
-    balanceCell: "I23"
+    balanceCell: "I23",
+    displayBalanceCell: "I23",
+    writeCell: "I23",
+    editCurrency: "CAD"
   },
   simplii_savings: {
     id: "simplii_savings",
     expectedName: "Simplii - Sav",
     nameCell: "H24",
-    balanceCell: "I24"
+    balanceCell: "I24",
+    displayBalanceCell: "I24",
+    writeCell: "I24",
+    editCurrency: "CAD"
   },
   eq_savings: {
     id: "eq_savings",
     expectedName: "EQ - Sav",
     nameCell: "H25",
-    balanceCell: "I25"
+    balanceCell: "I25",
+    displayBalanceCell: "I25",
+    writeCell: "I25",
+    editCurrency: "CAD"
   },
   eq_bank_card: {
     id: "eq_bank_card",
     expectedName: "EQ Bank Card",
     nameCell: "H26",
-    balanceCell: "I26"
+    balanceCell: "I26",
+    displayBalanceCell: "I26",
+    writeCell: "I26",
+    editCurrency: "CAD"
   },
   eq_geng_cash: {
     id: "eq_geng_cash",
     expectedName: "EQ - Geng-Cash",
     nameCell: "H27",
-    balanceCell: "I27"
+    balanceCell: "I27",
+    displayBalanceCell: "I27",
+    writeCell: "I27",
+    editCurrency: "CAD"
   },
   td_savings: {
     id: "td_savings",
     expectedName: "TD - Sav",
     nameCell: "H28",
-    balanceCell: "I28"
+    balanceCell: "I28",
+    displayBalanceCell: "I28",
+    writeCell: "I28",
+    editCurrency: "CAD"
   }
 });
 
@@ -1485,11 +1546,36 @@ function getWealth() {
       const hasFormula = formula.length > 0 && formula.startsWith("=");
 
       const whitelistEntry = WEALTH_EDITABLE_WHITELIST[id];
-      const isEditable = !hasFormula &&
-        Boolean(whitelistEntry) &&
-        currentBalanceCell === whitelistEntry.balanceCell &&
-        currentNameCell === whitelistEntry.nameCell &&
-        trimmedName === whitelistEntry.expectedName;
+      let isEditable = false;
+      let editValue = balance;
+      let editCurrency = "CAD";
+
+      if (whitelistEntry &&
+          currentNameCell === whitelistEntry.nameCell &&
+          currentBalanceCell === (whitelistEntry.displayBalanceCell || whitelistEntry.balanceCell) &&
+          trimmedName === whitelistEntry.expectedName) {
+
+        editCurrency = whitelistEntry.editCurrency || "CAD";
+
+        const requiredFormulaValid = !whitelistEntry.requiredFormulaCell ||
+          hasApprovedWealthFormula_(
+            sheet.getRange(whitelistEntry.requiredFormulaCell),
+            whitelistEntry.expectedFormula
+          );
+
+        const writeCell = whitelistEntry.writeCell || whitelistEntry.balanceCell;
+        let writeCellHasFormula = false;
+        if (writeCell === currentBalanceCell) {
+          writeCellHasFormula = hasFormula;
+          editValue = balance;
+        } else {
+          const writeRange = sheet.getRange(writeCell);
+          writeCellHasFormula = Boolean(String(writeRange.getFormula() || "").trim());
+          editValue = parseSheetNumber_(writeRange.getValue());
+        }
+
+        isEditable = requiredFormulaValid && !writeCellHasFormula;
+      }
 
       return {
         id: id,
@@ -1497,7 +1583,9 @@ function getWealth() {
         balance: balance,
         type: isInvestment ? "investment" : "cash",
         isEditable: isEditable,
-        isFormula: hasFormula
+        isFormula: hasFormula,
+        editValue: editValue,
+        editCurrency: editCurrency
       };
     })
     .filter(Boolean);
@@ -1708,15 +1796,24 @@ function updateWealthAccountBalance(payload) {
       throw new Error("Account mapping changed. Balance was not updated.");
     }
 
-    // Formula protection check on target balance cell
-    const cellRange = sheet.getRange(target.balanceCell);
-    const currentFormula = cellRange.getFormula();
+    // Required formula check (if defined for this account, e.g. J14 for FHSA, K14 for RRSP, I21 for TFSA-USD)
+    if (target.requiredFormulaCell && target.expectedFormula) {
+      const reqRange = sheet.getRange(target.requiredFormulaCell);
+      if (!hasApprovedWealthFormula_(reqRange, target.expectedFormula)) {
+        throw new Error("Account formula changed. Balance was not updated.");
+      }
+    }
+
+    // Formula protection check on target write cell
+    const writeCellAddress = target.writeCell || target.balanceCell;
+    const writeRange = sheet.getRange(writeCellAddress);
+    const currentFormula = writeRange.getFormula();
     if (currentFormula && String(currentFormula).trim().length > 0) {
       throw new Error("This value is calculated automatically and cannot be edited.");
     }
 
     // Write normalized numeric value
-    cellRange.setValue(normalizedBalance);
+    writeRange.setValue(normalizedBalance);
     SpreadsheetApp.flush();
 
     // Read authoritative refreshed Wealth data

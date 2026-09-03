@@ -47,7 +47,10 @@ function loadBackendContext(customData = {}) {
     I26: 205.00,
     I27: 100.24,
     I28: 197.00,
-    I29: 31902.24
+    I29: 31902.24,
+    J14: row14[2],
+    K14: row14[3],
+    J21: 1800.57
   }, customData.cellValues || {});
 
   const cellFormulas = Object.assign({
@@ -57,6 +60,9 @@ function loadBackendContext(customData = {}) {
     N14: "=SUM(N2:N13)",
     O14: "=SUM(O2:O13)",
     P14: "",
+    J14: "",
+    K14: "",
+    J21: "",
     I17: "",
     I18: "",
     I19: "",
@@ -214,10 +220,10 @@ function loadBackendContext(customData = {}) {
    1. CONTRACT TESTS
 ============================================================ */
 
-test("1. exactly nine approved account IDs exist", () => {
+test("1. exactly twelve approved account IDs exist", () => {
   const ctx = loadBackendContext();
   const keys = Object.keys(ctx.WEALTH_EDITABLE_WHITELIST);
-  assert.equal(keys.length, 9);
+  assert.equal(keys.length, 12);
 });
 
 test("2. each approved ID maps to its exact expected H/I cells and expected name", () => {
@@ -226,6 +232,9 @@ test("2. each approved ID maps to its exact expected H/I cells and expected name
     eq_tfsa: { nameCell: "H17", balanceCell: "I17", expectedName: "EQ-TFSA" },
     wealthsimple_tfsa: { nameCell: "H18", balanceCell: "I18", expectedName: "WEALTHSIMPLE- TFSA" },
     national_bank_tfsa: { nameCell: "H19", balanceCell: "I19", expectedName: "National Bank TFSA" },
+    national_bank_fhsa: { nameCell: "H20", balanceCell: "I20", expectedName: "National Bank FHSA" },
+    national_bank_tfsa_usd: { nameCell: "H21", balanceCell: "I21", expectedName: "National Bank TFSA-USD" },
+    national_bank_rrsp: { nameCell: "H22", balanceCell: "I22", expectedName: "National Bank RRSP" },
     simplii_chequing: { nameCell: "H23", balanceCell: "I23", expectedName: "Simplii - Che" },
     simplii_savings: { nameCell: "H24", balanceCell: "I24", expectedName: "Simplii - Sav" },
     eq_savings: { nameCell: "H25", balanceCell: "I25", expectedName: "EQ - Sav" },
@@ -259,7 +268,7 @@ test("3. each approved account is returned by getWealth() with isEditable: true 
   }
 });
 
-test("4. I20 / national_bank_fhsa is read-only and denied", () => {
+test("4. I20 / national_bank_fhsa is read-only and denied when summary formula is missing", () => {
   const ctx = loadBackendContext();
   const wealth = ctx.getWealth();
   const fhsa = wealth.accounts.find(a => a.id === "national_bank_fhsa");
@@ -269,11 +278,11 @@ test("4. I20 / national_bank_fhsa is read-only and denied", () => {
 
   assert.throws(() => {
     ctx.updateWealthAccountBalance({ accountId: "national_bank_fhsa", balance: 35000 });
-  }, /Invalid or non-editable account/);
+  }, /Account formula changed/);
   assert.equal(ctx._getSetValueCount(), 0);
 });
 
-test("5. I21 / national_bank_tfsa_usd is formula-driven, read-only and denied", () => {
+test("5. I21 / national_bank_tfsa_usd is formula-driven, read-only and denied when GOOGLEFINANCE formula is missing", () => {
   const ctx = loadBackendContext();
   const wealth = ctx.getWealth();
   const tfsaUsd = wealth.accounts.find(a => a.id === "national_bank_tfsa_usd");
@@ -283,11 +292,11 @@ test("5. I21 / national_bank_tfsa_usd is formula-driven, read-only and denied", 
 
   assert.throws(() => {
     ctx.updateWealthAccountBalance({ accountId: "national_bank_tfsa_usd", balance: 3000 });
-  }, /Invalid or non-editable account/);
+  }, /Account formula changed/);
   assert.equal(ctx._getSetValueCount(), 0);
 });
 
-test("6. I22 / national_bank_rrsp is read-only and denied", () => {
+test("6. I22 / national_bank_rrsp is read-only and denied when summary formula is missing", () => {
   const ctx = loadBackendContext();
   const wealth = ctx.getWealth();
   const rrsp = wealth.accounts.find(a => a.id === "national_bank_rrsp");
@@ -297,7 +306,7 @@ test("6. I22 / national_bank_rrsp is read-only and denied", () => {
 
   assert.throws(() => {
     ctx.updateWealthAccountBalance({ accountId: "national_bank_rrsp", balance: 16000 });
-  }, /Invalid or non-editable account/);
+  }, /Account formula changed/);
   assert.equal(ctx._getSetValueCount(), 0);
 });
 

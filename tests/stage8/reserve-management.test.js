@@ -34,7 +34,10 @@ function loadBackendContext(customData = {}) {
     I26: 200,
     I27: 100,
     I28: 200,
-    I29: 31900
+    I29: 31900,
+    J14: 33000,
+    K14: 15000,
+    J21: 1800
   }, customData.cellValues || {});
   const cellFormulas = Object.assign({
     H14: "=I29-P14-N14-O14",
@@ -43,6 +46,9 @@ function loadBackendContext(customData = {}) {
     N14: "=SUM(N2:N13)",
     O14: "=SUM(O2:O13)",
     P14: "",
+    J14: "",
+    K14: "",
+    J21: "",
     I17: "",
     I18: "",
     I19: "",
@@ -390,7 +396,10 @@ test("23. success returns and caches only a full authoritative getWealth reread"
 
 test("24. Phase 2A account whitelist and account writes remain unchanged", () => {
   const ctx = loadBackendContext();
-  assert.equal(Object.keys(ctx.WEALTH_EDITABLE_WHITELIST).length, 9);
+  const phase2aIds = ["eq_tfsa", "wealthsimple_tfsa", "national_bank_tfsa", "simplii_chequing", "simplii_savings", "eq_savings", "eq_bank_card", "eq_geng_cash", "td_savings"];
+  for (const id of phase2aIds) {
+    assert.ok(ctx.WEALTH_EDITABLE_WHITELIST[id], `Missing phase 2A account ${id}`);
+  }
   ctx.updateWealthAccountBalance({ accountId: "simplii_chequing", balance: 450.25 });
   assert.equal(ctx._getCellValues().I23, 450.25);
 });

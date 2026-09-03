@@ -5622,6 +5622,13 @@ button.wealth-account-row-editable:hover .wealth-account-chevron {
   font-family: inherit;
 }
 
+.wealth-edit-helper-text {
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  margin: 0;
+  line-height: 1.4;
+}
+
 .wealth-edit-error-banner {
   background: #fef2f2;
   border: 1px solid #fecaca;
