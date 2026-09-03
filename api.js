@@ -3,7 +3,7 @@ const financeApi = (() => {
 
   const STORAGE_KEY = "personalFinance.deviceKey";
   const KEY_REGEX = /^[a-f0-9]{64}$/i;
-  const ALLOWED_ACTIONS = Object.freeze(["getExpenses", "addExpense", "updateExpense", "deleteExpense", "getWealth", "updateWealthAccountBalance", "updateWealthReserve", "getSpendingBuckets"]);
+  const ALLOWED_ACTIONS = Object.freeze(["getExpenses", "addExpense", "updateExpense", "deleteExpense", "getWealth", "updateWealthAccountBalance", "updateWealthReserve", "getSpendingBuckets", "updateSpendingBuckets"]);
 
   let lastApiTimings = {
     fetchDurationMs: 0,
@@ -139,7 +139,7 @@ const financeApi = (() => {
       return result.wealth !== undefined ? result.wealth : null;
     }
 
-    if (action === "getSpendingBuckets") {
+    if (action === "getSpendingBuckets" || action === "updateSpendingBuckets") {
       return result.buckets !== undefined ? result.buckets : null;
     }
 
@@ -164,6 +164,10 @@ const financeApi = (() => {
 
   async function getSpendingBuckets() {
     return runApi("getSpendingBuckets", {});
+  }
+
+  async function updateSpendingBuckets(payload) {
+    return runApi("updateSpendingBuckets", payload);
   }
 
   async function addExpense(expense) {
@@ -203,6 +207,7 @@ const financeApi = (() => {
     updateWealthAccountBalance,
     updateWealthReserve,
     getSpendingBuckets,
+    updateSpendingBuckets,
     addExpense,
     updateExpense,
     deleteExpense,

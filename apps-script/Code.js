@@ -1852,6 +1852,54 @@ function getSpendingBuckets() {
   };
 }
 
+function updateSpendingBuckets(payload) {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Payload must be an object.");
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new Error("Server is busy. Please try again.");
+  }
+
+  try {
+    const sheet = getWealthSheet_();
+
+    // Verify targets do not contain formulas
+    // Targets: C14 (Small Business), D14 (Education), E14 (Giving), F14 (Play)
+    const formulas = sheet.getRange("C14:F14").getFormulas()[0] || [];
+    if (formulas.some(f => f && String(f).trim() !== "")) {
+      throw new Error("Target allocation cell contains a formula. Write blocked.");
+    }
+
+    if (payload.smallBusiness !== undefined) {
+      const val = parseSheetNumber_(payload.smallBusiness);
+      sheet.getRange("C14").setValue(val);
+    }
+    if (payload.education !== undefined) {
+      const val = parseSheetNumber_(payload.education);
+      sheet.getRange("D14").setValue(val);
+    }
+    if (payload.giving !== undefined) {
+      const val = parseSheetNumber_(payload.giving);
+      sheet.getRange("E14").setValue(val);
+    }
+    if (payload.play !== undefined) {
+      const val = parseSheetNumber_(payload.play);
+      sheet.getRange("F14").setValue(val);
+    }
+
+    SpreadsheetApp.flush();
+
+    return {
+      ok: true,
+      buckets: getSpendingBuckets()
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /* =========================================
    AUTHENTICATED API ENTRY POINT (STAGE 3)
 ========================================= */
@@ -1882,6 +1930,9 @@ function apiRequest(request) {
         ok: true,
         buckets: getSpendingBuckets()
       };
+
+    case "updateSpendingBuckets":
+      return updateSpendingBuckets(payload);
 
     case "updateWealthAccountBalance":
       return updateWealthAccountBalance(payload);

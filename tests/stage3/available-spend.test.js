@@ -574,3 +574,103 @@ test("15. prefers-reduced-motion has a usable static state", () => {
   assert.ok(css.includes("transition: none !important"));
   assert.ok(css.includes("transform: none !important"));
 });
+
+test("16. updateSpendingBuckets updates C14:F14 and returns updated buckets", () => {
+  const writtenValues = {};
+  const mockSs = {
+    getSheetByName(name) {
+      assert.equal(name, "2026-Budgets");
+      return {
+        getRange(r) {
+          if (r === "C14:F14") {
+            return {
+              getFormulas() { return [["", "", "", ""]]; }
+            };
+          }
+          if (r === "B14:F14") {
+            return {
+              getValues() {
+                return [[
+                  1000,
+                  writtenValues["C14"] ?? 500,
+                  writtenValues["D14"] ?? 1200,
+                  writtenValues["E14"] ?? 250,
+                  writtenValues["F14"] ?? 3530
+                ]];
+              }
+            };
+          }
+          if (["C14", "D14", "E14", "F14"].includes(r)) {
+            return {
+              setValue(val) {
+                writtenValues[r] = val;
+              }
+            };
+          }
+          return {
+            getValues() { return [[]]; },
+            getFormulas() { return [[]]; },
+            setValue() {}
+          };
+        }
+      };
+    }
+  };
+
+  const { context } = loadBackendContext({
+    SpreadsheetApp: {
+      getActiveSpreadsheet() { return mockSs; },
+      openById() { return mockSs; },
+      flush() {}
+    },
+    LockService: {
+      getScriptLock() {
+        return {
+          tryLock() { return true; },
+          releaseLock() {}
+        };
+      }
+    }
+  });
+
+  const validKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+  const resp = context.doPost({
+    postData: {
+      contents: JSON.stringify({
+        deviceKey: validKey,
+        action: "updateSpendingBuckets",
+        payload: {
+          play: 4000,
+          smallBusiness: 600,
+          education: 1500,
+          giving: 300
+        }
+      })
+    }
+  });
+
+  const parsed = JSON.parse(resp.getContent());
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.buckets.play, 4000);
+  assert.equal(parsed.buckets.smallBusiness, 600);
+  assert.equal(parsed.buckets.education, 1500);
+  assert.equal(parsed.buckets.giving, 300);
+  assert.equal(parsed.buckets.necessity, 1000);
+  assert.equal(writtenValues["F14"], 4000);
+  assert.equal(writtenValues["C14"], 600);
+  assert.equal(writtenValues["D14"], 1500);
+  assert.equal(writtenValues["E14"], 300);
+});
+
+test("17. HTML contains editAllocationsBtn and manageAllocationsModal", () => {
+  const html = fs.readFileSync(path.join(repoRoot, "index.html"), "utf8");
+
+  assert.ok(html.includes('id="editAllocationsBtn"'));
+  assert.ok(html.includes('id="manageAllocationsModal"'));
+  assert.ok(html.includes('id="allocPlayInput"'));
+  assert.ok(html.includes('id="allocBusinessInput"'));
+  assert.ok(html.includes('id="allocEducationInput"'));
+  assert.ok(html.includes('id="allocGivingInput"'));
+  assert.ok(html.includes('id="saveAllocationsButton"'));
+});
+

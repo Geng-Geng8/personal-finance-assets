@@ -920,6 +920,116 @@
     }
   }
 
+  /* =========================================
+     STAGE 3 ALLOCATION EDITING
+  ========================================= */
+
+  function openAllocationsModal() {
+    if (typeof document === "undefined") return;
+
+    const modal = document.getElementById("manageAllocationsModal");
+    const backdrop = document.getElementById("manageAllocationsBackdrop");
+    const errBanner = document.getElementById("allocationsError");
+
+    const playInput = document.getElementById("allocPlayInput");
+    const bizInput = document.getElementById("allocBusinessInput");
+    const eduInput = document.getElementById("allocEducationInput");
+    const givInput = document.getElementById("allocGivingInput");
+
+    if (errBanner) {
+      errBanner.textContent = "";
+      errBanner.classList.add("hidden");
+    }
+
+    if (currentSpendingBuckets) {
+      if (playInput) playInput.value = currentSpendingBuckets.play != null ? currentSpendingBuckets.play : "";
+      if (bizInput) bizInput.value = currentSpendingBuckets.smallBusiness != null ? currentSpendingBuckets.smallBusiness : "";
+      if (eduInput) eduInput.value = currentSpendingBuckets.education != null ? currentSpendingBuckets.education : "";
+      if (givInput) givInput.value = currentSpendingBuckets.giving != null ? currentSpendingBuckets.giving : "";
+    }
+
+    if (backdrop) backdrop.classList.remove("hidden");
+    if (modal) modal.classList.remove("hidden");
+  }
+
+  function closeAllocationsModal() {
+    if (typeof document === "undefined") return;
+
+    const modal = document.getElementById("manageAllocationsModal");
+    const backdrop = document.getElementById("manageAllocationsBackdrop");
+    const errBanner = document.getElementById("allocationsError");
+
+    if (backdrop) backdrop.classList.add("hidden");
+    if (modal) modal.classList.add("hidden");
+    if (errBanner) {
+      errBanner.textContent = "";
+      errBanner.classList.add("hidden");
+    }
+  }
+
+  async function saveAllocations() {
+    if (typeof document === "undefined") return;
+
+    const playInput = document.getElementById("allocPlayInput");
+    const bizInput = document.getElementById("allocBusinessInput");
+    const eduInput = document.getElementById("allocEducationInput");
+    const givInput = document.getElementById("allocGivingInput");
+    const saveBtn = document.getElementById("saveAllocationsButton");
+    const errBanner = document.getElementById("allocationsError");
+
+    const play = playInput && playInput.value !== "" ? parseFloat(playInput.value) : 0;
+    const smallBusiness = bizInput && bizInput.value !== "" ? parseFloat(bizInput.value) : 0;
+    const education = eduInput && eduInput.value !== "" ? parseFloat(eduInput.value) : 0;
+    const giving = givInput && givInput.value !== "" ? parseFloat(givInput.value) : 0;
+
+    if (isNaN(play) || isNaN(smallBusiness) || isNaN(education) || isNaN(giving) ||
+        play < 0 || smallBusiness < 0 || education < 0 || giving < 0) {
+      if (errBanner) {
+        errBanner.textContent = "Please enter valid non-negative numbers for all allocations.";
+        errBanner.classList.remove("hidden");
+      }
+      return;
+    }
+
+    const origText = saveBtn ? saveBtn.textContent : "Save Allocations";
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving...";
+    }
+    if (errBanner) {
+      errBanner.textContent = "";
+      errBanner.classList.add("hidden");
+    }
+
+    try {
+      const result = await financeApi.updateSpendingBuckets({
+        play,
+        smallBusiness,
+        education,
+        giving
+      });
+
+      if (result && typeof result === "object" && result.play !== undefined) {
+        currentSpendingBuckets = result;
+        saveSpendingBucketsToCache(result);
+        renderSpendingBuckets(result);
+      }
+
+      closeAllocationsModal();
+      showToast("Allocations updated.");
+    } catch (err) {
+      if (errBanner) {
+        errBanner.textContent = err && err.message ? err.message : "Failed to save allocations.";
+        errBanner.classList.remove("hidden");
+      }
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = origText;
+      }
+    }
+  }
+
   function renderWealthView(data) {
     if (!data || typeof document === "undefined") return;
 
@@ -2141,6 +2251,18 @@
     if (cancelWealthReserveBtn) cancelWealthReserveBtn.addEventListener("click", closeWealthReserveManager);
     if (wealthReserveBackdrop) wealthReserveBackdrop.addEventListener("click", closeWealthReserveManager);
     if (saveWealthReserveBtn) saveWealthReserveBtn.addEventListener("click", handleSaveWealthReserve);
+
+    const editAllocationsBtn = document.getElementById("editAllocationsBtn");
+    const closeAllocationsBtn = document.getElementById("closeAllocationsButton");
+    const cancelAllocationsBtn = document.getElementById("cancelAllocationsButton");
+    const saveAllocationsBtn = document.getElementById("saveAllocationsButton");
+    const manageAllocationsBackdrop = document.getElementById("manageAllocationsBackdrop");
+
+    if (editAllocationsBtn) editAllocationsBtn.addEventListener("click", openAllocationsModal);
+    if (closeAllocationsBtn) closeAllocationsBtn.addEventListener("click", closeAllocationsModal);
+    if (cancelAllocationsBtn) cancelAllocationsBtn.addEventListener("click", closeAllocationsModal);
+    if (manageAllocationsBackdrop) manageAllocationsBackdrop.addEventListener("click", closeAllocationsModal);
+    if (saveAllocationsBtn) saveAllocationsBtn.addEventListener("click", saveAllocations);
 
     if (wealthReserveOperations) {
       wealthReserveOperations.addEventListener("click", function(e) {
