@@ -50,7 +50,11 @@ function loadBackendContext(customData = {}) {
     I29: 31902.24,
     J14: row14[2],
     K14: row14[3],
-    J21: 1800.57
+    J21: 1800.57,
+    H30: "cash (Cad) ", I30: 375, J30: "",
+    H31: "Cash (php) ", I31: 0, J31: 0,
+    H32: "GoTyme (Php) ", I32: 123, J32: 3.47,
+    H33: "Gcash(Php) ", I33: 2345, J33: 61.23
   }, customData.cellValues || {});
 
   const cellFormulas = Object.assign({
@@ -74,7 +78,10 @@ function loadBackendContext(customData = {}) {
     I25: "",
     I26: "",
     I27: "",
-    I28: ""
+    I28: "",
+    J31: '=I31 * GOOGLEFINANCE("CURRENCY:PHPCAD")',
+    J32: '=I32 * GOOGLEFINANCE("CURRENCY:PHPCAD")',
+    J33: '=I33 * GOOGLEFINANCE("CURRENCY:PHPCAD")'
   }, customData.cellFormulas || {});
 
   const defaultAccountRows = [
@@ -115,10 +122,21 @@ function loadBackendContext(customData = {}) {
   let wasLockedDuringWrite = false;
   let setValueCount = 0;
   let failDuringWrite = Boolean(customData.failDuringWrite);
+  const writtenCells = [];
+  let philippinesReadCount = 0;
 
   const mockWealthSheet = {
     name: "2026-Budgets",
     getRange(rangeStr) {
+      if (rangeStr === "H30:J33") {
+        return {
+          getValues: () => {
+            philippinesReadCount++;
+            return [30, 31, 32, 33].map(row => ["H", "I", "J"].map(col => cellValues[col + row]));
+          },
+          getFormulas: () => [30, 31, 32, 33].map(row => ["H", "I", "J"].map(col => cellFormulas[col + row] || ""))
+        };
+      }
       if (rangeStr === "H14:P14") {
         return { getValues: () => [row14] };
       }
@@ -150,6 +168,7 @@ function loadBackendContext(customData = {}) {
               wasLockedDuringWrite = true;
             }
             setValueCount++;
+            writtenCells.push(rangeStr);
             if (failDuringWrite) {
               throw new Error("Simulated disk error during setValue");
             }
@@ -174,13 +193,15 @@ function loadBackendContext(customData = {}) {
     },
     SpreadsheetApp: {
       openById: () => mockSpreadsheet,
-      flush: () => {}
+      flush: () => { if (customData.afterFlush) customData.afterFlush(cellValues); }
     },
     LockService: {
       getScriptLock: () => ({
         tryLock: () => {
           if (lockBusy) return false;
           lockAcquired = true;
+          lockReleased = false;
+          if (customData.onLock) customData.onLock(cellValues, cellFormulas);
           return true;
         },
         releaseLock: () => {
@@ -207,7 +228,10 @@ function loadBackendContext(customData = {}) {
     },
     _getLockState: () => ({ lockAcquired, lockReleased, wasLockedDuringWrite }),
     _getCellValues: () => cellValues,
-    _getSetValueCount: () => setValueCount
+    _getSetValueCount: () => setValueCount,
+    _getWrittenCells: () => writtenCells,
+    _getCellFormulas: () => cellFormulas,
+    _getPhilippinesReadCount: () => philippinesReadCount
   };
 
   const vm = require("node:vm");
@@ -220,10 +244,10 @@ function loadBackendContext(customData = {}) {
    1. CONTRACT TESTS
 ============================================================ */
 
-test("1. exactly twelve approved account IDs exist", () => {
+test("1. exactly sixteen approved account IDs exist", () => {
   const ctx = loadBackendContext();
   const keys = Object.keys(ctx.WEALTH_EDITABLE_WHITELIST);
-  assert.equal(keys.length, 12);
+  assert.equal(keys.length, 16);
 });
 
 test("2. each approved ID maps to its exact expected H/I cells and expected name", () => {
@@ -925,4 +949,236 @@ test("43. successful update still uses the authoritative response for state, cac
 
 test("44. root and frontend Wealth editor/API mirrors remain identical", () => {
   for (const file of ["app.js", "api.js"]) assert.equal(read(file), read("frontend/" + file));
+});
+
+const PH_ACCOUNTS = [
+  ["ph_cash_cad", 30, "cash (Cad)", "Cash — CAD", "CAD"],
+  ["ph_cash_php", 31, "Cash (php)", "Cash — PHP", "PHP"],
+  ["gotyme_php", 32, "GoTyme (Php)", "GoTyme", "PHP"],
+  ["gcash_php", 33, "Gcash(Php)", "GCash", "PHP"]
+];
+
+test("PH contract: four explicit IDs, trimmed identity, native amounts and only Sheet-derived CAD values", () => {
+  const ctx = loadBackendContext();
+  const wealth = ctx.getWealth();
+  assert.equal(wealth.accounts.length, 12);
+  assert.deepEqual(Array.from(wealth.philippinesAccounts, a => a.id), PH_ACCOUNTS.map(a => a[0]));
+  for (const [id, row, expectedName, name, currency] of PH_ACCOUNTS) {
+    const target = ctx.WEALTH_EDITABLE_WHITELIST[id];
+    assert.equal(target.nameCell, "H" + row);
+    assert.equal(target.balanceCell, "I" + row);
+    assert.equal(target.writeCell, "I" + row);
+    assert.equal(target.expectedName, expectedName);
+    assert.equal(target.editCurrency, currency);
+    const a = wealth.philippinesAccounts.find(a => a.id === id);
+    assert.equal(a.name, name);
+    assert.equal(a.balance, ctx._getCellValues()["I" + row]);
+    assert.equal(a.currency, currency);
+    assert.equal(a.editCurrency, currency);
+    assert.equal(a.isEditable, true);
+    assert.equal(a.isFormula, false);
+    const keys = ["id", "name", "balance", "currency", "editCurrency", "isEditable", "isFormula"];
+    if (currency === "PHP") {
+      keys.push("cadEquivalent");
+      assert.equal(a.cadEquivalent, ctx._getCellValues()["J" + row]);
+    }
+    assert.deepEqual(Object.keys(a).sort(), keys.sort());
+  }
+  assert.doesNotMatch(JSON.stringify(wealth.philippinesAccounts), /2026-Budgets|[HIJ]3[0-3]|GOOGLEFINANCE|mock-prod-id/);
+});
+
+test("PH writes target only I30:I33 under lock, preserve all formulas and return a complete reread", () => {
+  for (const [id, row] of PH_ACCOUNTS) {
+    const ctx = loadBackendContext({ afterFlush: values => { values.J31 = 17.91; values.J32 = 21.56; values.J33 = 94.82; } });
+    const before = { ...ctx._getCellValues() };
+    const formulas = { ...ctx._getCellFormulas() };
+    ctx.getWealth();
+    const result = ctx.updateWealthAccountBalance({ accountId: id, balance: 999.87 });
+    assert.deepEqual(ctx._getWrittenCells(), ["I" + row]);
+    assert.deepEqual(ctx._getLockState(), { lockAcquired: true, lockReleased: true, wasLockedDuringWrite: true });
+    assert.deepEqual(ctx._getCellFormulas(), formulas);
+    for (const cell of Object.keys(before).filter(cell => !["I" + row, "J31", "J32", "J33"].includes(cell))) {
+      assert.equal(ctx._getCellValues()[cell], before[cell], cell + " must remain unchanged");
+    }
+    assert.equal(ctx._getPhilippinesReadCount(), 2);
+    assert.equal(result.wealth.philippinesAccounts.find(a => a.id === id).balance, 999.87);
+    assert.equal(result.wealth.philippinesAccounts[2].cadEquivalent, 21.56);
+    assert.equal(result.wealth.accounts.length, 12);
+    assert.ok(result.wealth.reserveManagement);
+    assert.equal(result.wealth.availableCash, 18925.64);
+  }
+});
+
+test("PH formula drift, missing conversion and formulas in native cells fail closed on read and write", () => {
+  for (const [id, row, , , currency] of PH_ACCOUNTS) {
+    const cases = [{ ["I" + row]: "=123" }];
+    if (currency === "PHP") {
+      for (const formula of ["", "=123", '=I30*GOOGLEFINANCE("CURRENCY:PHPCAD")',
+        '=I' + row + '*GOOGLEFINANCE("CURRENCY:CADPHP")',
+        '=I' + row + '*GOOGLEFINANCE("CURRENCY:PHP CAD")',
+        '=I' + row + '*GOOGLEFINANCE("CURRENCY:PHPCAD")+1']) cases.push({ ["J" + row]: formula });
+    }
+    for (const cellFormulas of cases) {
+      const ctx = loadBackendContext({ cellFormulas });
+      assert.equal(ctx.getWealth().philippinesAccounts.find(a => a.id === id).isEditable, false);
+      assert.throws(() => ctx.updateWealthAccountBalance({ accountId: id, balance: 20 }), /calculated automatically|Account formula changed/);
+      assert.equal(ctx._getSetValueCount(), 0);
+      assert.equal(ctx._getLockState().lockReleased, true);
+    }
+  }
+});
+
+test("PH identity mismatch and row swaps fail closed; identity and formulas are rechecked after acquiring the lock", () => {
+  for (const [id, row] of PH_ACCOUNTS) {
+    const ctx = loadBackendContext({ cellValues: { ["H" + row]: "different account" } });
+    assert.equal(ctx.getWealth().philippinesAccounts.find(a => a.id === id).isEditable, false);
+    assert.throws(() => ctx.updateWealthAccountBalance({ accountId: id, balance: 20 }), /Account mapping changed/);
+    assert.equal(ctx._getSetValueCount(), 0);
+  }
+  const swapped = loadBackendContext({ cellValues: { H32: "Gcash(Php)", H33: "GoTyme (Php)" } });
+  for (const id of ["gotyme_php", "gcash_php"]) {
+    assert.throws(() => swapped.updateWealthAccountBalance({ accountId: id, balance: 20 }), /Account mapping changed/);
+  }
+  for (const onLock of [values => { values.H32 = "Changed"; }, (values, formulas) => { formulas.J32 = "=1"; }]) {
+    const ctx = loadBackendContext({ onLock });
+    assert.equal(ctx.getWealth().philippinesAccounts[2].isEditable, true);
+    assert.throws(() => ctx.updateWealthAccountBalance({ accountId: "gotyme_php", balance: 20 }), /Account .* changed/);
+    assert.equal(ctx._getSetValueCount(), 0);
+  }
+});
+
+test("PH whitespace outside formula literals is accepted; busy locks and write exceptions preserve existing state", () => {
+  const ctx = loadBackendContext({ cellFormulas: { J32: ' = I32 * GOOGLEFINANCE( "CURRENCY:PHPCAD" ) ' } });
+  assert.equal(ctx.getWealth().philippinesAccounts[2].isEditable, true);
+  assert.equal(ctx.updateWealthAccountBalance({ accountId: "gotyme_php", balance: 0 }).ok, true);
+  for (const customData of [{ lockBusy: true }, { failDuringWrite: true }]) {
+    const backend = loadBackendContext(customData);
+    assert.throws(() => backend.updateWealthAccountBalance({ accountId: "gotyme_php", balance: 50 }), /busy|Simulated disk error/);
+    assert.equal(backend._getCellValues().I32, 123);
+    assert.equal(backend._getLockState().lockReleased, !customData.lockBusy);
+  }
+});
+
+test("PH browser topology, conversion overrides, invalid IDs and invalid native money cannot write", () => {
+  const ctx = loadBackendContext();
+  for (const [id] of PH_ACCOUNTS) {
+    for (const key of ["sheet", "sheetName", "spreadsheetId", "cell", "range", "row", "formula", "currency", "editCurrency", "cadEquivalent", "exchangeRate", "writeCell", "__proto__"]) {
+      assert.throws(() => ctx.updateWealthAccountBalance({ accountId: id, balance: 20, [key]: "J31" }), /Arbitrary sheet or cell coordinates/);
+    }
+    for (const balance of [-1, 1e9 + 1, 1.001, NaN, Infinity, "abc", "=1+1", "", null, true, {}, []]) {
+      assert.throws(() => ctx.updateWealthAccountBalance({ accountId: id, balance }));
+    }
+  }
+  for (const accountId of ["I30", "I31", "I32", "I33", "J31", "J32", "J33", "cash_php", "__proto__", "constructor", "hasOwnProperty", ""]) {
+    assert.throws(() => ctx.updateWealthAccountBalance({ accountId, balance: 20 }), /Invalid or non-editable/);
+  }
+  assert.equal(ctx._getSetValueCount(), 0);
+});
+
+test("PH authenticated POST is required and PHP failures retain sanitized editor errors", async () => {
+  for (const deviceKey of [undefined, "f".repeat(64)]) {
+    const ctx = loadBackendContext();
+    const result = JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify({ deviceKey,
+      action: "updateWealthAccountBalance", payload: { accountId: "gotyme_php", balance: 10 } }) } }).content);
+    assert.equal(result.error, "Unauthorized");
+    assert.equal(ctx._getSetValueCount(), 0);
+  }
+  const ctx = loadBackendContext({ cellFormulas: { J32: "" } });
+  const editor = loadBalanceEditor(ctx, { accountId: "gotyme_php" });
+  await editor.context.handleSaveWealthBalance();
+  assert.equal(editor.elements.wealthEditError.textContent, SAFE_BALANCE_FAILURE + " Reason: Account formula changed. Balance was not updated.");
+  assert.equal(editor.context.currentWealthData, editor.previousWealth);
+  assert.equal(ctx._getSetValueCount(), 0);
+});
+
+function loadPhilippinesView(wealth) {
+  const vm = require("node:vm");
+  const elements = {};
+  const context = vm.createContext({
+    currentWealthData: wealth,
+    document: {
+      getElementById: id => elements[id] ||= { textContent: "", innerHTML: "", value: "", dataset: {},
+        classList: { add() {}, remove() {} }, addEventListener(type, listener) { this[type] = listener; } },
+      querySelector: () => null
+    },
+    formatCurrency: value => "$" + Number(value || 0).toFixed(2),
+    escapeHtml: value => String(value).replace(/[&<>"']/g, "_"),
+    requestAnimationFrame: fn => fn(), setTimeout: () => {}
+  });
+  const app = read("app.js");
+  vm.runInContext(app.slice(app.indexOf("  function formatPhilippinesCurrency("), app.indexOf("  function getWealthBalanceFailureReason(")), context);
+  return { context, elements };
+}
+
+test("PH UI renders native PHP, Sheet CAD secondary values and count; CAD cash and Canada retain their formats", () => {
+  const wealth = loadBackendContext().getWealth();
+  const { context, elements } = loadPhilippinesView(wealth);
+  context.renderWealthView(wealth);
+  const html = elements.wealthPhilippinesAccountsList.innerHTML;
+  assert.match(html, /Cash — CAD[\s\S]*C\$375\.00/);
+  assert.match(html, /Cash — PHP[\s\S]*₱0\.00[\s\S]*≈ C\$0\.00/);
+  assert.match(html, /GoTyme[\s\S]*₱123\.00[\s\S]*≈ C\$3\.47/);
+  assert.match(html, /GCash[\s\S]*₱2,345\.00[\s\S]*≈ C\$61\.23/);
+  assert.equal((html.match(/wealth-account-conversion/g) || []).length, 3);
+  assert.equal(elements.wealthAccountsCount.textContent, "16 accounts");
+  assert.match(elements.wealthCashAccountsList.innerHTML, /\$400\.00/);
+  assert.doesNotMatch(elements.wealthCashAccountsList.innerHTML, /C\$|₱|≈/);
+  assert.match(read("index.html"), /PHILIPPINES[\s\S]*id="wealthPhilippinesAccountsList"/);
+  // Deliberately unrelated native/CAD fixtures detect frontend FX calculations.
+  wealth.philippinesAccounts[2].balance = 999999;
+  wealth.philippinesAccounts[2].cadEquivalent = 0.13;
+  context.renderWealthView(wealth);
+  assert.match(elements.wealthPhilippinesAccountsList.innerHTML, /₱999,999\.00[\s\S]*≈ C\$0\.13/);
+  assert.doesNotMatch(read("app.js"), /GOOGLEFINANCE|PHPCAD|exchangeRate|cadEquivalent\s*[*/]|balance\s*[*/].*(?:rate|cadEquivalent)/i);
+});
+
+test("PH conversion failures render unavailable instead of fake zero; old snapshots are supported", () => {
+  for (const value of ["#N/A", "", null, NaN]) {
+    const wealth = loadBackendContext({ cellValues: { J32: value } }).getWealth();
+    assert.equal(wealth.philippinesAccounts[2].cadEquivalent, null);
+    const { context, elements } = loadPhilippinesView(wealth);
+    context.renderWealthView(wealth);
+    assert.match(elements.wealthPhilippinesAccountsList.innerHTML, /₱123\.00[\s\S]*CAD equivalent unavailable/);
+  }
+  const wealth = { accounts: [] };
+  const { context, elements } = loadPhilippinesView(wealth);
+  context.renderWealthView(wealth);
+  assert.equal(elements.wealthAccountsCount.textContent, "0 accounts");
+  assert.match(elements.wealthPhilippinesAccountsList.innerHTML, /unavailable/);
+});
+
+test("PH click opens existing native editor, PHP label and symbol reset for CAD and Canada", () => {
+  const wealth = loadBackendContext().getWealth();
+  const { context, elements } = loadPhilippinesView(wealth);
+  context.renderWealthView(wealth);
+  elements.wealthPhilippinesAccountsList.click({ target: { closest: () => ({ getAttribute: () => "gotyme_php" }) } });
+  assert.equal(elements.wealthEditInputLabel.textContent, "PHP Balance");
+  assert.equal(elements.wealthEditCurrencySymbol.textContent, "₱");
+  assert.equal(elements.wealthEditInput.value, "123.00");
+  assert.equal(elements.wealthEditCurrentBalance.textContent, "₱123.00");
+  assert.equal(elements.wealthEditSheet.dataset.accountId, "gotyme_php");
+  for (const id of ["ph_cash_cad", "simplii_chequing"]) {
+    context.openWealthBalanceEditor(id);
+    assert.equal(elements.wealthEditInputLabel.textContent, "New balance");
+    assert.equal(elements.wealthEditCurrencySymbol.textContent, "$");
+    assert.equal(elements.wealthEditInput.value, id === "ph_cash_cad" ? "375.00" : "400.00");
+  }
+});
+
+test("PH save sends only native money, then replaces state/cache and renders the full authoritative response", async () => {
+  for (const [accountId] of PH_ACCOUNTS) {
+    const backend = loadBackendContext({ afterFlush: values => { values.J32 = 98.76; } });
+    const editor = loadBalanceEditor(backend, { accountId });
+    await editor.context.handleSaveWealthBalance();
+    const authoritative = editor.getResponse().wealth;
+    assert.equal(editor.context.currentWealthData, authoritative);
+    assert.deepEqual(editor.calls[0][1].payload, { accountId, balance: 850.5 });
+    assert.deepEqual(editor.calls.map(call => call[0]), ["request", "cache", "render", "close", "sync"]);
+    assert.equal(editor.calls[1][1], authoritative);
+    assert.equal(editor.calls[2][1], authoritative);
+    assert.equal(authoritative.philippinesAccounts.find(a => a.id === accountId).balance, 850.5);
+    const view = loadPhilippinesView(authoritative);
+    view.context.renderWealthView(authoritative);
+    assert.match(view.elements.wealthPhilippinesAccountsList.innerHTML, /≈ C\$98\.76/);
+  }
 });

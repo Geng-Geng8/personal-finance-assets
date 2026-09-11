@@ -892,6 +892,12 @@
                 <div class="wealth-empty-row">No investment accounts found</div>
               </div>
             </div>
+            <div class="wealth-account-group">
+              <div class="wealth-group-label">PHILIPPINES</div>
+              <div class="wealth-accounts-table" id="wealthPhilippinesAccountsList">
+                <div class="wealth-empty-row">Philippines accounts unavailable</div>
+              </div>
+            </div>
           </div>
         </details>
       </section>
@@ -1442,7 +1448,7 @@
       <div class="wealth-edit-field">
         <label for="wealthEditInput" class="wealth-edit-label" id="wealthEditInputLabel">New balance</label>
         <div class="wealth-edit-input-box">
-          <span class="wealth-edit-currency-symbol">$</span>
+          <span class="wealth-edit-currency-symbol" id="wealthEditCurrencySymbol">$</span>
           <input
             type="number"
             step="0.01"
