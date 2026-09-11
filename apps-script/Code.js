@@ -109,26 +109,13 @@ const EXPENSE_SERVER_CACHE_MAX_BYTES =
    WEB APP
 ========================================= */
 
-function doGet(e) {
-  if (e && e.parameter && (e.parameter.action || e.parameter.function)) {
-    return jsonResponse_({
-      ok: false,
-      error: "Unauthorized"
-    });
-  }
-
-  return HtmlService
-    .createTemplateFromFile('Index')
-    .evaluate()
-    .setTitle('Personal Finance')
-    .setFaviconUrl(
-      'https://geng-geng8.github.io/personal-finance-assets/finance-icon.png'
-    )
-    .addMetaTag(
-      'viewport',
-      'width=device-width, initial-scale=1'
-    );
-
+function doGet() {
+  // The GitHub Pages PWA uses authenticated doPost only. Never serve the
+  // legacy HTML UI here: its google.script.run calls bypass device-key auth.
+  return jsonResponse_({
+    ok: false,
+    error: "Unauthorized"
+  });
 }
 
 
