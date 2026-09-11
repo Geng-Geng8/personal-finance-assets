@@ -1492,6 +1492,7 @@
     if (safeMessage) return safeMessage;
 
     const categories = [
+      [/^Unsupported API action: updateWealthAccountBalance$/, "The deployed backend does not support Wealth balance updates."],
       [/Unauthorized|Device is not configured/, "Device authorization failed. Please reconnect this device."],
       [/Server device key is not configured|PRODUCTION_SPREADSHEET_ID is not configured|Web App endpoint URL is not configured/, "Required server or connection configuration is missing."],
       [/2026-Budgets was not found\./, "The Wealth sheet was not found."],

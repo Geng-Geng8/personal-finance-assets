@@ -866,6 +866,7 @@ test("41. runtime and HTTP errors display only fixed sanitized reasons, never se
   const sensitive = ["a".repeat(64), "private-sheet-id", "private-deployment-token", "private-device-secret",
     '{"accountId":"private-account","balance":98765}', "https://private.example/credential", "at Code.js:123"];
   const cases = [
+    ["Unsupported API action: updateWealthAccountBalance", "The deployed backend does not support Wealth balance updates."],
     ["Account mapping changed. Balance was not updated.", "Account mapping changed. Balance was not updated."],
     ["Server is busy. Please try again.", "Server is busy. Please try again."],
     ["You do not have permission to call setValue. " + sensitive.join(" "), "The server reported a permission or protected-range error."],
