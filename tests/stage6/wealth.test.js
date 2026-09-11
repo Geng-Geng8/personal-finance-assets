@@ -48,6 +48,10 @@ function loadBackendContext(mockSheetData = {}) {
   const mockWealthSheet = {
     name: "2026-Budgets",
     getRange(rangeStr) {
+      if (rangeStr === "H30:J33") {
+        return { getValues: () => Array.from({ length: 4 }, () => ["", "", ""]),
+          getFormulas: () => Array.from({ length: 4 }, () => ["", "", ""]) };
+      }
       if (rangeStr === "H14:P14") {
         return {
           getValues() {

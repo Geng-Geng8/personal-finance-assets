@@ -1354,6 +1354,48 @@ var WEALTH_EDITABLE_WHITELIST = Object.freeze({
     displayBalanceCell: "I28",
     writeCell: "I28",
     editCurrency: "CAD"
+  },
+  ph_cash_cad: {
+    id: "ph_cash_cad",
+    name: "Cash — CAD",
+    expectedName: "cash (Cad)",
+    nameCell: "H30",
+    balanceCell: "I30",
+    writeCell: "I30",
+    editCurrency: "CAD"
+  },
+  ph_cash_php: {
+    id: "ph_cash_php",
+    name: "Cash — PHP",
+    expectedName: "Cash (php)",
+    nameCell: "H31",
+    balanceCell: "I31",
+    writeCell: "I31",
+    requiredFormulaCell: "J31",
+    expectedFormula: '=I31*GOOGLEFINANCE("CURRENCY:PHPCAD")',
+    editCurrency: "PHP"
+  },
+  gotyme_php: {
+    id: "gotyme_php",
+    name: "GoTyme",
+    expectedName: "GoTyme (Php)",
+    nameCell: "H32",
+    balanceCell: "I32",
+    writeCell: "I32",
+    requiredFormulaCell: "J32",
+    expectedFormula: '=I32*GOOGLEFINANCE("CURRENCY:PHPCAD")',
+    editCurrency: "PHP"
+  },
+  gcash_php: {
+    id: "gcash_php",
+    name: "GCash",
+    expectedName: "Gcash(Php)",
+    nameCell: "H33",
+    balanceCell: "I33",
+    writeCell: "I33",
+    requiredFormulaCell: "J33",
+    expectedFormula: '=I33*GOOGLEFINANCE("CURRENCY:PHPCAD")',
+    editCurrency: "PHP"
   }
 });
 
@@ -1623,7 +1665,10 @@ var EXPECTED_AVAILABLE_CASH_FORMULA = "=I29-P14-N14-O14";
 var WEALTH_MAX_MONEY_CENTS = 100000000000;
 
 function normalizeWealthFormula_(formula) {
-  return String(formula || "").replace(/\s+/g, "").toUpperCase();
+  // Ignore layout whitespace, but preserve literal contents (e.g. currency symbols).
+  return String(formula || "").replace(/"(?:""|[^"])*"|\s+/g, function(token) {
+    return token.charAt(0) === '"' ? token : "";
+  }).toUpperCase();
 }
 
 function hasApprovedWealthFormula_(range, expectedFormula) {
@@ -1750,6 +1795,36 @@ function toAccountId_(name) {
     .replace(/^_|_$/g, "");
 }
 
+function getPhilippinesAccounts_(sheet) {
+  const range = sheet.getRange("H30:J33");
+  const rows = range.getValues();
+  const formulas = range.getFormulas();
+  return ["ph_cash_cad", "ph_cash_php", "gotyme_php", "gcash_php"].map(function(id, idx) {
+    const target = WEALTH_EDITABLE_WHITELIST[id];
+    const row = rows[idx] || [];
+    const formulaRow = formulas[idx] || [];
+    const identityValid = String(row[0] || "").trim() === target.expectedName;
+    const isFormula = Boolean(String(formulaRow[1] || "").trim());
+    const conversionValid = !target.requiredFormulaCell ||
+      normalizeWealthFormula_(formulaRow[2]) === normalizeWealthFormula_(target.expectedFormula);
+    const account = {
+      id: id,
+      name: target.name,
+      balance: identityValid ? parseSheetNumber_(row[1]) : null,
+      currency: target.editCurrency,
+      editCurrency: target.editCurrency,
+      isEditable: identityValid && !isFormula && conversionValid,
+      isFormula: isFormula
+    };
+    if (target.editCurrency === "PHP") {
+      // Only a valid Sheet result is a CAD equivalent; never synthesize an FX value.
+      account.cadEquivalent = identityValid && conversionValid &&
+        typeof row[2] === "number" && Number.isFinite(row[2]) ? row[2] : null;
+    }
+    return account;
+  });
+}
+
 function getWealth() {
   const sheet = getWealthSheet_();
 
@@ -1850,6 +1925,7 @@ function getWealth() {
     emergencyFund: parseSheetNumber_(row14[8]),
     totalCash: parseSheetNumber_(totalCashVal),
     accounts: accounts,
+    philippinesAccounts: getPhilippinesAccounts_(sheet),
     reserveManagement: getReserveManagement_(sheet),
     updatedAt: new Date().toISOString()
   };
@@ -2029,6 +2105,11 @@ function updateWealthAccountBalance(payload) {
   }
 
   const target = WEALTH_EDITABLE_WHITELIST[accountId];
+
+  // The browser supplies only a logical identity and native balance.
+  if (Object.keys(payload).some(function(key) { return key !== "accountId" && key !== "balance"; })) {
+    throw new Error("Arbitrary sheet or cell coordinates are not permitted.");
+  }
 
   if (payload.balance === undefined || payload.balance === null || payload.balance === "") {
     throw new Error("Balance is required.");

@@ -1194,6 +1194,13 @@
     }
   }
 
+  function formatPhilippinesCurrency(value, currency) {
+    if (typeof value !== "number" || !Number.isFinite(value)) return "Unavailable";
+    return (currency === "PHP" ? "₱" : "C$") + value.toLocaleString("en-CA", {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+  }
+
   function renderWealthView(data) {
     if (!data || typeof document === "undefined") return;
 
@@ -1258,17 +1265,26 @@
 
     // Section 4: Accounts (H17:I28)
     const accounts = Array.isArray(data.accounts) ? data.accounts : [];
+    const philippinesAccounts = Array.isArray(data.philippinesAccounts) ? data.philippinesAccounts : [];
+    const accountCount = accounts.length + philippinesAccounts.length;
     const elCount = document.getElementById("wealthAccountsCount");
-    if (elCount) elCount.textContent = accounts.length + (accounts.length === 1 ? " account" : " accounts");
+    if (elCount) elCount.textContent = accountCount + (accountCount === 1 ? " account" : " accounts");
 
-    function renderWealthAccountRow(a) {
+    function renderWealthAccountRow(a, philippines = false) {
       if (!a) return "";
+      const balanceHtml = philippines
+        ? '<span class="wealth-account-values"><span class="wealth-account-balance">' +
+          formatPhilippinesCurrency(a.balance, a.currency) + '</span>' +
+          (a.currency === "PHP" ? '<span class="wealth-account-conversion">' +
+            (typeof a.cadEquivalent === "number" && Number.isFinite(a.cadEquivalent)
+              ? '≈ ' + formatPhilippinesCurrency(a.cadEquivalent, "CAD") : 'CAD equivalent unavailable') + '</span>' : '') + '</span>'
+        : '<span class="wealth-account-balance">' + formatCurrency(a.balance) + '</span>';
       const isEditable = Boolean(a.isEditable);
       if (isEditable) {
         return '<button type="button" class="wealth-account-row wealth-account-row-editable" data-account-id="' + escapeHtml(a.id || "") + '" aria-label="Edit balance for ' + escapeHtml(a.name) + '">' +
           '<span class="wealth-account-name">' + escapeHtml(a.name) + '</span>' +
           '<span class="wealth-account-right">' +
-            '<span class="wealth-account-balance">' + formatCurrency(a.balance) + '</span>' +
+            balanceHtml +
             '<svg class="wealth-account-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
               '<polyline points="9 18 15 12 9 6"></polyline>' +
             '</svg>' +
@@ -1281,7 +1297,7 @@
           escapeHtml(a.name) +
           (a.isFormula ? ' <span class="wealth-calc-badge">Calculated</span>' : '') +
         '</span>' +
-        '<span class="wealth-account-balance">' + formatCurrency(a.balance) + '</span>' +
+        balanceHtml +
       '</div>';
     }
 
@@ -1293,7 +1309,7 @@
       if (cashAccounts.length === 0) {
         elCashList.innerHTML = '<div class="wealth-empty-row">No cash accounts found</div>';
       } else {
-        elCashList.innerHTML = cashAccounts.map(renderWealthAccountRow).join("");
+        elCashList.innerHTML = cashAccounts.map(a => renderWealthAccountRow(a)).join("");
       }
     }
 
@@ -1302,8 +1318,15 @@
       if (investAccounts.length === 0) {
         elInvestList.innerHTML = '<div class="wealth-empty-row">No investment accounts found</div>';
       } else {
-        elInvestList.innerHTML = investAccounts.map(renderWealthAccountRow).join("");
+        elInvestList.innerHTML = investAccounts.map(a => renderWealthAccountRow(a)).join("");
       }
+    }
+
+    const elPhilippinesList = document.getElementById("wealthPhilippinesAccountsList");
+    if (elPhilippinesList) {
+      elPhilippinesList.innerHTML = philippinesAccounts.length
+        ? philippinesAccounts.map(a => renderWealthAccountRow(a, true)).join("")
+        : '<div class="wealth-empty-row">Philippines accounts unavailable</div>';
     }
 
     setupWealthAccountsDelegation();
@@ -1316,6 +1339,7 @@
     if (typeof document === "undefined") return;
     const elCash = document.getElementById("wealthCashAccountsList");
     const elInvest = document.getElementById("wealthInvestAccountsList");
+    const elPhilippines = document.getElementById("wealthPhilippinesAccountsList");
     const elCrypto = document.getElementById("wealthCryptoCard") || document.querySelector(".editable-crypto-card");
 
     function handleAccountClick(e) {
@@ -1334,6 +1358,10 @@
     if (elInvest && !elInvest.dataset.hasWealthClick) {
       elInvest.addEventListener("click", handleAccountClick);
       elInvest.dataset.hasWealthClick = "true";
+    }
+    if (elPhilippines && !elPhilippines.dataset.hasWealthClick) {
+      elPhilippines.addEventListener("click", handleAccountClick);
+      elPhilippines.dataset.hasWealthClick = "true";
     }
     if (elCrypto && !elCrypto.dataset.hasWealthClick) {
       elCrypto.addEventListener("click", function() {
@@ -1371,8 +1399,10 @@
         editCurrency: "CAD",
         editValue: cryptoVal
       };
-    } else if (currentWealthData && Array.isArray(currentWealthData.accounts)) {
-      account = currentWealthData.accounts.find(function(a) { return a && a.id === accountId; });
+    } else if (currentWealthData) {
+      const accounts = Array.isArray(currentWealthData.accounts) ? currentWealthData.accounts : [];
+      const philippinesAccounts = Array.isArray(currentWealthData.philippinesAccounts) ? currentWealthData.philippinesAccounts : [];
+      account = accounts.concat(philippinesAccounts).find(function(a) { return a && a.id === accountId; });
     }
     if (!account || !account.isEditable) return;
 
@@ -1382,16 +1412,20 @@
     if (elTitle) elTitle.textContent = account.name;
 
     const elCurrent = document.getElementById("wealthEditCurrentBalance");
-    if (elCurrent) elCurrent.textContent = formatCurrency(account.balance);
+    if (elCurrent) elCurrent.textContent = account.currency
+      ? formatPhilippinesCurrency(account.balance, account.currency) : formatCurrency(account.balance);
 
     const isUsd = account.editCurrency === "USD";
+    const isPhp = account.editCurrency === "PHP";
+    const elSymbol = document.getElementById("wealthEditCurrencySymbol");
+    if (elSymbol) elSymbol.textContent = isPhp ? "₱" : "$";
     const editVal = (typeof account.editValue === "number" && !isNaN(account.editValue))
       ? account.editValue
       : account.balance;
 
     const elInputLabel = document.getElementById("wealthEditInputLabel");
     if (elInputLabel) {
-      elInputLabel.textContent = isUsd ? "USD Balance" : "New balance";
+      elInputLabel.textContent = isPhp ? "PHP Balance" : (isUsd ? "USD Balance" : "New balance");
     }
 
     const elHelper = document.getElementById("wealthEditHelperText");
