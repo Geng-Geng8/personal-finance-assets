@@ -1,97 +1,142 @@
 STATUS: CURRENT / AUTHORITATIVE
-Last Updated: 2026-09-03
+Last Updated: 2026-09-12
 
 # Personal Finance PWA — Security and Architecture Rules
 
 **Owner:** Glen Reyes  
-**Authority:** This is the project's technical constitution. Any conflicting older plan is superseded.  
+**Authority:** This is the project's technical constitution. Conflicting older plans are superseded.  
 **Related master:** `01_Personal_Finance_App_Technical_Handover_CURRENT.md`
 
-The words **MUST**, **MUST NOT**, **REQUIRED**, and **PROHIBITED** are binding for implementation and review.
+## Core architecture
+
+1. The production stack remains GitHub Pages PWA → authenticated Google Apps Script Web App → Google Sheets.
+2. Google Sheets remains the authoritative database and calculation engine.
+3. Do not duplicate authoritative Sheet calculations in frontend JavaScript.
+4. Do not replace the working architecture without a proven requirement.
+5. The app remains private and single-owner unless the owner explicitly approves a new security model.
 
 ## Authentication and secrets
 
-1. The production app MUST remain private and single-owner unless the owner explicitly approves a new security model.
-2. Normal runtime MUST use the owner device-key architecture. Google OAuth is not the current runtime architecture.
-3. The device-key value is secret. It MUST NOT be requested in chat or placed in source, Git, `config.js`, URLs, query parameters, custom headers, service workers, screenshots, documentation, prompts, logs, test fixtures, analytics, or error reports.
-4. The browser may store the key only in the established runtime `localStorage` entry on the owner's device.
-5. The server MUST read the expected key from the `PERSONAL_APP_DEVICE_KEY` Apps Script Script Property.
-6. Missing, malformed, or invalid keys MUST return a generic unauthorized result without revealing comparison details.
-7. Removing a device or receiving an unauthorized result MUST clear local authorization and cached financial state.
-8. Spreadsheet IDs, Script Properties, and other server configuration MUST remain server-owned. Do not expose them to the browser unless technically unavoidable and explicitly reviewed.
+6. Normal runtime uses the established owner device-key architecture; historical OAuth work is not current runtime.
+7. The device key is secret and MUST NOT be requested, echoed, logged, committed, placed in URLs, query strings, source, config, screenshots, prompts, service workers, fixtures, analytics, or documentation.
+8. The browser may store the key only in the established runtime local storage entry on the owner's device.
+9. Apps Script validates the key against the server-side Script Property on every financial POST.
+10. Missing or invalid keys return a generic unauthorized result.
+11. Removing the device or receiving an unauthorized result must clear local authorization and financial snapshots.
+12. Spreadsheet IDs, Script Properties, and other server configuration remain server-owned.
 
 ## Financial transport
 
-9. Every financial read or write MUST use authenticated `POST`.
-10. The client MUST send `Content-Type: text/plain;charset=utf-8` and a JSON body containing only `deviceKey`, an allowlisted `action`, and a bounded `payload`.
-11. Financial GET APIs are PROHIBITED. At minimum, `GET ?action=getExpenses` and `GET ?action=getWealth` MUST remain denied.
-12. POST without a key or with an invalid key MUST remain denied.
-13. The action dispatcher MUST use an explicit allowlist and reject unknown actions.
-14. Financial data and secrets MUST NOT appear in URLs, redirects, referrers, or service-worker caches.
+13. Every financial read and write uses authenticated POST.
+14. Financial GET APIs remain prohibited.
+15. The action dispatcher uses an explicit allowlist and rejects unknown actions.
+16. Financial data and secrets must not appear in URLs, referrers, service-worker caches, or client logs.
 
 ## Google Sheets boundary
 
-15. Google Sheets remains the authoritative database and calculation engine.
-16. The browser MUST NOT calculate or overwrite authoritative Sheet totals after a write.
-17. The browser MUST NOT supply Sheet names, spreadsheet IDs, A1 ranges, cell references, row numbers, or formulas to a financial write API.
-18. A generic API such as `updateCell(cell, value)` is PROHIBITED.
-19. A generic Sheet API such as `updateSheet(sheetName, range, value)` is PROHIBITED.
-20. Expense updates and deletes MUST use immutable logical transaction IDs; the server resolves the live row.
-21. Wealth writes MUST use stable logical `accountId` values mapped server-side to exact approved cells.
-22. Every Wealth write target MUST exist in an explicit server-side whitelist. Absence from the whitelist means read-only.
-23. Formula cells MUST be protected. The server MUST inspect the live target for a formula before every write and MUST reject formula targets even if a stale configuration marks them editable.
-24. Summary cells are read-only unless a separate approved phase explicitly identifies them as safe source inputs.
-25. I21 (`National Bank TFSA-USD`) is formula-driven and MUST NEVER be written directly. In Phase 2C, editing writes manual raw USD to J21 while I21 remains the protected GOOGLEFINANCE formula display cell.
-26. I20 and I22 are editable in Phase 2C only with strict summary formula guards verifying J14 (`=I20`) and K14 (`=I22`) remain intact before and inside lock. J14 and K14 MUST NEVER be directly written.
-27. Reserve editing is excluded from Phase 2A (released in Phase 2B).
+17. The browser MUST NOT supply Sheet names, spreadsheet IDs, A1 ranges, rows, cells, formulas, or FX rates to a financial write API.
+18. Generic `updateCell`, `updateRange`, or arbitrary-Sheet APIs are prohibited.
+19. Expense mutation uses immutable logical transaction IDs; the server resolves the live row.
+20. Wealth mutation uses stable logical IDs mapped server-side to exact approved cells.
+21. Absence from a server whitelist means read-only.
+22. Numeric cells are not assumed editable merely because they contain numbers.
+23. Formula and summary cells remain protected unless an explicitly approved design makes a specific manual source input writable.
+
+## Current Wealth write protections
+
+24. Standard CAD account writes target only approved manual source cells.
+25. National Bank FHSA writes I20 only and requires J14 to remain `=I20`.
+26. National Bank RRSP writes I22 only and requires K14 to remain `=I22`.
+27. National Bank TFSA-USD writes raw USD to J21 only; I21 remains the protected `USDCAD` conversion formula output.
+28. Philippines native writes are restricted to I30:I33 through stable IDs.
+29. Philippines PHP accounts require J31:J33 to remain their exact approved `PHPCAD` GOOGLEFINANCE formulas.
+30. J31:J33 are never writable through the app.
+31. If a Philippines account identity no longer matches its expected H-cell label, the backend must fail closed: no edit, no mismatched native value exposed, no CAD equivalent exposed.
+32. Account-write payloads contain only `accountId` and `balance`; unexpected fields are rejected.
 
 ## Financial mutation integrity
 
-28. All financial writes MUST perform server-side validation; browser validation is usability only.
-29. Every financial write MUST use `LockService` to serialize the critical section.
-30. Formula status and target authorization SHOULD be rechecked after the lock is acquired and before writing.
-31. Numeric input MUST be finite and conform to a documented balance policy, including precision and allowed range. Do not silently invent support for negative balances.
-32. Expense currency values MUST continue to normalize through integer cents.
-33. After a successful Wealth write, the server MUST allow Sheet recalculation, call `getWealth()`, and return the complete fresh Wealth object.
-34. Wealth writes MUST NOT use aggressive optimistic UI. The client updates only after server confirmation.
-35. Partial or ambiguous write results MUST be treated as failure until an authoritative reread proves the Sheet state.
+33. Server-side validation is mandatory; browser validation is usability only.
+34. Financial writes use `LockService` around the critical section.
+35. Identity, target formula state, and required formula guards are rechecked inside the lock when the write depends on them.
+36. Money input must be finite, bounded, and follow documented precision policy.
+37. Wealth writes update only the approved native source input, then let Sheets recalculate.
+38. After a successful Wealth write, Apps Script flushes recalculation, calls `getWealth()`, and returns the complete authoritative object.
+39. Wealth UI and cache update only from that confirmed server response; no optimistic Wealth balance patching.
+40. Ambiguous results are treated as failure until an authoritative reread proves state.
 
 ## Cache safety
 
-36. Service-worker Cache Storage MUST contain only same-origin static shell assets. It MUST NOT intercept cross-origin Apps Script traffic or non-GET requests.
-37. Financial API responses MUST NOT be added to service-worker caches.
-38. Browser finance snapshots are non-authoritative convenience copies and MUST be visibly distinguishable from live data when refresh fails.
-39. Expense server cache MUST remain short-lived and MUST be invalidated after every expense mutation.
-40. A successful Wealth write MUST replace the Wealth snapshot with the complete authoritative response, not a patched client object.
-41. Device removal MUST clear expense and Wealth snapshots, timestamps, and in-memory finance data.
-42. Cached data MUST never contain the device key.
+41. Service-worker Cache Storage contains only static shell assets and never financial API responses.
+42. Cross-origin Apps Script traffic and non-GET financial requests are not service-worker cached.
+43. Browser finance snapshots are convenience copies, not authority.
+44. Device removal clears authorization, cached finance snapshots, timestamps, and in-memory financial state.
+45. Cached financial data must never contain the device key.
 
-## Source control and production
+## Production and source control
 
-43. Current production code claims MUST be checked against GitHub `main`, not inferred from older handovers.
-44. Application code, Google Sheets, and deployments MUST NOT be changed as part of documentation-only work.
-45. Meaningful changes MUST use a focused development branch and reviewable commits.
-46. Unrelated refactors, framework migrations, and stable-area redesigns are prohibited during a focused phase.
-47. No secret, private financial record, credential file, or clasp credential may be committed.
-48. Production MUST NOT be deployed solely because unit tests pass.
-49. Financial production writes require explicit owner approval immediately before live-write validation or release.
-50. Production Apps Script changes MUST create an immutable version and update the **existing** production Web App deployment so its URL remains stable.
-51. Rollback branches and preserved Apps Script versions MUST remain intact. Current protected history includes versions 20, 22, 23, and 28 plus `pre-stage-6-wealth-production`.
-52. Git history SHOULD be rolled back with a reviewed revert commit, not destructive force-resetting of shared history.
+46. Current production claims are checked against GitHub `main`, the live Apps Script deployment, and the live Sheet.
+47. Never force-push or destructively reset shared production history.
+48. Never delete preserved Apps Script versions casually.
+49. Meaningful code changes use a focused branch; trivial documentation/copy maintenance may use a smaller process.
+50. Do not combine unrelated features or refactors.
+51. Production Apps Script changes create an immutable version and update the existing production Web App deployment so the URL remains stable.
+52. Keep a practical rollback point proportional to risk.
+53. A production financial write requires explicit owner approval when validating a new or materially changed write boundary.
 
-## Required testing gates
+## Risk-proportional engineering
 
-53. Every feature must have local syntax checks and focused automated tests.
-54. API tests MUST cover valid action routing, unknown actions, missing key, invalid key, and authenticated success.
-55. Security tests MUST prove financial GET denial and absence of device-key material from Git, config, URLs, service worker, logs, screenshots, documentation, and fixtures.
-56. Wealth-write tests MUST cover every allowed logical ID, every denied ID, formula rejection, summary-cell rejection, reserve rejection, numeric validation, lock usage, full-object response, and cache replacement.
-57. Formula protection MUST be tested against live formula inspection, not only static configuration.
-58. UI review MUST cover approximately 390–430 px mobile widths, loading, success, error, saved-data, and read-only states.
-59. A test deployment using non-production data MUST pass before production write validation.
-60. Production validation MUST be minimal, reversible, explicitly approved, and followed by exact restoration and an authoritative reread.
-61. A production smoke test MUST verify both successful owner access and required denial paths.
-62. Test counts MUST be reported honestly. The Stage 6 release record is 102/102, but a clean clone currently has one environment-dependent Stage 2 failure until the missing untracked `.clasp.json` dependency is addressed.
+Before adding a test, deployment gate, audit, or review, ask: **What realistic untested failure would this detect?** If none, skip it.
+
+### LOW risk
+
+Examples: copy, styling, layout, read-only UI, filters/charts, non-financial frontend.
+
+Use: focused inspect → implementation → focused tests → visual check if needed → diff review → ship → sanity check.
+
+Do not add a test Apps Script deployment, rollback branch, broad security audit, or full browser regression without a specific risk.
+
+### MODERATE risk
+
+Examples: extending an already-proven CRUD/cache/authenticated API or an already-proven financial-write pattern without changing the mutation mechanism or formula boundary.
+
+Use: targeted inspect → implementation → focused + relevant regressions → diff review → small integration/smoke check if useful → ship.
+
+Do not re-certify proven architecture merely because another account was added.
+
+### HIGH risk
+
+Examples: first financial-write mechanism, auth change, new writable Sheet area, formula/dependency change, financial migration, or anything capable of corrupting multiple records.
+
+Use: inspect → implement → focused + regression tests → data/security review → synthetic integration if useful → explicit approval → one minimal reversible production validation → exact restoration → authoritative verification → ship/smoke.
+
+Avoid duplicate gates once the realistic risks are covered.
+
+## First-write safety
+
+For the first write into a new financial area:
+
+1. Inspect source cells and dependencies.
+2. Implement exact stable IDs and server whitelist.
+3. Protect formulas and summaries.
+4. Test valid and invalid inputs plus fail-closed behavior.
+5. Stop for explicit owner approval.
+6. Perform one minimal reversible production write.
+7. Restore the exact original native value.
+8. Verify formulas and authoritative state are restored.
+
+Once that mechanism is proven, do not repeat full certification for small extensions unless the target, formula relationship, security boundary, or mutation mechanism materially changes.
+
+## Current production write areas
+
+Production-proven write mechanisms now include:
+
+- Expense CRUD.
+- Approved Canadian Wealth account balance editing.
+- National Bank FHSA/RRSP/TFSA-USD editing.
+- Reserve management.
+- Philippines-held CAD/PHP account editing with Sheet-driven PHP→CAD conversion.
 
 ## Decision rule
 
-When a proposed shortcut conflicts with any rule above, stop. Produce the smallest compliant design, identify the exact blocker, and request owner approval only when a production write, deployment, security-model change, or meaningful scope expansion is necessary.
+Choose the smallest safe design that preserves secret protection, formula protection, financial-data integrity, and authoritative Sheet recalculation. Process exists to catch realistic failures, not to maximize ceremony.

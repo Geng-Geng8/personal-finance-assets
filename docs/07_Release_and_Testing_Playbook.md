@@ -1,176 +1,249 @@
 STATUS: CURRENT / AUTHORITATIVE
-Last Updated: 2026-09-03
+Last Updated: 2026-09-12
 
 # Personal Finance PWA — Release and Testing Playbook
 
 **Owner:** Glen Reyes  
-**Source of Truth:** Current production workflow and security constitution.  
+**Source of Truth:** Current production workflow, current security rules, and risk-proportional engineering policy.  
 **Related:** `04_Security_and_Architecture_Rules.md`
 
-## Current release baseline
+## Current production baseline
 
-| Item | Baseline |
+| Item | Current baseline |
 | --- | --- |
-| National Bank Wealth Editing release SHA | `b07fd32764e8f75bb3a80a10d07a4e28bf915838` (docs commits may advance `main` without changing deployed application code) |
-| Production Apps Script | Version 32 — Phase 2C National Bank Wealth Editing Production Candidate |
-| Production Web App | Existing deployment `AKfycbxoRJ6dv8RdrZNtR_IjGkgCc_J6sbLyffsxt9xEiYJLjDGeWsJ0o73HYLcjTnJX3ajQ` |
-| Release test result | 194 / 194 automated tests passed (including 21 dedicated National Bank tests, 39 Stage 7 tests, 25 Stage 8 tests) |
-| Immediate rollback target | Version 31 (`Phase 2B Reserve Management Production Candidate`) / commit `72dd8210240a64006a77ef299ed965faddd6f583` |
-| Historical Phase 2B baseline | 166 / 166 automated tests passed (`4679eb5f837ed0eda4777716bf99a385967cc138` / Version 31) |
-| Historical Phase 2A baseline | 141 / 141 automated tests passed (`ba6a252e96d4aa779c381c082f211e1851c45d6f` / Version 30) |
-| Historical Stage 6 baseline | 102 / 102 automated tests passed (`pre-stage-6-wealth-production` at `6c57290f3496cc44d06febc3284ee94e3259958f` / Version 28) |
-| Preserved Apps Script versions | 20, 22, 23, 28, 30, 31, 32 |
+| Application release SHA | `ca8f973226b2c0fa301326789c865d848006aa1f` |
+| Production Apps Script | Version 37 |
+| Current release | Philippines Wealth accounts |
+| Full regression result | 261 / 261 passed |
+| Immediate frontend rollback | `f6eeeac486a0e62340effbe7ce2b2b6340487485` via reviewed revert |
+| Immediate backend rollback | Apps Script Version 36 |
+| Production Web App | Existing deployment, URL unchanged |
 
-National Bank Wealth Editing validation status:
-- 21/21 focused National Bank tests passed
-- 194/194 full automated tests passed (`npm run check` and `npm test`)
-- Apps Script Version 32 deployed to the existing production Web App deployment
-- Non-mutating production security, read, and metadata checks passed (12 accounts returned, FHSA/RRSP/TFSA-USD editable, USD/CAD split verified)
-- GitHub Pages deployed from commit `b07fd32764e8f75bb3a80a10d07a4e28bf915838`
-- Three minimal reversible production writes passed:
-  1. National Bank FHSA: I20 increased by +$0.01, J14 followed automatically, Total Invested recalculated, exact original I20 value restored, baseline preserved
-  2. National Bank RRSP: I22 increased by +$0.01, K14 followed automatically, Total Invested recalculated, exact original I22 value restored, baseline preserved
-  3. National Bank TFSA-USD: J21 raw USD balance increased by +$0.01 USD, I21 GOOGLEFINANCE formula recalculation verified, exact original J21 USD value restored, baseline preserved
-- Available Cash remained completely unaffected by these investment-only validations
-- Dependent formulas (`J14 = '=I20'`, `K14 = '=I22'`, `I21 = '=J21*GOOGLEFINANCE("CURRENCY:USDCAD")'`, `H14`, `M14`, `N14`, `O14`) verified intact
-- No synthetic value remained in production
-- Historical Phase 2B reversible September Tax write and Phase 2A non-production integration gate preserved as validation benchmarks
+Philippines release production validation passed: one live PHP-account source value was changed through the PWA, the Sheet CAD conversion and dependent totals recalculated, and the exact original native value was restored. No synthetic production value remains.
 
-## Environment distinctions
+## Governing principle
 
-| Tier | Purpose | Data | What it proves |
-| --- | --- | --- | --- |
-| Local tests | Fast deterministic logic, syntax, contracts, negative paths | Mocks and synthetic fixtures only | Code behavior without a live Google deployment |
-| Test deployment | Integration with Apps Script, locks, formulas, transport, and a non-production Sheet | Synthetic data only | Real Google behavior without production risk |
-| Production verification | Endpoint/version correctness and minimal real-environment confidence | Existing production data plus one explicitly approved reversible validation | The released system works at the real URL and Sheet |
+Use the smallest process that can detect a realistic failure for the change being made.
 
-Passing one tier does not replace the next tier. Unit tests do not authorize a deployment or production write.
+Before adding a test, audit, deployment gate, or review, ask:
 
-## Standard branch workflow
+> What realistic untested failure would this detect?
 
-1. Fetch and inspect current `main`; record its full SHA.
-2. Confirm production PWA, Apps Script version/deployment, and rollback state.
-3. Create one focused branch, for example `phase-2a-editable-wealth-accounts`.
-4. Change only phase-relevant files. Preserve unrelated user work.
-5. Use small, logical commits with security-impacting changes clearly named.
-6. Review the final diff against the recorded base SHA.
-7. Do not merge until all gates below pass and the owner gives explicit approval.
+If there is no clear answer, skip it.
 
-## Phase 2A local test sequence
+## Risk levels
 
-Run from a clean working tree or explicitly account for unrelated changes:
+### LOW
 
-1. JavaScript and Apps Script syntax checks.
-2. Existing full test suite.
-3. Focused Wealth read tests.
-4. New write-contract unit tests.
-5. Security scan.
-6. `git diff --check`.
-7. Review `git diff --stat`, changed filenames, and the full patch.
+Examples:
 
-Required new test cases:
+- copy;
+- styling;
+- layout;
+- read-only UI;
+- filters/charts;
+- non-financial frontend behavior.
 
-- `updateWealthAccountBalance` is allowlisted only through authenticated POST.
-- Missing and invalid device keys are denied.
-- Financial GET remains denied.
-- Each of the nine initial approved IDs maps to exactly one expected cell.
-- Unknown IDs are denied.
-- I20 and I22 are denied initially.
-- I21 and any live formula cell are denied.
-- Summary and reserve cells cannot be targeted.
-- Payloads containing Sheet names, ranges, rows, cells, or spreadsheet IDs have no effect.
-- Balance validation rejects non-numeric, non-finite, excessive-precision, and out-of-policy values.
-- Lock acquisition/release and inside-lock formula recheck occur.
-- Successful write returns a complete fresh Wealth object.
-- Failed write does not update the frontend cache.
-- Successful response replaces the Wealth cache.
-- Remove This Device still clears key plus expense and Wealth caches.
-- Existing expense CRUD, insights, PWA, and Stage 6 read behavior do not regress.
+Workflow:
 
-## Test-deployment sequence
+```text
+inspect
+→ implement
+→ focused tests
+→ visual check if useful
+→ diff review
+→ deploy/merge
+→ sanity check
+```
 
-1. Use a dedicated non-production Sheet containing the same relevant cells and formulas, populated only with synthetic values.
-2. Use a dedicated Apps Script test deployment and non-production Script Properties.
-3. Verify the configured spreadsheet is the test spreadsheet before any write.
-4. Test all nine approved IDs.
-5. Convert one test target temporarily to a formula and prove the server refuses to overwrite it.
-6. Test concurrent or near-concurrent requests and verify locking behavior.
-7. Verify the returned full Wealth object matches the recalculated test Sheet.
-8. Restore the test Sheet and confirm no synthetic residue matters to production.
+Do not create a test Apps Script deployment, rollback branch, broad security review, repeated SHA checks, or full browser regression unless the change justifies it.
 
-Never substitute the production spreadsheet or deployment for this tier.
+### MODERATE
 
-## Browser and UI review
+Examples:
 
-Review at approximately 390 px and 430 px widths, plus a desktop sanity check:
+- existing CRUD/cache/authenticated APIs;
+- small extensions of a proven financial-write pattern where target type, mutation mechanism, and formula boundary are already understood.
 
-- Expenses startup, summary, list, search, filters, add, edit, and delete.
-- Spending Insights segmented state and charts.
-- Wealth hero, cash/reserves equation, investments, Crypto, accordion collapsed/expanded.
-- Approved accounts visibly editable; formula and blocked accounts visibly read-only.
-- Balance editor focus, keyboard, formatting, validation, cancel, submit, loading, success, and error.
-- No horizontal overflow, clipped controls, or bottom-nav collisions.
-- Saved-data versus live status is honest.
-- Installed PWA safe areas and relaunch behavior.
-- Remove This Device confirmation and post-removal state.
+Workflow:
 
-Do not use real device-key values in screenshots or test evidence.
+```text
+targeted inspect
+→ implement
+→ focused + relevant regression tests
+→ diff review
+→ small integration/smoke check if useful
+→ ship
+```
 
-## Security review gate
+Do not re-certify proven architecture.
 
-Before production approval, verify:
+### HIGH
 
-1. Device key absent from Git, config, URLs, logs, service worker, screenshots, prompts, docs, and fixtures.
-2. `GET ?action=getExpenses` and `GET ?action=getWealth` are denied.
-3. POST missing/invalid key is denied.
-4. Unknown action and unknown `accountId` are denied.
-5. Browser cannot specify spreadsheet, tab, range, cell, row, or formula.
-6. Server whitelist contains only the approved logical IDs.
-7. Formula inspection protects the live target on every write.
-8. `LockService` wraps the critical section.
-9. Full Sheet reread supplies the success response.
-10. Service worker does not cache API traffic; local financial caches clear correctly.
+Examples:
 
-## Release sequence
+- first financial-write mechanism;
+- authentication change;
+- new writable Sheet area;
+- formula/dependency change;
+- financial migration;
+- a change capable of corrupting multiple records.
 
-1. **Checkpoint:** Present implementation diff, test evidence, UI evidence, security review, and remaining risks to the owner.
-2. **Explicit approval:** Obtain approval to prepare production. This does not yet authorize a live financial write unless stated.
-3. **Rollback branch:** Create an immutable pre-release branch at the exact current production main SHA, for example `pre-phase-2a-wealth-edit-production`.
-4. **Apps Script version:** Create a new immutable Apps Script version using the next actual available number; do not guess the number in advance.
-5. **Deployment:** Update the existing production Web App deployment to that version. Do not create a second production URL.
-6. **Backend read verification:** Confirm authenticated read behavior and required denial paths before any production write.
-7. **Live-write approval:** Obtain explicit owner approval immediately before the reversible production write.
-8. **Reversible validation:** Use one approved manual account. Record its exact authoritative original value privately, write a controlled valid test value, verify the account and all dependent totals, restore the exact original value immediately, and reread until the original state is confirmed. Do not use a formula, blocked, summary, or reserve cell.
-9. **Frontend merge:** Merge through a reviewed change into `main` only after backend validation succeeds.
-10. **GitHub Pages verification:** Confirm the deployed page corresponds to the approved SHA and loads its current assets.
-11. **Production smoke test:** Verify Expenses, Spending Insights, Wealth read, one approved account editor path, cache refresh, device removal flow, and denial tests without additional writes.
-12. **Close release:** Record main SHA, Apps Script version, deployment ID, tests, production checks, and rollback points in the handover/decision log.
+Workflow:
 
-## Production smoke-test matrix
+```text
+inspect
+→ implement
+→ focused + regression tests
+→ data/security review
+→ synthetic integration if useful
+→ explicit owner approval
+→ one minimal reversible production validation
+→ restore exact original value
+→ verify authoritative state
+→ ship/smoke
+```
 
-| Check | Expected |
-| --- | --- |
-| PWA URL loads | Current shell and assets load |
-| Owner device setup | Key remains local and masked; no value captured in evidence |
-| Expenses read | Authenticated POST succeeds |
-| Wealth read | Authenticated POST returns complete object |
-| Financial GET | Denied |
-| Missing/invalid key POST | Denied |
-| Unknown account ID | Denied |
-| Formula/blocked account | Read-only and server rejects forced request |
-| Approved account edit | Server-confirmed response refreshes full Wealth state |
-| Reload/offline shell | Static shell works; saved data is labeled; no API response in Cache Storage |
+Avoid duplicate gates once the actual risk is covered.
 
-## Rollback procedure
+## Standard development workflow
 
-1. Stop further production writes and capture the failing symptom without secrets.
-2. Determine whether the fault is frontend, backend, data, or deployment configuration.
-3. If a test write is incomplete, perform an authoritative read before any corrective write. Restore only a known original value with explicit approval.
-4. For backend rollback, edit the **existing** Web App deployment to the last verified immutable version. For Phase 2B rollback, select Version 30 (Phase 2A Wealth Account Editing Production Candidate). For Phase 2A rollback, select Version 28 (Stage 6 Wealth Read-Only Production). For Stage 6 rollback, select Version 23.
-5. For frontend rollback, use a reviewed revert commit for the frontend targeting `5513e933733ed5930de3e21bbd6ae2aa5e227ef5` (pre-Phase-2B base), `ba6a252e96d4aa779c381c082f211e1851c45d6f` (Phase 2A application release SHA), or `pre-phase-2a-wealth-edit-production` (`9cb076cc2bcf62f7b5c29d225bb9da1638939b30`). Do not reset shared `main`; always use a reviewed revert commit.
-6. Verify the deployed GitHub Pages SHA and clear only appropriate static caches if needed; do not delete user finance data blindly.
-7. Run authenticated reads and all denial-path security checks.
-8. Confirm expense and Wealth data against the Sheet.
-9. Record the incident, rollback version/SHA, validation evidence, and any follow-up test required.
+1. Fetch current `main` and confirm the relevant production baseline.
+2. Create one focused feature branch for meaningful code changes.
+3. Inspect only the files/functions/cells needed for the task.
+4. Preserve unrelated work and avoid broad refactors.
+5. Run focused tests first.
+6. Run broader regressions only when shared infrastructure, auth, or financial writes changed.
+7. Review the actual diff; do not accept agent output merely because tests pass.
+8. Stop for owner approval only where production deployment/write risk requires it.
 
-Versions 20 and 22 remain preserved historical checkpoints but are not automatic rollback targets because they may contain superseded authentication architecture. Version 28 remains the active Stage 6 rollback version, and Version 30 remains the active Phase 2A rollback version.
+## Financial-write checklist
+
+For a new or materially changed financial write boundary, verify:
+
+- authenticated POST only;
+- stable logical ID;
+- exact server-side whitelist mapping;
+- no client-directed Sheet topology;
+- numeric validation;
+- live identity validation where relevant;
+- formula/source-cell protection;
+- LockService around the critical section;
+- authoritative Sheet recalculation;
+- full fresh reread returned to the client;
+- no optimistic Wealth state patching;
+- meaningful negative-path tests.
+
+## Formula and foreign-currency checks
+
+When an editable native balance has a Sheet-driven converted/display value:
+
+1. Write only the approved native input cell.
+2. Treat the conversion formula cell as read-only.
+3. Validate the required formula when the write depends on it.
+4. Never accept an FX rate from the browser.
+5. Never duplicate the conversion in frontend JavaScript.
+6. Reread the converted value from Sheets after the write.
+
+This pattern is currently proven for National Bank TFSA-USD and Philippines PHP accounts.
+
+## First-write production validation
+
+Use only when the write boundary is new or materially changed.
+
+1. Record the exact original authoritative source value privately.
+2. Make one minimal valid temporary change through the real app/API path.
+3. Verify only the expected native source changed.
+4. Verify protected formulas remain intact.
+5. Verify dependent totals/converted values recalculate as expected.
+6. Restore the exact original source value immediately.
+7. Reread until the source is restored and formulas/dependencies are valid.
+8. Confirm no synthetic value remains.
+
+Do not repeat this full ceremony for every later account added to an already-proven pattern unless the target, formula relationship, security boundary, or mutation mechanism materially changes.
+
+## Browser / UI review
+
+Use visual review where the changed behavior can realistically fail visually.
+
+For mobile finance UI, prioritize approximately 390–430 px widths and installed-PWA behavior.
+
+Check only affected paths plus a small sanity check of shared navigation/state. Do not run a broad manual regression for an isolated low-risk change.
+
+## Security review
+
+For relevant changes, verify:
+
+1. no secret/device key in source, prompts, screenshots, logs, fixtures, URLs, or service-worker cache;
+2. financial GET remains denied;
+3. invalid/missing key remains denied;
+4. unknown action/ID remains denied;
+5. browser cannot select Sheet/range/cell/formula;
+6. formula cells remain protected;
+7. LockService and authoritative reread remain intact;
+8. financial API traffic is not cached by the service worker.
+
+Do not repeat a broad security audit when none of these boundaries changed.
+
+## Backend release sequence
+
+For a meaningful Apps Script release:
+
+1. Confirm reviewed source SHA.
+2. Preserve the currently deployed immutable Apps Script version as rollback.
+3. Push the reviewed Apps Script source.
+4. Create one new immutable Apps Script version.
+5. Update the **existing** production Web App deployment to that version.
+6. Keep the production URL unchanged.
+7. Perform only the read-only/smoke checks justified by the release.
+8. Perform a live financial write only if explicitly approved and required by the risk level.
+
+Do not create a second production Web App deployment without a specific reason.
+
+## Frontend release sequence
+
+1. Confirm the backend is compatible before publishing a frontend that depends on it.
+2. Merge reviewed code into `main`.
+3. Let the existing GitHub Pages workflow deploy.
+4. Confirm the production assets correspond to the approved release.
+5. Perform a focused production sanity check.
+
+## Rollback
+
+If a new production release fails:
+
+- stop further writes;
+- determine whether the problem is frontend, backend, data, or stale client state;
+- reread authoritative Sheet state before corrective writes;
+- backend rollback: point the existing Web App deployment to the last verified immutable Apps Script version;
+- frontend rollback: use a reviewed revert commit; do not force-reset shared `main`;
+- verify authenticated reads and the affected workflow after rollback.
+
+For the Philippines release, immediate rollback points are Apps Script Version 36 and frontend SHA `f6eeeac486a0e62340effbe7ce2b2b6340487485`.
+
+## Documentation-only changes
+
+Documentation-only work does not require financial deployment gates.
+
+Use:
+
+```text
+inspect current production facts
+→ update only affected docs
+→ review diff for contradictions/secrets
+→ merge
+```
+
+Do not modify production Sheet values, formulas, Apps Script deployment, or application code as collateral work.
+
+## Historical test records
+
+| Release | Historical full-suite record |
+| --- | ---: |
+| Stage 6 Wealth read-only | 102 / 102 |
+| Phase 2A initial Wealth editing | 141 / 141 |
+| Phase 2B reserve management | 166 / 166 |
+| Phase 2C National Bank editing | 194 / 194 |
+| Philippines Wealth accounts | 261 / 261 |
+
+Historical counts are release records, not a requirement that every future change increase or rerun the full suite.

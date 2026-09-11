@@ -1,132 +1,149 @@
 STATUS: CURRENT / AUTHORITATIVE
-Last Updated: 2026-09-03
+Last Updated: 2026-09-12
 
 # Personal Finance PWA — Architecture Decision Log
 
 **Owner:** Glen Reyes  
-**Source of Truth:** Current production architecture and approved product/security rules.  
 **Related:** `01_Personal_Finance_App_Technical_Handover_CURRENT.md`, `04_Security_and_Architecture_Rules.md`
 
 All decisions below are **Accepted** unless explicitly marked otherwise.
 
 ## ADR-001 — Normal runtime does not use Google OAuth
 
-**Decision:** Move away from the tested OAuth/API-executable runtime and use the device-key Web App architecture for normal production use.  
-**Reason:** The private owner app needs simple, persistent device access without repeated OAuth interaction while preserving a server-side authorization check.  
-**Consequences:** Historical OAuth POC files and some unused config fields remain in the repository, but they are not current runtime. The device key becomes a high-value secret.  
-**Do Not Reconsider Unless:** The ownership model changes, device-key risk becomes unacceptable, or a simpler free owner-auth mechanism is proven end to end.
+**Decision:** Use the owner device-key Web App architecture for normal production runtime.  
+**Reason:** It preserves private, persistent device access without repeated OAuth interaction.  
+**Consequence:** Historical OAuth proof-of-concept files/config may remain but are not current runtime.
 
-## ADR-002 — Owner device key authenticates the Web App API
+## ADR-002 — Device key authenticates every financial POST
 
-**Decision:** Store the key only in owner-device `localStorage`; validate it against `PERSONAL_APP_DEVICE_KEY` in Apps Script Script Properties for every financial POST.  
-**Reason:** This keeps the secret out of Git and lets the static PWA call an owner-executed Apps Script Web App.  
-**Consequences:** Device compromise can expose access; device removal must clear the key and cached finance data. Key rotation is an operational responsibility.  
-**Do Not Reconsider Unless:** A new authentication design preserves privacy, free operation, and mobile usability with demonstrably lower risk.
+**Decision:** Keep the key on the owner device and validate it against the Apps Script Script Property for every financial POST.  
+**Consequence:** Device removal/unauthorized handling must clear authorization and cached finance state.
 
 ## ADR-003 — Google Sheets remains database and calculation engine
 
-**Decision:** Continue using `2026 Buckets Budget` for authoritative transactions, account balances, formulas, reserves, and totals.  
-**Reason:** The Sheet already contains the trusted model and calculations, is free, and is understandable to the owner.  
-**Consequences:** Apps Script quotas and Sheet structure constrain implementation. Frontend totals must not compete with Sheet formulas.  
-**Do Not Reconsider Unless:** Measured scale, reliability, or feature requirements cannot be met safely with Sheets.
+**Decision:** Keep authoritative transactions, balances, formulas, reserves, totals, and FX calculations in Google Sheets.  
+**Consequence:** Frontend code formats/presents authoritative results but does not compete with Sheet calculations.
 
 ## ADR-004 — GitHub Pages hosts the installed PWA
 
-**Decision:** Serve the static HTML/CSS/JavaScript PWA from GitHub Pages.  
-**Reason:** It provides free hosting, clean installation, version control, and separation from the Apps Script UI shell.  
-**Consequences:** The browser calls a cross-origin Apps Script endpoint and needs a service worker, manifest, and carefully constrained transport.  
-**Do Not Reconsider Unless:** GitHub Pages can no longer meet availability, security, or PWA requirements at the free tier.
+**Decision:** Keep the static PWA on GitHub Pages and call Apps Script cross-origin.  
+**Consequence:** Service-worker behavior must remain limited to the static shell and must not cache financial API traffic.
 
 ## ADR-005 — Available Cash is the Wealth hero
 
-**Decision:** Make Available Cash the dominant Wealth metric.  
-**Reason:** It answers the primary decision: how much cash remains after protected obligations. Generic net worth is less actionable.  
-**Consequences:** Cash and reserves appear before account-level detail and investments.  
-**Do Not Reconsider Unless:** The owner's primary financial decision changes.
+**Decision:** Keep Available Cash as the dominant Wealth decision metric.  
+**Reason:** It answers how much cash is actually usable after protected obligations.
 
 ## ADR-006 — Protected reserves are not spendable cash
 
-**Decision:** Display Tax Reserve, Income Tax / CPP Reserve, and Emergency Fund as protected, then show `Total Cash − Reserves = Available Cash`.  
-**Reason:** Money reserved for obligations must not visually invite spending.  
-**Consequences:** Reserve editing requires special UX and a separate audited phase.  
-**Do Not Reconsider Unless:** The underlying financial policy changes and the owner explicitly reclassifies those funds.
+**Decision:** Tax Reserve, Income Tax / CPP Reserve, and Emergency Fund remain visually and mathematically protected from Available Cash.
 
 ## ADR-007 — Long-term investments are separate from spending
 
-**Decision:** Keep TFSA, FHSA, and RRSP conceptually outside Expenses and Spending Insights, under Wealth.  
-**Reason:** Transaction management and long-term asset positioning answer different questions.  
-**Consequences:** Wealth remains inside Insights navigation but has its own hierarchy and data source.  
-**Do Not Reconsider Unless:** A validated workflow requires a unified cash-flow/investment model and can preserve clarity.
+**Decision:** Keep TFSA/FHSA/RRSP under Wealth rather than mixing them into Expenses/Spending Insights.
 
-## ADR-008 — Crypto is separate from registered investments
+## ADR-008 — Crypto remains a separate asset class
 
-**Decision:** Display Crypto in its own digital-assets card rather than inside TFSA/FHSA/RRSP totals.  
-**Reason:** Crypto has a different risk profile and is not a registered account category.  
-**Consequences:** `totalInvested` excludes Crypto; the UI reads Crypto independently.  
-**Do Not Reconsider Unless:** The Sheet's authoritative classification and the owner's decision model both change.
+**Decision:** Keep Crypto separate from registered investment totals.
 
-## ADR-009 — Wealth launched read-only
+## ADR-009 — Wealth launched read-only before writes
 
-**Decision:** Release the Wealth dashboard before permitting account writes.  
-**Reason:** Read-only delivery proved the data mapping, product hierarchy, caching, API denial rules, and production deployment with lower risk.  
-**Consequences:** Stage 6 exposes no Wealth write action. Phase 2A is a separate security-sensitive release.  
-**Do Not Reconsider Unless:** Historical reconstruction is required; do not rewrite Stage 6 as if editing already existed.
+**Decision:** The historical read-only Wealth release remains the foundation for later write phases.  
+**Consequence:** Read mapping, summary hierarchy, and API behavior were proven before mutation was enabled.
 
 ## ADR-010 — Financial GET APIs are prohibited
 
-**Decision:** Financial reads and writes use authenticated POST only; GET requests containing financial actions are denied.  
-**Reason:** Query strings are easily logged, cached, shared, and invoked without the intended secret envelope.  
-**Consequences:** Even reads such as `getExpenses` and `getWealth` require the device key in a POST body. Bare GET may serve non-financial HTML only.  
-**Do Not Reconsider Unless:** A new authenticated transport is formally threat-modeled and preserves equal or stronger controls.
+**Decision:** Financial reads and writes use authenticated POST only. Bare GET may serve non-financial HTML but never finance data.
 
 ## ADR-011 — Formula and summary cells are protected
 
-**Decision:** The app never writes formula cells or top-level summary cells through a generic interface.  
-**Reason:** Overwriting a formula can silently corrupt all downstream financial decisions.  
-**Consequences:** The server must inspect the live target before every write. Manual-looking cells are not automatically approved.  
-**Do Not Reconsider Unless:** A specific cell is deliberately converted into a validated source input with owner approval, migration, tests, and rollback.
+**Decision:** Formula cells and top-level summaries are never written through a generic interface.  
+**Consequence:** A specific manual source must be explicitly allowlisted before it becomes editable.
 
-## ADR-012 — Phase 2 writes use stable IDs and a server whitelist
+## ADR-012 — Wealth writes use stable IDs and a server whitelist
 
-**Decision:** The client sends `accountId` and `balance`; Apps Script maps the ID to an exact approved cell.  
-**Reason:** The browser is untrusted and must not control Sheet topology.  
-**Consequences:** Adding or moving an editable account requires an explicit server mapping and tests. Arbitrary cell/Sheet APIs remain prohibited.  
-**Do Not Reconsider Unless:** The storage model changes and the replacement still prevents arbitrary client-directed writes.
+**Decision:** The browser sends a logical ID and native balance; Apps Script maps that ID to an exact approved target.  
+**Consequence:** Arbitrary Sheet/range/cell/formula APIs remain prohibited.
 
 ## ADR-013 — Wealth writes return a full authoritative reread
 
-**Decision:** After a successful approved write, Apps Script rereads `getWealth()` and returns the complete object; the UI does not perform aggressive optimistic updates.  
-**Reason:** Sheet formulas and dependencies—not browser math—determine the valid state.  
-**Consequences:** The interaction may wait for Apps Script/Sheet latency, but the displayed result is authoritative.  
-**Do Not Reconsider Unless:** An equally safe mechanism proves consistency across writes, recalculation, cache, and failures.
+**Decision:** After a successful write, Apps Script flushes Sheet recalculation, calls `getWealth()`, and returns the complete object.  
+**Consequence:** Wealth UI/cache updates only after confirmed server success; no aggressive optimistic balance patching.
 
-## ADR-014 — Preserve rollback branches and immutable Apps Script versions
+## ADR-014 — Production backend releases use immutable Apps Script versions
 
-**Decision:** Meaningful releases create a rollback branch, a new immutable Apps Script version, and an update to the existing production Web App deployment.  
-**Reason:** Frontend and backend can fail independently; both need fast, known-good recovery while keeping the endpoint stable.  
-**Consequences:** Release records must pair Git SHA, Apps Script version, deployment ID, tests, and smoke results. Versions 20, 22, 23, 28 (prior Stage 6 rollback), 30 (prior Phase 2A rollback), and 31 remain preserved.
-**Do Not Reconsider Unless:** A replacement deployment platform provides equal traceability, immutability, and rollback safety.
+**Decision:** Meaningful Apps Script releases create a new immutable version and update the existing production Web App deployment so its URL remains stable.  
+**Consequence:** Preserve prior verified versions as rollback points; do not delete historical versions casually.
 
-## ADR-015 — Phase 2A approved manual account editing contract
+Current Philippines release rollback points are Apps Script Version 36 and frontend SHA `f6eeeac486a0e62340effbe7ce2b2b6340487485`.
 
-**Decision:** Implement Wealth account balance editing via the `updateWealthAccountBalance` action, restricted to an explicit whitelist of nine manual accounts (`eq_tfsa`, `wealthsimple_tfsa`, `national_bank_tfsa`, `simplii_chequing`, `simplii_savings`, `eq_savings`, `eq_bank_card`, `eq_geng_cash`, `td_savings`). Enforce `LockService` serialization, live target formula check, column H expected-name verification, two-decimal precision validation (0.00–1,000,000,000.00), and full recalculated `getWealth()` return. Keep I20 (National Bank FHSA), I21 (National Bank TFSA-USD), and I22 (National Bank RRSP) strictly read-only under current rules.  
-**Reason:** Restricting mutations to verified manual cells with known formula dependencies eliminates formula overwrite risks, prevents client-driven sheet topology injection, and guarantees downstream dependent recalculation consistency.  
-**Consequences:** Only server-allowlisted accounts are editable; arbitrary cell/sheet writes are completely blocked. Summary metrics and formula cells cannot be targeted. Production Apps Script Version 30 deployed; rollback branch `pre-phase-2a-wealth-edit-production` at `9cb076cc2bcf62f7b5c29d225bb9da1638939b30` preserved.  
-**Do Not Reconsider Unless:** A formal architectural review re-evaluates the summary dependencies of I20/I22 or a new account is added through the approved release process.
+## ADR-015 — Initial approved Wealth account editing contract
 
-## ADR-016 — Phase 2B reserve management write contract and source targeting
+**Decision:** The first Wealth write mechanism was restricted to explicit manual account IDs, with live identity/formula checks, LockService, bounded money validation, and full authoritative reread.  
+**Consequence:** The same proven mutation mechanism is reused for later safe extensions instead of creating separate generic write APIs.
 
-**Decision:** Implement reserve management via the `updateWealthReserve` action with payload `{ reserveId, operation, amount }`. Restrict reserve write targets to an explicit server-side whitelist: `tax_reserve_2026_09` (N10), `income_tax_cpp_reserve_2026_09` (O10), and `emergency_fund` (P14). Support `add` (Add Set-Aside), `pay` (Pay CRA), and `replace` (Correct September Total) for tax reserves, and `replace` only (Set Emergency Fund Balance) for Emergency Fund. Enforce that projected Tax and Income Tax / CPP reserve totals cannot drop below zero. Enforce `LockService` serialization, live target formula check, dependent formula validation on summary cells N14 (`SUM(N2:N13)`), O14 (`SUM(O2:O13)`), and H14 (`I29-P14-N14-O14`), two-decimal precision validation, and full recalculated `getWealth()` return. Intentionally hard-code source targeting to September 2026 for this release.
-**Reason:** Allows the owner to manage reserve movements and set-asides directly from the Wealth UI while strictly protecting Sheet formulas, preventing negative reserve obligations, avoiding client-directed cell coordinates, and preserving authoritative Available Cash calculations.
-**Consequences:** Protected reserves are editable with granular operation semantics; arbitrary cell/sheet writes and direct formula overwrites remain blocked. N14, O14, and H14 remain formula-driven and read-only. Apps Script Version 31 deployed; Phase 2B application release commit `4679eb5f837ed0eda4777716bf99a385967cc138` deployed; Version 30 preserved as immediate rollback version. Current-month rollover and dynamic month targeting are deferred to the next phase.
-**Do Not Reconsider Unless:** A future phase introduces dynamic calendar-month resolution or rollover rules that alter source cell mapping.
+## ADR-016 — Reserve management uses a separate explicit write contract
 
-## ADR-017 — Phase 2C National Bank Wealth editing and split USD/CAD topology
+**Decision:** Reserve operations use `updateWealthReserve` with server-owned reserve IDs and operation semantics rather than account-balance editing.  
+**Current limitation:** Tax Reserve and Income Tax / CPP Reserve source targeting remains September 2026-specific.
 
-**Decision:** Expand the `updateWealthAccountBalance` allowlist to twelve accounts by adding `national_bank_fhsa` (I20), `national_bank_rrsp` (I22), and `national_bank_tfsa_usd` (J21 raw USD input). Enforce strict formula guards:
-1. `national_bank_fhsa`: writes I20 only; enforces J14 summary formula `=I20` and confirms I20 has no formula before and inside `LockService`. J14 is never directly written.
-2. `national_bank_rrsp`: writes I22 only; enforces K14 summary formula `=I22` and confirms I22 has no formula before and inside `LockService`. K14 is never directly written.
-3. `national_bank_tfsa_usd`: split input/output architecture; writes manual raw USD balance to J21 only; enforces I21 conversion formula `=J21*GOOGLEFINANCE("CURRENCY:USDCAD")` and confirms J21 has no formula before and inside `LockService`. I21 is never directly writable. In the frontend, the card displays CAD from I21 while editing pre-fills raw USD from J21 (`editCurrency = USD`, labeled `USD Balance`).
-**Reason:** Resolves the historical manual summary gap for FHSA/RRSP and embedded constant gap for TFSA-USD safely in the Sheet without client-side FX computation, preserving authoritative Sheet recalculation and preventing formula overwrites.
-**Consequences:** FHSA, RRSP, and TFSA-USD are editable from the PWA. Production Apps Script Version 32 deployed; application release commit `b07fd32764e8f75bb3a80a10d07a4e28bf915838` deployed; Version 31 preserved as immediate rollback version.
-**Do Not Reconsider Unless:** A future structural modification alters the National Bank row layout or Google Finance formula in the production Sheet.
+## ADR-017 — National Bank uses guarded summary formulas and split USD/CAD input-output
+
+**Decision:**
+
+- FHSA writes I20 only and requires J14 `=I20`.
+- RRSP writes I22 only and requires K14 `=I22`.
+- TFSA-USD writes raw USD to J21 while I21 remains the protected `USDCAD` GOOGLEFINANCE CAD output.
+
+**Reason:** Preserve Sheet-authoritative conversion and summary calculations without frontend FX math.
+
+## ADR-018 — Philippines accounts use a dedicated group and native-currency source cells
+
+**Decision:** Add the four Philippines-held accounts as a separate `philippinesAccounts` backend array and **PHILIPPINES** UI group rather than extending the existing H17:I28 read range through the I29 summary row.
+
+Production mappings:
+
+| Stable ID | Native input | Currency | Conversion guard |
+| --- | --- | --- | --- |
+| `ph_cash_cad` | I30 | CAD | none |
+| `ph_cash_php` | I31 | PHP | J31 PHPCAD formula |
+| `gotyme_php` | I32 | PHP | J32 PHPCAD formula |
+| `gcash_php` | I33 | PHP | J33 PHPCAD formula |
+
+The PHP accounts display native PHP first and Sheet-derived CAD second. Frontend JavaScript does not calculate PHPCAD.
+
+**Reason:** H30:J33 is a different logical region from H17:I28, and I29 is a Total Cash summary between those areas. A dedicated array preserves the existing Canadian account contract and avoids accidentally treating a summary row as an account.
+
+**Consequences:**
+
+- Accounts count is the combined Canadian + Philippines count.
+- The UI has CASH, INVESTMENTS, and PHILIPPINES groups.
+- Native I30:I33 values are the only writable sources.
+- J31:J33 are read-only formula outputs.
+- Successful writes reuse the existing `updateWealthAccountBalance` path.
+
+## ADR-019 — Philippines identity/formula failures fail closed for display as well as writes
+
+**Decision:** If a Philippines row identity no longer matches the expected H-cell label, the backend returns `balance: null`, disables editing, and withholds PHP CAD equivalent data. If a required PHPCAD formula is missing/changed, editing is disabled and the CAD equivalent is unavailable.
+
+**Reason:** Merely disabling writes is insufficient if a row swap could display another account's money under the wrong logical name.
+
+**Consequence:** The UI shows **Unavailable** rather than exposing a potentially mislabeled financial value.
+
+## ADR-020 — Risk-proportional release process
+
+**Decision:** Use engineering process proportional to realistic risk rather than maximum ceremony.
+
+- LOW: focused inspect/test/visual/diff/sanity.
+- MODERATE: focused + relevant regression, small smoke/integration when useful.
+- HIGH: data/security review plus one explicitly approved reversible production validation when the financial boundary is new or materially changed.
+
+**Reason:** This is a private single-owner app. Extra gates should exist only when they can detect a realistic failure.
+
+**Consequence:** Proven write architecture is not re-certified for every small extension; financial integrity, secret protection, formula protection, and reversible first-write safeguards remain non-negotiable.
+
+## Current production record
+
+The Philippines release is live at application SHA `ca8f973226b2c0fa301326789c865d848006aa1f` with Apps Script Version 37. Full regression record: **261 / 261**. A reversible live GCash validation passed and the exact original native value was restored.
+
+No active architecture migration is planned. Dynamic reserve month targeting remains optional backlog; 2027 Sheet preparation is the next expected maintenance milestone.
