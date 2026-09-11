@@ -1810,7 +1810,7 @@ function getPhilippinesAccounts_(sheet) {
     const account = {
       id: id,
       name: target.name,
-      balance: parseSheetNumber_(row[1]),
+      balance: identityValid ? parseSheetNumber_(row[1]) : null,
       currency: target.editCurrency,
       editCurrency: target.editCurrency,
       isEditable: identityValid && !isFormula && conversionValid,

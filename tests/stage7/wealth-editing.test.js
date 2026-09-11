@@ -1132,6 +1132,63 @@ test("PH UI renders native PHP, Sheet CAD secondary values and count; CAD cash a
   assert.doesNotMatch(read("app.js"), /GOOGLEFINANCE|PHPCAD|exchangeRate|cadEquivalent\s*[*/]|balance\s*[*/].*(?:rate|cadEquivalent)/i);
 });
 
+test("PH valid identities with or without trailing whitespace retain native balances and editability", () => {
+  for (const suffix of ["", " \t "]) {
+    const cellValues = Object.fromEntries(PH_ACCOUNTS.map(([, row, name]) => ["H" + row, name + suffix]));
+    const ctx = loadBackendContext({ cellValues });
+    const wealth = ctx.getWealth();
+    for (const [id, row] of PH_ACCOUNTS) {
+      const account = wealth.philippinesAccounts.find(a => a.id === id);
+      assert.equal(account.balance, ctx._getCellValues()["I" + row]);
+      assert.equal(account.isEditable, true);
+    }
+  }
+});
+
+test("PH swapped or mismatched identities expose no native money and render Unavailable without affecting Canada", () => {
+  const baseline = loadBackendContext().getWealth();
+  const cases = [
+    { cellValues: { H32: "Gcash(Php) ", H33: "GoTyme (Php) ", I32: 876.54, I33: 4321.09 },
+      affected: ["gotyme_php", "gcash_php"] },
+    ...PH_ACCOUNTS.map(([id, row]) => ({
+      cellValues: { ["H" + row]: "Unexpected account", ["I" + row]: 7654.32 }, affected: [id]
+    }))
+  ];
+  for (const { cellValues, affected } of cases) {
+    const ctx = loadBackendContext({ cellValues });
+    const wealth = ctx.getWealth();
+    assert.equal(JSON.stringify(wealth.accounts), JSON.stringify(baseline.accounts));
+    assert.equal(wealth.philippinesAccounts.length, 4);
+    const view = loadPhilippinesView(wealth);
+    view.context.renderWealthView(wealth);
+    const readonlyRows = view.elements.wealthPhilippinesAccountsList.innerHTML
+      .match(/<div class="wealth-account-row wealth-account-row-readonly">[\s\S]*?<\/div>/g) || [];
+    assert.equal(readonlyRows.length, affected.length);
+    assert.equal(view.elements.wealthAccountsCount.textContent, "16 accounts");
+    for (const account of wealth.philippinesAccounts) {
+      const original = baseline.philippinesAccounts.find(a => a.id === account.id);
+      if (!affected.includes(account.id)) {
+        assert.equal(JSON.stringify(account), JSON.stringify(original));
+        continue;
+      }
+      assert.equal(account.id, original.id);
+      assert.equal(account.name, original.name);
+      assert.equal(account.balance, null);
+      assert.equal(account.isEditable, false);
+      if (account.currency === "PHP") assert.equal(account.cadEquivalent, null);
+      else assert.equal(Object.hasOwn(account, "cadEquivalent"), false);
+      const rowHtml = readonlyRows.find(row => row.includes(account.name));
+      assert.ok(rowHtml, "Logical account remains visible: " + account.name);
+      assert.match(rowHtml, /class="wealth-account-balance">Unavailable<\/span>/);
+      assert.doesNotMatch(rowHtml, /₱|C\$/);
+      if (account.currency === "PHP") assert.match(rowHtml, /CAD equivalent unavailable/);
+      view.context.openWealthBalanceEditor(account.id);
+      assert.equal(view.elements.wealthEditSheet, undefined);
+    }
+    assert.equal(ctx._getSetValueCount(), 0);
+  }
+});
+
 test("PH conversion failures render unavailable instead of fake zero; old snapshots are supported", () => {
   for (const value of ["#N/A", "", null, NaN]) {
     const wealth = loadBackendContext({ cellValues: { J32: value } }).getWealth();
