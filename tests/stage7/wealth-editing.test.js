@@ -771,7 +771,7 @@ test("36. failed update leaves previously confirmed Wealth state and cache uncha
   assert.doesNotMatch(catchBlock, /saveWealthToCache/);
 });
 
-test("37. failed update displays exact safe message without raw exception text", () => {
+test("37. failed update retains the safe message without rendering raw exception text", () => {
   const appCode = read("app.js");
   assert.match(appCode, /elError\.textContent = "Balance wasn't updated\. Your previous value is unchanged\.";/);
   assert.doesNotMatch(appCode, /elError\.textContent = \(err && err\.message\)/);
@@ -789,4 +789,139 @@ test("39. Remove This Device clears Wealth snapshot and auth state", () => {
   const appCode = read("app.js");
   assert.match(appCode, /removeWealthCache/);
   assert.match(appCode, /personalFinance\.wealthSnapshot/);
+});
+
+// Execute the actual editor and API against doPost with in-memory Sheets only.
+function loadBalanceEditor(backend, options = {}) {
+  const vm = require("node:vm");
+  const elements = Object.fromEntries(["wealthEditInput", "wealthEditError", "saveWealthEditButton"].map(id => {
+    const classes = new Set(["hidden"]);
+    return [id, {
+      value: "850.50", textContent: "", disabled: false,
+      classList: {
+        add: name => classes.add(name), remove: name => classes.delete(name),
+        contains: name => classes.has(name)
+      }
+    }];
+  }));
+  const calls = [];
+  const previousWealth = { availableCash: 123, accounts: [] };
+  const storage = new Map([["personalFinance.deviceKey", "a".repeat(64)]]);
+  let responseBody;
+  const context = vm.createContext({
+    window: {
+      localStorage: {
+        getItem: key => storage.get(key), removeItem: key => storage.delete(key)
+      },
+      FINANCE_APP_CONFIG: { webAppEndpointUrl: "https://script.google.com/macros/s/TEST/exec" },
+      fetch: async (url, request) => {
+        calls.push(["request", JSON.parse(request.body), request.method]);
+        if (options.fetchError) throw options.fetchError;
+        responseBody = JSON.parse(backend.doPost({ postData: { contents: request.body } }).content);
+        return { ok: options.httpOk !== false, status: 500, json: async () => responseBody };
+      }
+    },
+    document: { getElementById: id => elements[id] },
+    editingWealthAccountId: options.accountId || "simplii_chequing",
+    isSavingWealthBalance: false,
+    currentWealthData: previousWealth,
+    saveWealthToCache: value => calls.push(["cache", value]),
+    renderWealthView: value => calls.push(["render", value]),
+    closeWealthBalanceEditor: () => calls.push(["close"]),
+    updateSyncStatus: (...args) => calls.push(["sync", ...args])
+  });
+  vm.runInContext(read("api.js"), context);
+  const app = read("app.js");
+  const start = app.indexOf("  function getWealthBalanceFailureReason(");
+  const end = app.indexOf("  let selectedReserveMode", start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInContext(app.slice(start, end), context);
+  return { context, elements, calls, previousWealth, storage, getResponse: () => responseBody };
+}
+
+const SAFE_BALANCE_FAILURE = "Balance wasn't updated. Your previous value is unchanged.";
+
+test("40. authenticated backend errors reach the editor through api.js for cash and investment accounts", async () => {
+  for (const accountId of ["simplii_chequing", "wealthsimple_tfsa"]) {
+    const backend = loadBackendContext({ cellFormulas: { I23: "=1", I18: "=1" } });
+    const editor = loadBalanceEditor(backend, { accountId });
+    await editor.context.handleSaveWealthBalance();
+    assert.equal(editor.getResponse().error, "This value is calculated automatically and cannot be edited.");
+    assert.equal(editor.elements.wealthEditError.textContent,
+      SAFE_BALANCE_FAILURE + " Reason: This value is calculated automatically and cannot be edited.");
+    assert.equal(editor.elements.wealthEditError.classList.contains("hidden"), false);
+    assert.equal(editor.elements.saveWealthEditButton.disabled, false);
+    assert.equal(editor.elements.saveWealthEditButton.textContent, "Save Balance");
+    assert.equal(editor.context.isSavingWealthBalance, false);
+    assert.equal(editor.context.currentWealthData, editor.previousWealth);
+    assert.deepEqual(editor.calls.map(call => call[0]), ["request"]);
+    assert.equal(editor.calls[0][2], "POST");
+    assert.equal(editor.calls[0][1].action, "updateWealthAccountBalance");
+    assert.equal(editor.calls[0][1].deviceKey, "a".repeat(64));
+    assert.equal(backend._getSetValueCount(), 0);
+  }
+});
+
+test("41. runtime and HTTP errors display only fixed sanitized reasons, never sensitive details", async () => {
+  const sensitive = ["a".repeat(64), "private-sheet-id", "private-deployment-token", "private-device-secret",
+    '{"accountId":"private-account","balance":98765}', "https://private.example/credential", "at Code.js:123"];
+  const cases = [
+    ["Account mapping changed. Balance was not updated.", "Account mapping changed. Balance was not updated."],
+    ["Server is busy. Please try again.", "Server is busy. Please try again."],
+    ["You do not have permission to call setValue. " + sensitive.join(" "), "The server reported a permission or protected-range error."],
+    ["LockService.getScriptLock is not a function " + sensitive.join(" "), "The server reported a lock-service error."],
+    ["Number.isFinite is not a function " + sensitive.join(" "), "A required runtime function is unavailable."],
+    ["privateName is not defined " + sensitive.join(" "), "A required runtime name is undefined."],
+    ["Cannot read properties of undefined " + sensitive.join(" "), "The runtime encountered a missing value."],
+    ["Service invoked too many times " + sensitive.join(" "), "The server reported a service limit or quota error."],
+    ["Maximum execution time exceeded " + sensitive.join(" "), "The request timed out."],
+    ["Account mapping changed. Balance was not updated. " + sensitive.join(" "), "Unrecognized server/runtime error; details withheld for privacy."],
+    [sensitive.join(" "), "Unrecognized server/runtime error; details withheld for privacy."]
+  ];
+  for (const httpOk of [true, false]) {
+    for (const [raw, reason] of cases) {
+      const backend = loadBackendContext();
+      backend.LockService.getScriptLock = () => { throw new Error(raw); };
+      const editor = loadBalanceEditor(backend, { httpOk });
+      await editor.context.handleSaveWealthBalance();
+      assert.equal(editor.getResponse().error, raw);
+      assert.equal(editor.elements.wealthEditError.textContent, SAFE_BALANCE_FAILURE + " Reason: " + reason);
+      for (const secret of sensitive) assert.ok(!editor.elements.wealthEditError.textContent.includes(secret));
+      assert.equal(editor.context.currentWealthData, editor.previousWealth);
+      assert.equal(backend._getSetValueCount(), 0);
+    }
+  }
+});
+
+test("42. missing errors retain the safe message and network failures get a safe reason", async () => {
+  for (const [fetchError, suffix] of [
+    [{}, ""],
+    [new Error("Failed to fetch https://private.example/" + "a".repeat(64)), " Reason: The network request failed."]
+  ]) {
+    const editor = loadBalanceEditor(loadBackendContext(), { fetchError });
+    await editor.context.handleSaveWealthBalance();
+    assert.equal(editor.elements.wealthEditError.textContent, SAFE_BALANCE_FAILURE + suffix);
+    assert.equal(editor.context.currentWealthData, editor.previousWealth);
+  }
+});
+
+test("43. successful update still uses the authoritative response for state, cache and rendering", async () => {
+  const backend = loadBackendContext();
+  const editor = loadBalanceEditor(backend);
+  await editor.context.handleSaveWealthBalance();
+  assert.equal(backend._getCellValues().I23, 850.5);
+  assert.equal(backend._getSetValueCount(), 1);
+  assert.equal(editor.context.currentWealthData, editor.getResponse().wealth);
+  assert.deepEqual(editor.calls.map(call => call[0]), ["request", "cache", "render", "close", "sync"]);
+  assert.equal(editor.calls[1][1], editor.getResponse().wealth);
+  assert.equal(editor.calls[2][1], editor.getResponse().wealth);
+  assert.deepEqual(editor.calls[4], ["sync", "live", "Balance updated"]);
+  assert.deepEqual(editor.calls[0][1].payload, { accountId: "simplii_chequing", balance: 850.5 });
+  assert.equal(editor.elements.wealthEditError.textContent, "");
+  assert.equal(editor.elements.wealthEditError.classList.contains("hidden"), true);
+  assert.equal(editor.context.isSavingWealthBalance, false);
+});
+
+test("44. root and frontend Wealth editor/API mirrors remain identical", () => {
+  for (const file of ["app.js", "api.js"]) assert.equal(read(file), read("frontend/" + file));
 });
