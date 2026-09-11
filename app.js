@@ -1468,6 +1468,48 @@
     }
   }
 
+  function getWealthBalanceFailureReason(err) {
+    const message = err && typeof err.message === "string" ? err.message : "";
+    if (!message) return "";
+
+    // Only emit fixed, reviewed text. Raw server/runtime messages can contain
+    // credentials, request data, spreadsheet IDs, URLs, or stack traces.
+    const safeMessages = [
+      "Account mapping changed. Balance was not updated.",
+      "Account formula changed. Balance was not updated.",
+      "This value is calculated automatically and cannot be edited.",
+      "Invalid or non-editable account.",
+      "Balance is required.",
+      "Invalid balance: must be a finite number.",
+      "Balance cannot have more than 2 decimal places.",
+      "Invalid balance format.",
+      "Asset balance cannot be negative.",
+      "Balance exceeds maximum allowed limit.",
+      "Server is busy. Please try again.",
+      "Invalid response from server."
+    ];
+    const safeMessage = safeMessages.find(function(candidate) { return candidate === message; });
+    if (safeMessage) return safeMessage;
+
+    const categories = [
+      [/^Unsupported API action: updateWealthAccountBalance$/, "The deployed backend does not support Wealth balance updates."],
+      [/Unauthorized|Device is not configured/, "Device authorization failed. Please reconnect this device."],
+      [/Server device key is not configured|PRODUCTION_SPREADSHEET_ID is not configured|Web App endpoint URL is not configured/, "Required server or connection configuration is missing."],
+      [/2026-Budgets was not found\./, "The Wealth sheet was not found."],
+      [/permission|not authorized|authorization is required|access denied|protected cell|protected range/i, "The server reported a permission or protected-range error."],
+      [/tryLock|releaseLock|getScriptLock|LockService/, "The server reported a lock-service error."],
+      [/is not a function/, "A required runtime function is unavailable."],
+      [/is not defined/, "A required runtime name is undefined."],
+      [/Cannot read propert|Cannot convert undefined or null/i, "The runtime encountered a missing value."],
+      [/quota|too many times|limit exceeded/i, "The server reported a service limit or quota error."],
+      [/timed? out|timeout|maximum execution time/i, "The request timed out."],
+      [/Failed to fetch|NetworkError|Network request failed|Load failed/i, "The network request failed."],
+      [/Apps Script Web App request failed with HTTP/, "The server returned an HTTP error."]
+    ];
+    const category = categories.find(function(entry) { return entry[0].test(message); });
+    return category ? category[1] : "Unrecognized server/runtime error; details withheld for privacy.";
+  }
+
   async function handleSaveWealthBalance() {
     if (isSavingWealthBalance || !editingWealthAccountId || typeof document === "undefined") return;
 
@@ -1527,6 +1569,8 @@
       }
       if (elError) {
         elError.textContent = "Balance wasn't updated. Your previous value is unchanged.";
+        const reason = getWealthBalanceFailureReason(err);
+        if (reason) elError.textContent += " Reason: " + reason;
         elError.classList.remove("hidden");
       }
     }
