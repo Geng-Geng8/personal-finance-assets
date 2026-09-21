@@ -1268,9 +1268,15 @@ test("Crypto 1. crypto is accepted as an editable logical ID mapping only to L14
   assert.equal(entry.name, "Crypto");
   assert.equal(entry.expectedName, "Total Crypto");
   assert.equal(entry.nameCell, "L1");
+  assert.equal(entry.normalizeIdentityWhitespace, true);
   assert.equal(entry.balanceCell, "L14");
   assert.equal(entry.writeCell, "L14");
   assert.equal(entry.editCurrency, "CAD");
+
+  // Existing accounts must not have normalizeIdentityWhitespace enabled
+  assert.equal(ctx.WEALTH_EDITABLE_WHITELIST.national_bank_tfsa.normalizeIdentityWhitespace, undefined);
+  assert.equal(ctx.WEALTH_EDITABLE_WHITELIST.td_savings.normalizeIdentityWhitespace, undefined);
+  assert.equal(ctx.WEALTH_EDITABLE_WHITELIST.gotyme_php.normalizeIdentityWhitespace, undefined);
 });
 
 test("Crypto 2. only L14 is written during crypto balance update", () => {
@@ -1389,6 +1395,104 @@ test("Crypto 10. changed or wrong Crypto header blocks write with zero mutations
     }, /Account mapping changed\. Balance was not updated\./);
     assert.equal(ctx._getSetValueCount(), 0);
     assert.equal(ctx._getCellValues().L14, 27653.19); // unchanged original
+  }
+});
+
+test("Crypto 11. existing Wealth account exact identity still passes", () => {
+  // Canadian account exact identity passes
+  const ctxCanada = loadBackendContext();
+  const resCanada = ctxCanada.updateWealthAccountBalance({ accountId: "national_bank_tfsa", balance: 32000.00 });
+  assert.equal(resCanada.ok, true);
+  assert.equal(ctxCanada._getCellValues().I19, 32000.00);
+
+  // Philippines account exact identity passes
+  const ctxPH = loadBackendContext();
+  const resPH = ctxPH.updateWealthAccountBalance({ accountId: "gotyme_php", balance: 500.00 });
+  assert.equal(resPH.ok, true);
+  assert.equal(ctxPH._getCellValues().I32, 500.00);
+});
+
+test("Crypto 12. existing account with modified leading/internal/trailing whitespace still fails with zero writes", () => {
+  // 1. Canadian account with modified internal whitespace fails closed
+  const modifiedRowsInternal = [
+    ["EQ-TFSA", 23222.82],
+    ["WEALTHSIMPLE- TFSA", 81141.10],
+    ["National  Bank  TFSA", 30985.47], // double space
+    ["National Bank FHSA ", 33488.20],
+    ["National Bank TFSA-USD", 2448.78],
+    ["National Bank RRSP", 15527.88],
+    ["Simplii - Che", 400.00],
+    ["Simplii - Sav", 1000.00],
+    ["EQ - Sav", 30000.00],
+    ["EQ Bank Card", 205.00],
+    ["EQ - Geng-Cash", 100.24],
+    ["TD - Sav", 197.00]
+  ];
+  const ctxInternal = loadBackendContext({ accountRows: modifiedRowsInternal });
+  assert.throws(() => {
+    ctxInternal.updateWealthAccountBalance({ accountId: "national_bank_tfsa", balance: 35000 });
+  }, /Account mapping changed\. Balance was not updated\./);
+  assert.equal(ctxInternal._getSetValueCount(), 0);
+  assert.equal(ctxInternal._getCellValues().I19, 30985.47);
+
+  // 2. Canadian account with newline fails closed
+  const modifiedRowsNewline = [
+    ["EQ-TFSA", 23222.82],
+    ["WEALTHSIMPLE- TFSA", 81141.10],
+    ["National\nBank TFSA", 30985.47], // newline
+    ["National Bank FHSA ", 33488.20],
+    ["National Bank TFSA-USD", 2448.78],
+    ["National Bank RRSP", 15527.88],
+    ["Simplii - Che", 400.00],
+    ["Simplii - Sav", 1000.00],
+    ["EQ - Sav", 30000.00],
+    ["EQ Bank Card", 205.00],
+    ["EQ - Geng-Cash", 100.24],
+    ["TD - Sav", 197.00]
+  ];
+  const ctxNewline = loadBackendContext({ accountRows: modifiedRowsNewline });
+  assert.throws(() => {
+    ctxNewline.updateWealthAccountBalance({ accountId: "national_bank_tfsa", balance: 35000 });
+  }, /Account mapping changed\. Balance was not updated\./);
+  assert.equal(ctxNewline._getSetValueCount(), 0);
+  assert.equal(ctxNewline._getCellValues().I19, 30985.47);
+
+  // 3. Canadian account with modified internal spacing around hyphens/words fails closed
+  const modifiedRowsHyphen = [
+    ["EQ-TFSA", 23222.82],
+    ["WEALTHSIMPLE- TFSA", 81141.10],
+    ["National Bank TFSA", 30985.47],
+    ["National Bank FHSA ", 33488.20],
+    ["National Bank TFSA-USD", 2448.78],
+    ["National Bank RRSP", 15527.88],
+    ["Simplii - Che", 400.00],
+    ["Simplii - Sav", 1000.00],
+    ["EQ - Sav", 30000.00],
+    ["EQ Bank Card", 205.00],
+    ["EQ - Geng-Cash", 100.24],
+    ["TD  -  Sav", 197.00] // extra spacing around hyphen
+  ];
+  const ctxHyphen = loadBackendContext({ accountRows: modifiedRowsHyphen });
+  assert.throws(() => {
+    ctxHyphen.updateWealthAccountBalance({ accountId: "td_savings", balance: 500 });
+  }, /Account mapping changed\. Balance was not updated\./);
+  assert.equal(ctxHyphen._getSetValueCount(), 0);
+  assert.equal(ctxHyphen._getCellValues().I28, 197.00);
+
+  // 4. Philippines account with modified internal/newline whitespace fails closed
+  const phModifications = [
+    "GoTyme  (Php)",
+    "GoTyme\n(Php)",
+    "  GoTyme   (Php)  ",
+    "GoTyme ( Php )"
+  ];
+  for (const modHeader of phModifications) {
+    const ctxPHMod = loadBackendContext({ cellValues: { H32: modHeader } });
+    assert.throws(() => {
+      ctxPHMod.updateWealthAccountBalance({ accountId: "gotyme_php", balance: 1000 });
+    }, /Account mapping changed\. Balance was not updated\./);
+    assert.equal(ctxPHMod._getSetValueCount(), 0);
+    assert.equal(ctxPHMod._getCellValues().I32, 123);
   }
 });
 
