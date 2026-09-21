@@ -1383,6 +1383,14 @@ var WEALTH_EDITABLE_WHITELIST = Object.freeze({
     requiredFormulaCell: "J33",
     expectedFormula: '=I33*GOOGLEFINANCE("CURRENCY:PHPCAD")',
     editCurrency: "PHP"
+  },
+  crypto: {
+    id: "crypto",
+    name: "Crypto",
+    balanceCell: "L14",
+    displayBalanceCell: "L14",
+    writeCell: "L14",
+    editCurrency: "CAD"
   }
 });
 
@@ -2144,11 +2152,13 @@ function updateWealthAccountBalance(payload) {
   try {
     const sheet = getWealthSheet_();
 
-    // Identity check: verify the live Sheet account name matches the whitelist expected name at target nameCell
-    const liveNameVal = sheet.getRange(target.nameCell).getValue();
-    const liveName = String(liveNameVal || "").trim();
-    if (liveName !== target.expectedName) {
-      throw new Error("Account mapping changed. Balance was not updated.");
+    // Identity check: verify the live Sheet account name matches the whitelist expected name at target nameCell (if defined)
+    if (target.nameCell && target.expectedName) {
+      const liveNameVal = sheet.getRange(target.nameCell).getValue();
+      const liveName = String(liveNameVal || "").trim();
+      if (liveName !== target.expectedName) {
+        throw new Error("Account mapping changed. Balance was not updated.");
+      }
     }
 
     // Required formula check (if defined for this account, e.g. J14 for FHSA, K14 for RRSP, I21 for TFSA-USD)

@@ -51,6 +51,7 @@ function loadBackendContext(customData = {}) {
     J14: row14[2],
     K14: row14[3],
     J21: 1800.57,
+    L14: row14[4],
     H30: "cash (Cad) ", I30: 375, J30: "",
     H31: "Cash (php) ", I31: 0, J31: 0,
     H32: "GoTyme (Php) ", I32: 123, J32: 3.47,
@@ -79,6 +80,7 @@ function loadBackendContext(customData = {}) {
     I26: "",
     I27: "",
     I28: "",
+    L14: "",
     J31: '=I31 * GOOGLEFINANCE("CURRENCY:PHPCAD")',
     J32: '=I32 * GOOGLEFINANCE("CURRENCY:PHPCAD")',
     J33: '=I33 * GOOGLEFINANCE("CURRENCY:PHPCAD")'
@@ -138,7 +140,19 @@ function loadBackendContext(customData = {}) {
         };
       }
       if (rangeStr === "H14:P14") {
-        return { getValues: () => [row14] };
+        return {
+          getValues: () => [[
+            cellValues.H14,
+            row14[1],
+            row14[2],
+            row14[3],
+            cellValues.L14,
+            row14[5],
+            cellValues.N14,
+            cellValues.O14,
+            cellValues.P14
+          ]]
+        };
       }
       if (rangeStr === "I29") {
         return { getValue: () => cellValues.I29 };
@@ -244,10 +258,11 @@ function loadBackendContext(customData = {}) {
    1. CONTRACT TESTS
 ============================================================ */
 
-test("1. exactly sixteen approved account IDs exist", () => {
+test("1. exactly seventeen approved account IDs exist", () => {
   const ctx = loadBackendContext();
   const keys = Object.keys(ctx.WEALTH_EDITABLE_WHITELIST);
-  assert.equal(keys.length, 16);
+  assert.equal(keys.length, 17);
+  assert.ok(ctx.WEALTH_EDITABLE_WHITELIST.crypto, "crypto must exist in whitelist");
 });
 
 test("2. each approved ID maps to its exact expected H/I cells and expected name", () => {
@@ -1239,3 +1254,106 @@ test("PH save sends only native money, then replaces state/cache and renders the
     assert.match(view.elements.wealthPhilippinesAccountsList.innerHTML, /≈ C\$98\.76/);
   }
 });
+
+/* ============================================================
+   CRYPTO BALANCE EDITING TESTS
+============================================================ */
+
+test("Crypto 1. crypto is accepted as an editable logical ID mapping only to L14", () => {
+  const ctx = loadBackendContext();
+  const entry = ctx.WEALTH_EDITABLE_WHITELIST.crypto;
+  assert.ok(entry, "Missing crypto in WEALTH_EDITABLE_WHITELIST");
+  assert.equal(entry.id, "crypto");
+  assert.equal(entry.name, "Crypto");
+  assert.equal(entry.balanceCell, "L14");
+  assert.equal(entry.writeCell, "L14");
+  assert.equal(entry.editCurrency, "CAD");
+});
+
+test("Crypto 2. only L14 is written during crypto balance update", () => {
+  const ctx = loadBackendContext();
+  const res = ctx.updateWealthAccountBalance({ accountId: "crypto", balance: 35000.50 });
+  assert.equal(res.ok, true);
+  assert.deepEqual(ctx._getWrittenCells(), ["L14"]);
+  assert.equal(ctx._getSetValueCount(), 1);
+  assert.equal(ctx._getCellValues().L14, 35000.50);
+});
+
+test("Crypto 3. negative balance is rejected for crypto", () => {
+  const ctx = loadBackendContext();
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ accountId: "crypto", balance: -0.01 });
+  }, /Asset balance cannot be negative/);
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ accountId: "crypto", balance: -500 });
+  }, /Asset balance cannot be negative/);
+  assert.equal(ctx._getSetValueCount(), 0);
+});
+
+test("Crypto 4. balance with more than 2 decimal places is rejected for crypto", () => {
+  const ctx = loadBackendContext();
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ accountId: "crypto", balance: 123.456 });
+  }, /Balance cannot have more than 2 decimal places/);
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ accountId: "crypto", balance: "123.456" });
+  }, /Balance cannot have more than 2 decimal places/);
+  assert.equal(ctx._getSetValueCount(), 0);
+});
+
+test("Crypto 5. formula present in L14 blocks the write", () => {
+  const ctx = loadBackendContext({
+    cellFormulas: { L14: "=SUM(L2:L13)" }
+  });
+  assert.throws(() => {
+    ctx.updateWealthAccountBalance({ accountId: "crypto", balance: 50000 });
+  }, /This value is calculated automatically and cannot be edited/);
+  assert.equal(ctx._getSetValueCount(), 0);
+});
+
+test("Crypto 6. arbitrary topology fields remain rejected for crypto", () => {
+  const ctx = loadBackendContext();
+  const forbiddenFields = [
+    { sheet: "2026-Budgets" },
+    { spreadsheetId: "arbitrary-id" },
+    { range: "L14" },
+    { cell: "L14" },
+    { row: 14 },
+    { column: "L" },
+    { formula: "=1+1" }
+  ];
+  for (const field of forbiddenFields) {
+    assert.throws(() => {
+      ctx.updateWealthAccountBalance(Object.assign({ accountId: "crypto", balance: 1000 }, field));
+    }, /Arbitrary sheet or cell coordinates are not permitted/);
+  }
+  assert.equal(ctx._getSetValueCount(), 0);
+});
+
+test("Crypto 7. successful write flushes and returns authoritative refreshed Wealth", () => {
+  let flushed = false;
+  const ctx = loadBackendContext({
+    afterFlush: () => {
+      flushed = true;
+    }
+  });
+  const res = ctx.updateWealthAccountBalance({ accountId: "crypto", balance: 42000.75 });
+  assert.equal(res.ok, true);
+  assert.equal(flushed, true);
+  assert.ok(res.wealth);
+  assert.equal(res.wealth.crypto, 42000.75);
+});
+
+test("Crypto 8. crypto balance update via doPost with authenticated deviceKey", () => {
+  const ctx = loadBackendContext();
+  const postData = JSON.stringify({
+    deviceKey: "a".repeat(64),
+    action: "updateWealthAccountBalance",
+    payload: { accountId: "crypto", balance: 9999.99 }
+  });
+  const res = JSON.parse(ctx.doPost({ postData: { contents: postData } }).content);
+  assert.equal(res.ok, true);
+  assert.ok(res.wealth);
+  assert.equal(res.wealth.crypto, 9999.99);
+});
+
