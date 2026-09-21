@@ -51,6 +51,7 @@ function loadBackendContext(customData = {}) {
     J14: row14[2],
     K14: row14[3],
     J21: 1800.57,
+    L1: "Total Crypto",
     L14: row14[4],
     H30: "cash (Cad) ", I30: 375, J30: "",
     H31: "Cash (php) ", I31: 0, J31: 0,
@@ -1265,6 +1266,8 @@ test("Crypto 1. crypto is accepted as an editable logical ID mapping only to L14
   assert.ok(entry, "Missing crypto in WEALTH_EDITABLE_WHITELIST");
   assert.equal(entry.id, "crypto");
   assert.equal(entry.name, "Crypto");
+  assert.equal(entry.expectedName, "Total Crypto");
+  assert.equal(entry.nameCell, "L1");
   assert.equal(entry.balanceCell, "L14");
   assert.equal(entry.writeCell, "L14");
   assert.equal(entry.editCurrency, "CAD");
@@ -1356,4 +1359,37 @@ test("Crypto 8. crypto balance update via doPost with authenticated deviceKey", 
   assert.ok(res.wealth);
   assert.equal(res.wealth.crypto, 9999.99);
 });
+
+test("Crypto 9. correct Crypto header (exact, newline normalized, whitespace normalized) permits L14 write", () => {
+  // Exact match
+  const ctx1 = loadBackendContext();
+  const res1 = ctx1.updateWealthAccountBalance({ accountId: "crypto", balance: 35000.50 });
+  assert.equal(res1.ok, true);
+  assert.equal(ctx1._getCellValues().L14, 35000.50);
+
+  // Newline normalized match (Total\nCrypto)
+  const ctx2 = loadBackendContext({ cellValues: { L1: "Total\nCrypto" } });
+  const res2 = ctx2.updateWealthAccountBalance({ accountId: "crypto", balance: 40000.00 });
+  assert.equal(res2.ok, true);
+  assert.equal(ctx2._getCellValues().L14, 40000.00);
+
+  // Whitespace normalized match (Total   Crypto )
+  const ctx3 = loadBackendContext({ cellValues: { L1: "  Total   Crypto  " } });
+  const res3 = ctx3.updateWealthAccountBalance({ accountId: "crypto", balance: 45000.00 });
+  assert.equal(res3.ok, true);
+  assert.equal(ctx3._getCellValues().L14, 45000.00);
+});
+
+test("Crypto 10. changed or wrong Crypto header blocks write with zero mutations", () => {
+  const wrongHeaders = ["Crypto", "Total Invested", "Old Crypto", "", "   ", "Something Else"];
+  for (const wrongHeader of wrongHeaders) {
+    const ctx = loadBackendContext({ cellValues: { L1: wrongHeader } });
+    assert.throws(() => {
+      ctx.updateWealthAccountBalance({ accountId: "crypto", balance: 50000 });
+    }, /Account mapping changed\. Balance was not updated\./);
+    assert.equal(ctx._getSetValueCount(), 0);
+    assert.equal(ctx._getCellValues().L14, 27653.19); // unchanged original
+  }
+});
+
 

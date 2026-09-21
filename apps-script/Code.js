@@ -1387,6 +1387,8 @@ var WEALTH_EDITABLE_WHITELIST = Object.freeze({
   crypto: {
     id: "crypto",
     name: "Crypto",
+    expectedName: "Total Crypto",
+    nameCell: "L1",
     balanceCell: "L14",
     displayBalanceCell: "L14",
     writeCell: "L14",
@@ -1668,6 +1670,10 @@ function normalizeWealthFormula_(formula) {
 
 function hasApprovedWealthFormula_(range, expectedFormula) {
   return normalizeWealthFormula_(range.getFormula()) === normalizeWealthFormula_(expectedFormula);
+}
+
+function normalizeWealthIdentity_(identity) {
+  return String(identity || "").replace(/\s+/g, " ").trim();
 }
 
 function parseMoneyCents_(value, fieldName) {
@@ -2156,7 +2162,7 @@ function updateWealthAccountBalance(payload) {
     if (target.nameCell && target.expectedName) {
       const liveNameVal = sheet.getRange(target.nameCell).getValue();
       const liveName = String(liveNameVal || "").trim();
-      if (liveName !== target.expectedName) {
+      if (liveName !== target.expectedName && normalizeWealthIdentity_(liveName) !== normalizeWealthIdentity_(target.expectedName)) {
         throw new Error("Account mapping changed. Balance was not updated.");
       }
     }
