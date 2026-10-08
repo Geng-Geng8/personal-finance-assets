@@ -31,11 +31,11 @@
   <!-- =========================================
        TWO-PIN AUTHENTICATION LOGIN OVERLAY
   ========================================== -->
-  <div class="pin-login-overlay" id="pinLoginOverlay">
+  <div class="pin-login-overlay hidden" id="pinLoginOverlay">
     <div class="pin-login-card">
       <img class="pin-login-icon" src="assets/finance-icon.png" alt="Finance Icon">
       <h2 class="pin-login-title">Personal Finance</h2>
-      <p class="pin-login-subtitle">Enter PIN to access your finances</p>
+      <p class="pin-login-subtitle">Enter Guest PIN to access finances in read-only mode</p>
 
       <div class="pin-input-wrap">
         <input
@@ -73,13 +73,17 @@
       </button>
 
       <p class="pin-login-error hidden" id="pinLoginError" role="alert"></p>
+
+      <button class="ghost-button pin-back-btn" id="pinBackToDeviceKeyButton" type="button">
+        ← Back to Device Key Login
+      </button>
     </div>
   </div>
 
   <!-- =========================================
        STAGE 4B DEVICE-KEY SETUP & STARTUP
   ========================================== -->
-  <div class="auth-gate hidden" id="authGate" aria-hidden="true" style="display: none !important;">
+  <div class="auth-gate hidden" id="authGate" aria-hidden="true">
     <div class="auth-card">
       <img class="auth-icon" src="assets/finance-icon.png" alt="Finance Icon">
       <h2>Personal Finance</h2>
@@ -89,7 +93,7 @@
         <p class="auth-loading-text">Loading your finances…</p>
       </div>
 
-      <div id="deviceSetupState" class="auth-action-state hidden" style="display: none !important;">
+      <div id="deviceSetupState" class="auth-action-state hidden">
         <p class="auth-desc">Set up this device with your private Personal Finance key.</p>
         <div class="device-key-field">
           <input type="password" id="deviceKeyInput" class="device-key-input" placeholder="Paste 64-character device key" autocomplete="off" spellcheck="false">
@@ -100,6 +104,13 @@
         </button>
         <button class="hidden" id="authAuthorizeButton" type="button" aria-hidden="true"></button>
         <p class="auth-status" id="deviceSetupStatus" data-state="waiting">Enter your private key once to link this device.</p>
+
+        <div class="guest-login-divider">
+          <span>or</span>
+        </div>
+        <button class="secondary-button guest-login-btn" id="guestPinLoginButton" type="button">
+          Accountant / Guest Login (PIN)
+        </button>
       </div>
     </div>
   </div>

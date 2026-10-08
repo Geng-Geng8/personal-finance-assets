@@ -155,7 +155,7 @@ const financeApi = (() => {
       throw new Error("Device is not configured (Authorization is missing or expired). Please enter your device key.");
     }
 
-    if (pin === "8888" && action !== "getExpenses" && action !== "getWealth" && action !== "getSpendingBuckets") {
+    if (pin === "8888" && !deviceKey && action !== "getExpenses" && action !== "getWealth" && action !== "getSpendingBuckets") {
       throw new Error("Read-only access");
     }
 
@@ -172,16 +172,7 @@ const financeApi = (() => {
       throw new Error("fetch is not available in current environment.");
     }
 
-    let fetchUrl = endpoint;
-    if (pin) {
-      try {
-        const urlObj = new URL(endpoint);
-        urlObj.searchParams.set("pin", pin);
-        fetchUrl = urlObj.toString();
-      } catch (_) {
-        fetchUrl = endpoint + (endpoint.indexOf("?") === -1 ? "?" : "&") + "pin=" + encodeURIComponent(pin);
-      }
-    }
+    const fetchUrl = endpoint;
 
     const payloadWithPin = Object.assign({}, payload || {});
     if (pin) {
@@ -227,6 +218,7 @@ const financeApi = (() => {
     if (result.ok === false) {
       if (result.error === "Unauthorized") {
         clearDeviceKey();
+        clearPin();
         throw new Error("Unauthorized: Invalid device key. Access cleared.");
       }
       throw new Error(result.error || "Request failed");

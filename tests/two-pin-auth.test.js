@@ -217,3 +217,107 @@ test("Two-PIN: direct call to updateWealthAccountBalance with Guest PIN throws '
     /Read-only access/
   );
 });
+
+test("Hybrid Security: Admin 64-char key provides full read and write access via doPost", () => {
+  const context = loadBackendContext();
+  context.getExpenses = () => [{ id: "exp-1", item: "Coffee" }];
+  context.addExpense = (payload) => ({ id: "exp-new", ...payload });
+  context.updateWealthAccountBalance = (payload) => ({ ok: true, balance: payload.balance });
+
+  const adminKey = "a".repeat(64);
+
+  // Admin read
+  const resRead = context.doPost({
+    postData: {
+      contents: JSON.stringify({
+        deviceKey: adminKey,
+        action: "getExpenses",
+        payload: {}
+      })
+    }
+  });
+  const parsedRead = JSON.parse(resRead.content);
+  assert.equal(parsedRead.ok, true);
+  assert.equal(parsedRead.expenses.length, 1);
+
+  // Admin write (addExpense)
+  const resWriteExp = context.doPost({
+    postData: {
+      contents: JSON.stringify({
+        deviceKey: adminKey,
+        action: "addExpense",
+        payload: { item: "Tea", cost: 4 }
+      })
+    }
+  });
+  const parsedWriteExp = JSON.parse(resWriteExp.content);
+  assert.equal(parsedWriteExp.ok, true);
+  assert.equal(parsedWriteExp.result.item, "Tea");
+
+  // Admin write (updateWealthAccountBalance)
+  const resWriteWealth = context.doPost({
+    postData: {
+      contents: JSON.stringify({
+        deviceKey: adminKey,
+        action: "updateWealthAccountBalance",
+        payload: { accountId: "simplii_chequing", balance: 500 }
+      })
+    }
+  });
+  const parsedWriteWealth = JSON.parse(resWriteWealth.content);
+  assert.equal(parsedWriteWealth.ok, true);
+});
+
+test("Hybrid Security: Mutating actions without admin key or with Guest PIN are rejected", () => {
+  const context = loadBackendContext();
+
+  // 1. Guest PIN trying to mutate -> Read-only access
+  const resGuestMutate = context.doPost({
+    postData: {
+      contents: JSON.stringify({
+        pin: "8888",
+        action: "addExpense",
+        payload: { item: "Coffee", cost: 5 }
+      })
+    }
+  });
+  assert.equal(JSON.parse(resGuestMutate.content).ok, false);
+  assert.equal(JSON.parse(resGuestMutate.content).error, "Read-only access");
+
+  // 2. Missing key and no PIN trying to mutate -> Unauthorized
+  const resNoAuth = context.doPost({
+    postData: {
+      contents: JSON.stringify({
+        action: "addExpense",
+        payload: { item: "Coffee", cost: 5 }
+      })
+    }
+  });
+  assert.equal(JSON.parse(resNoAuth.content).ok, false);
+  assert.equal(JSON.parse(resNoAuth.content).error, "Unauthorized");
+
+  // 3. Wrong 64-char key trying to mutate -> Unauthorized
+  const resWrongKey = context.doPost({
+    postData: {
+      contents: JSON.stringify({
+        deviceKey: "b".repeat(64),
+        action: "addExpense",
+        payload: { item: "Coffee", cost: 5 }
+      })
+    }
+  });
+  assert.equal(JSON.parse(resWrongKey.content).ok, false);
+  assert.equal(JSON.parse(resWrongKey.content).error, "Unauthorized");
+});
+
+test("Hybrid Security: UI contains 64-char setup gate, Guest PIN button, and back button", () => {
+  const html = fs.readFileSync(path.join(repositoryRoot, "index.html"), "utf8");
+  assert.match(html, /id="deviceKeyInput"/);
+  assert.match(html, /id="saveDeviceKeyButton"/);
+  assert.match(html, /id="guestPinLoginButton"/);
+  assert.match(html, /id="pinBackToDeviceKeyButton"/);
+  assert.match(html, /id="pinLoginOverlay"/);
+  assert.doesNotMatch(html, /id="authGate"[^>]*style="display:\s*none\s*!important;"/);
+  assert.doesNotMatch(html, /id="deviceSetupState"[^>]*style="display:\s*none\s*!important;"/);
+});
+

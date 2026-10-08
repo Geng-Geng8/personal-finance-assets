@@ -2457,42 +2457,40 @@ function doPost(e) {
     const action = String(body.action || "");
     const payload = body.payload == null ? {} : body.payload;
     const pin = String(body.pin || (payload && payload.pin) || (e && e.parameter && e.parameter.pin) || "").trim();
+    const suppliedKey = String(body.deviceKey || "").trim();
 
-    // Two-PIN Check:
+    const isReadAction = action === "getExpenses" || action === "getWealth" || action === "getSpendingBuckets";
+
+    // 1. Admin Authentication Check: 64-character device key
+    const configuredKey = PropertiesService.getScriptProperties().getProperty("PERSONAL_APP_DEVICE_KEY");
+    let isAdmin = false;
+    if (suppliedKey && suppliedKey.length === 64 && configuredKey && typeof configuredKey === "string" && configuredKey.trim().length === 64) {
+      if (suppliedKey.toLowerCase() === configuredKey.trim().toLowerCase()) {
+        isAdmin = true;
+      }
+    }
+
+    // Admin has full read and write privileges
+    if (isAdmin) {
+      const result = apiRequest({ action, payload });
+      return jsonResponse_(result);
+    }
+
+    // 2. Guest PIN Authentication Check: Strictly Read-Only
     if (pin === GUEST_PIN) {
-      // Guest PIN strictly blocks execution of update/mutating endpoints
-      if (action !== "getExpenses" && action !== "getWealth" && action !== "getSpendingBuckets") {
+      if (!isReadAction) {
         return jsonResponse_({ ok: false, error: "Read-only access" });
       }
       const result = apiRequest({ action, payload, pin });
       return jsonResponse_(result);
     }
 
-    if (pin === MASTER_PIN) {
-      const result = apiRequest({ action, payload, pin });
-      return jsonResponse_(result);
-    }
-
-    if (pin && pin !== MASTER_PIN && pin !== GUEST_PIN) {
+    // 3. Fallback: Check device key errors or unauthorized
+    if (suppliedKey && configuredKey && suppliedKey.toLowerCase() !== configuredKey.trim().toLowerCase()) {
       return jsonResponse_({ ok: false, error: "Unauthorized" });
     }
 
-    const suppliedKey = String(body.deviceKey || "").trim();
-    if (!suppliedKey || suppliedKey.length !== 64) {
-      return jsonResponse_({ ok: false, error: "Unauthorized" });
-    }
-
-    const configuredKey = PropertiesService.getScriptProperties().getProperty("PERSONAL_APP_DEVICE_KEY");
-    if (!configuredKey || typeof configuredKey !== "string" || configuredKey.trim().length !== 64) {
-      return jsonResponse_({ ok: false, error: "Server device key is not configured" });
-    }
-
-    if (suppliedKey.toLowerCase() !== configuredKey.trim().toLowerCase()) {
-      return jsonResponse_({ ok: false, error: "Unauthorized" });
-    }
-
-    const result = apiRequest({ action, payload });
-    return jsonResponse_(result);
+    return jsonResponse_({ ok: false, error: "Unauthorized" });
   } catch (err) {
     return jsonResponse_({
       ok: false,

@@ -5040,6 +5040,24 @@
   display: none !important;
 }
 
+.pin-back-btn {
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: color 0.15s;
+}
+
+.pin-back-btn:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 /* =========================================
    GUEST READ-ONLY MODE
 ========================================= */
@@ -5072,12 +5090,6 @@ body.guest-mode .clickable-bucket {
 ========================================= */
 
 html.fast-start #authGate {
-  display: none !important;
-}
-
-#authGate,
-.auth-gate,
-#deviceSetupState {
   display: none !important;
 }
 
@@ -5259,6 +5271,48 @@ html.fast-start #authGate {
 .key-toggle-btn:hover {
   color: var(--text);
   background: rgba(0, 0, 0, 0.06);
+}
+
+.guest-login-divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 20px 0 16px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.guest-login-divider::before,
+.guest-login-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.guest-login-divider span {
+  padding: 0 12px;
+}
+
+.guest-login-btn {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.guest-login-btn:hover {
+  background: var(--hover-bg, rgba(0, 0, 0, 0.04));
+  border-color: var(--primary, #2864dc);
+  color: var(--primary, #2864dc);
 }
 
 /* PWA Install Banner */

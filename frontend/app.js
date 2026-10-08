@@ -355,9 +355,7 @@
 
     restoreSpendingBucketsFromCache();
 
-    setupPinAuth(function() {
-      setupAuthGate();
-    });
+    setupAuthGate();
 
     setupPwaInstall();
 
@@ -688,20 +686,12 @@
     }
 
     const storedPin = getStoredPin();
-    if (storedPin === MASTER_PIN) {
-      applyGuestModeRestrictions(false);
-      hideOverlay();
-      if (typeof onAuthenticated === "function") {
-        onAuthenticated(MASTER_PIN, "master");
-      }
-    } else if (storedPin === GUEST_PIN) {
+    if (storedPin === GUEST_PIN) {
       applyGuestModeRestrictions(true);
       hideOverlay();
       if (typeof onAuthenticated === "function") {
         onAuthenticated(GUEST_PIN, "guest");
       }
-    } else {
-      showOverlay();
     }
   }
 
@@ -716,37 +706,56 @@
     const toggleKeyVisibility = document.getElementById("toggleKeyVisibility");
     const saveDeviceKeyButton = document.getElementById("saveDeviceKeyButton");
     const deviceSetupStatus = document.getElementById("deviceSetupStatus");
+    const guestPinLoginButton = document.getElementById("guestPinLoginButton");
+    const pinLoginOverlay = document.getElementById("pinLoginOverlay");
+    const pinBackToDeviceKeyButton = document.getElementById("pinBackToDeviceKeyButton");
     const signOutButtons = document.querySelectorAll(".sign-out-button, .remove-device-button");
 
     function showLoading(text) {
-      if (authGate) authGate.classList.add("hidden");
+      if (authGate) authGate.classList.remove("hidden");
+      if (authLoadingState) {
+        authLoadingState.classList.remove("hidden");
+        const loadingText = authLoadingState.querySelector(".auth-loading-text");
+        if (loadingText && text) loadingText.textContent = text;
+      }
       if (deviceSetupState) deviceSetupState.classList.add("hidden");
+      if (pinLoginOverlay) pinLoginOverlay.classList.add("hidden");
       const loadingState = document.getElementById("loadingState");
       if (loadingState) loadingState.classList.remove("hidden");
     }
 
     function showSetup(statusText, state) {
-      hideAuthGate();
-      clearStoredPin();
-      setupPinAuth(function() {
-        setupAuthGate();
-      });
+      if (authGate) authGate.classList.remove("hidden");
+      if (authLoadingState) authLoadingState.classList.add("hidden");
+      if (deviceSetupState) deviceSetupState.classList.remove("hidden");
+      if (pinLoginOverlay) pinLoginOverlay.classList.add("hidden");
+
+      if (deviceSetupStatus && statusText) {
+        deviceSetupStatus.textContent = statusText;
+        if (state) {
+          deviceSetupStatus.dataset.state = state;
+        }
+      }
+      if (deviceKeyInput) {
+        deviceKeyInput.value = "";
+        validateInputKey();
+      }
     }
 
     function hideAuthGate() {
       if (authGate) {
         authGate.classList.add("hidden");
-        authGate.style.display = "none";
       }
       if (deviceSetupState) {
         deviceSetupState.classList.add("hidden");
-        deviceSetupState.style.display = "none";
+      }
+      if (pinLoginOverlay) {
+        pinLoginOverlay.classList.add("hidden");
       }
     }
 
     showDeviceSetupScreenFn = showSetup;
     hideAuthGateFn = hideAuthGate;
-    hideAuthGate();
 
     function validateInputKey() {
       if (!deviceKeyInput) return;
@@ -800,12 +809,13 @@
       });
     }
 
-
     if (saveDeviceKeyButton) {
       saveDeviceKeyButton.addEventListener("click", function() {
         const key = deviceKeyInput ? deviceKeyInput.value.trim() : "";
         try {
           financeApi.setDeviceKey(key);
+          clearStoredPin();
+          applyGuestModeRestrictions(false);
           showLoading("Verifying device key and loading finances…");
           startAuthorizedSession();
         } catch (err) {
@@ -813,6 +823,50 @@
         }
       });
     }
+
+    if (guestPinLoginButton) {
+      guestPinLoginButton.addEventListener("click", function() {
+        if (authGate) authGate.classList.add("hidden");
+        if (deviceSetupState) deviceSetupState.classList.add("hidden");
+        if (pinLoginOverlay) {
+          pinLoginOverlay.classList.remove("hidden");
+          const pinInput = document.getElementById("pinInput");
+          if (pinInput) {
+            pinInput.value = "";
+            pinInput.focus();
+          }
+        }
+        const pinError = document.getElementById("pinLoginError");
+        if (pinError) {
+          pinError.textContent = "";
+          pinError.classList.add("hidden");
+        }
+      });
+    }
+
+    if (pinBackToDeviceKeyButton) {
+      pinBackToDeviceKeyButton.addEventListener("click", function() {
+        if (pinLoginOverlay) pinLoginOverlay.classList.add("hidden");
+        showSetup("Enter your private key once to link this device.", "waiting");
+      });
+    }
+
+    setupPinAuth(function(pin, role) {
+      hideAuthGate();
+      restoreSpendingBucketsFromCache();
+      const hasCache = restoreExpensesFromCache();
+      if (hasCache) {
+        hideAuthGate();
+        updateSyncStatus("updating");
+        startAuthorizedSession({ backgroundOnly: true });
+      } else {
+        if (typeof document !== "undefined" && document.documentElement) {
+          document.documentElement.classList.remove("fast-start");
+        }
+        showLoading("Loading your finances…");
+        startAuthorizedSession({ backgroundOnly: false });
+      }
+    });
 
     const removeDeviceModal = document.getElementById("removeDeviceModal");
     const cancelRemoveDeviceBtn = document.getElementById("cancelRemoveDeviceBtn");
@@ -847,10 +901,7 @@
       currentWealthData = null;
       clearAuthorizedSession();
       applyGuestModeRestrictions(false);
-      hideAuthGate();
-      setupPinAuth(function() {
-        setupAuthGate();
-      });
+      showSetup("Enter your private key once to link this device.", "waiting");
       showToast("Device access removed.");
     }
 
@@ -879,21 +930,55 @@
       });
     });
 
-    hideAuthGate();
-
-    restoreSpendingBucketsFromCache();
-    const hasCache = restoreExpensesFromCache();
-    if (hasCache) {
+    // 1. Primary Admin Gate: 64-character device key check
+    if (financeApi.hasDeviceKey()) {
+      clearStoredPin();
+      applyGuestModeRestrictions(false);
       hideAuthGate();
-      updateSyncStatus("updating");
-      startAuthorizedSession({ backgroundOnly: true });
-    } else {
-      if (typeof document !== "undefined" && document.documentElement) {
-        document.documentElement.classList.remove("fast-start");
+
+      restoreSpendingBucketsFromCache();
+      const hasCache = restoreExpensesFromCache();
+      if (hasCache) {
+        hideAuthGate();
+        updateSyncStatus("updating");
+        startAuthorizedSession({ backgroundOnly: true });
+      } else {
+        if (typeof document !== "undefined" && document.documentElement) {
+          document.documentElement.classList.remove("fast-start");
+        }
+        showLoading("Loading your finances…");
+        startAuthorizedSession({ backgroundOnly: false });
       }
-      showLoading("Loading your finances…");
-      startAuthorizedSession({ backgroundOnly: false });
+      return;
     }
+
+    // 2. Secondary Guest Gate: Saved Guest PIN session check
+    const storedPin = getStoredPin();
+    if (storedPin === GUEST_PIN) {
+      applyGuestModeRestrictions(true);
+      hideAuthGate();
+
+      restoreSpendingBucketsFromCache();
+      const hasCache = restoreExpensesFromCache();
+      if (hasCache) {
+        hideAuthGate();
+        updateSyncStatus("updating");
+        startAuthorizedSession({ backgroundOnly: true });
+      } else {
+        if (typeof document !== "undefined" && document.documentElement) {
+          document.documentElement.classList.remove("fast-start");
+        }
+        showLoading("Loading your finances…");
+        startAuthorizedSession({ backgroundOnly: false });
+      }
+      return;
+    }
+
+    // 3. Neither device key nor guest PIN is active: show the setup gate
+    if (typeof document !== "undefined" && document.documentElement) {
+      document.documentElement.classList.remove("fast-start");
+    }
+    showSetup("Enter your private key once to link this device.", "waiting");
   }
 
   let pwaInstallDismissed = false;
@@ -3373,11 +3458,10 @@
             }
             clearStoredPin();
             removeExpenseCache();
-            hideAuthGate();
-            setupPinAuth(function() {
-              setupAuthGate();
-            });
-            showToast("Session expired or invalid PIN. Please enter your PIN.");
+            if (typeof showDeviceSetupScreenFn === "function") {
+              showDeviceSetupScreenFn("Device access revoked or invalid key. Please re-link.", "error");
+            }
+            showToast("Access revoked. Please re-enter your key or PIN.");
             return;
           }
 
