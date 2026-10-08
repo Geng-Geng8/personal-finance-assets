@@ -29,9 +29,57 @@
 <body>
 
   <!-- =========================================
+       TWO-PIN AUTHENTICATION LOGIN OVERLAY
+  ========================================== -->
+  <div class="pin-login-overlay" id="pinLoginOverlay">
+    <div class="pin-login-card">
+      <img class="pin-login-icon" src="assets/finance-icon.png" alt="Finance Icon">
+      <h2 class="pin-login-title">Personal Finance</h2>
+      <p class="pin-login-subtitle">Enter PIN to access your finances</p>
+
+      <div class="pin-input-wrap">
+        <input
+          type="password"
+          id="pinInput"
+          class="pin-input"
+          placeholder="••••"
+          maxlength="8"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Enter PIN"
+        >
+        <button type="button" id="togglePinVisibility" class="key-toggle-btn" aria-label="Toggle PIN visibility">Show</button>
+      </div>
+
+      <div class="pin-keypad" id="pinKeypad">
+        <button type="button" class="pin-key" data-key="1">1</button>
+        <button type="button" class="pin-key" data-key="2">2</button>
+        <button type="button" class="pin-key" data-key="3">3</button>
+        <button type="button" class="pin-key" data-key="4">4</button>
+        <button type="button" class="pin-key" data-key="5">5</button>
+        <button type="button" class="pin-key" data-key="6">6</button>
+        <button type="button" class="pin-key" data-key="7">7</button>
+        <button type="button" class="pin-key" data-key="8">8</button>
+        <button type="button" class="pin-key" data-key="9">9</button>
+        <button type="button" class="pin-key pin-key-action" data-key="clear">Clear</button>
+        <button type="button" class="pin-key" data-key="0">0</button>
+        <button type="button" class="pin-key pin-key-action" data-key="backspace" aria-label="Backspace">⌫</button>
+      </div>
+
+      <button class="primary-button pin-submit-btn" id="pinSubmitButton" type="button">
+        Submit
+      </button>
+
+      <p class="pin-login-error hidden" id="pinLoginError" role="alert"></p>
+    </div>
+  </div>
+
+  <!-- =========================================
        STAGE 4B DEVICE-KEY SETUP & STARTUP
   ========================================== -->
-  <div class="auth-gate" id="authGate">
+  <div class="auth-gate hidden" id="authGate" aria-hidden="true" style="display: none !important;">
     <div class="auth-card">
       <img class="auth-icon" src="assets/finance-icon.png" alt="Finance Icon">
       <h2>Personal Finance</h2>
@@ -41,7 +89,7 @@
         <p class="auth-loading-text">Loading your finances…</p>
       </div>
 
-      <div id="deviceSetupState" class="auth-action-state hidden">
+      <div id="deviceSetupState" class="auth-action-state hidden" style="display: none !important;">
         <p class="auth-desc">Set up this device with your private Personal Finance key.</p>
         <div class="device-key-field">
           <input type="password" id="deviceKeyInput" class="device-key-input" placeholder="Paste 64-character device key" autocomplete="off" spellcheck="false">

@@ -355,7 +355,9 @@
 
     restoreSpendingBucketsFromCache();
 
-    setupAuthGate();
+    setupPinAuth(function() {
+      setupAuthGate();
+    });
 
     setupPwaInstall();
 
@@ -453,6 +455,256 @@
     renderSpendingBuckets(null);
   }
 
+  /* =========================================
+     TWO-PIN AUTHENTICATION (MASTER VS. GUEST)
+  ========================================= */
+
+  const MASTER_PIN = "1234";
+  const GUEST_PIN = "8888";
+  const PIN_STORAGE_KEY = "personalFinance.pin";
+
+  function getStoredPin() {
+    try {
+      if (typeof financeApi !== "undefined" && typeof financeApi.getPin === "function") {
+        const pin = financeApi.getPin();
+        if (pin) return pin;
+      }
+      if (typeof window !== "undefined") {
+        return (window.localStorage && window.localStorage.getItem(PIN_STORAGE_KEY)) ||
+               null;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function setStoredPin(pin) {
+    try {
+      const val = String(pin || "").trim();
+      if (typeof financeApi !== "undefined" && typeof financeApi.setPin === "function") {
+        financeApi.setPin(val);
+      }
+      if (typeof window !== "undefined") {
+        if (window.localStorage) window.localStorage.setItem(PIN_STORAGE_KEY, val);
+      }
+    } catch (_) {}
+  }
+
+  function clearStoredPin() {
+    try {
+      if (typeof financeApi !== "undefined" && typeof financeApi.clearPin === "function") {
+        financeApi.clearPin();
+      }
+      if (typeof window !== "undefined") {
+        if (window.localStorage) window.localStorage.removeItem(PIN_STORAGE_KEY);
+      }
+    } catch (_) {}
+  }
+
+  function isGuestMode() {
+    return getStoredPin() === GUEST_PIN;
+  }
+
+  function applyGuestModeRestrictions(isGuest) {
+    if (typeof document === "undefined" || !document.body) return;
+
+    if (isGuest) {
+      document.body.classList.add("guest-mode");
+      if (document.documentElement) document.documentElement.classList.add("guest-mode");
+
+      const guestHiddenSelectors = [
+        "#addExpenseButton",
+        "#editAllocationsBtn",
+        "#saveButton",
+        "#deleteEditorButton",
+        "#saveWealthEditButton",
+        "#saveWealthReserveButton",
+        "#saveAllocationsButton",
+        "#saveSingleBucketButton",
+        ".wealth-row-edit-action",
+        ".reserve-manage-button",
+        ".available-spend-edit-btn"
+      ];
+      guestHiddenSelectors.forEach(function(sel) {
+        document.querySelectorAll(sel).forEach(function(el) {
+          el.style.display = "none";
+          el.setAttribute("disabled", "true");
+          el.setAttribute("aria-hidden", "true");
+        });
+      });
+
+      document.querySelectorAll("button").forEach(function(btn) {
+        const text = (btn.textContent || "").trim().toLowerCase();
+        if (
+          text === "edit" ||
+          text === "save" ||
+          text === "save expense" ||
+          text === "add expense" ||
+          text === "delete expense" ||
+          text === "save balance" ||
+          text === "save reserve" ||
+          text === "save allocations" ||
+          text === "save allocation" ||
+          text === "edit allocations" ||
+          text === "edit allocation"
+        ) {
+          btn.style.display = "none";
+          btn.setAttribute("disabled", "true");
+          btn.setAttribute("aria-hidden", "true");
+        }
+      });
+    } else {
+      document.body.classList.remove("guest-mode");
+      if (document.documentElement) document.documentElement.classList.remove("guest-mode");
+      const unhideSelectors = [
+        "#addExpenseButton",
+        "#editAllocationsBtn",
+        "#saveButton",
+        "#saveWealthEditButton",
+        "#saveWealthReserveButton",
+        "#saveAllocationsButton",
+        "#saveSingleBucketButton",
+        ".available-spend-edit-btn"
+      ];
+      unhideSelectors.forEach(function(sel) {
+        document.querySelectorAll(sel).forEach(function(el) {
+          el.style.display = "";
+          el.removeAttribute("disabled");
+          el.removeAttribute("aria-hidden");
+        });
+      });
+    }
+  }
+
+  function setupPinAuth(onAuthenticated) {
+    const overlay = document.getElementById("pinLoginOverlay");
+    const pinInput = document.getElementById("pinInput");
+    const togglePinVisibility = document.getElementById("togglePinVisibility");
+    const pinKeypad = document.getElementById("pinKeypad");
+    const submitBtn = document.getElementById("pinSubmitButton");
+    const errorEl = document.getElementById("pinLoginError");
+
+    function showError(msg) {
+      if (errorEl) {
+        errorEl.textContent = msg;
+        errorEl.classList.remove("hidden");
+      }
+    }
+
+    function clearError() {
+      if (errorEl) {
+        errorEl.textContent = "";
+        errorEl.classList.add("hidden");
+      }
+    }
+
+    function hideOverlay() {
+      if (overlay) {
+        overlay.classList.add("hidden");
+      }
+    }
+
+    function showOverlay() {
+      if (overlay) {
+        overlay.classList.remove("hidden");
+        if (pinInput) {
+          pinInput.value = "";
+          pinInput.focus();
+        }
+      }
+      clearError();
+    }
+
+    if (togglePinVisibility && pinInput) {
+      togglePinVisibility.addEventListener("click", function(e) {
+        e.preventDefault();
+        if (pinInput.type === "password") {
+          pinInput.type = "text";
+          togglePinVisibility.textContent = "Hide";
+        } else {
+          pinInput.type = "password";
+          togglePinVisibility.textContent = "Show";
+        }
+      });
+    }
+
+    if (pinKeypad && pinInput) {
+      pinKeypad.addEventListener("click", function(e) {
+        const btn = e.target.closest(".pin-key");
+        if (!btn) return;
+        const key = btn.dataset.key;
+        clearError();
+        if (key === "clear") {
+          pinInput.value = "";
+        } else if (key === "backspace") {
+          pinInput.value = pinInput.value.slice(0, -1);
+        } else if (key !== undefined) {
+          if (pinInput.value.length < 8) {
+            pinInput.value += key;
+          }
+        }
+      });
+    }
+
+    function handlePinSubmit() {
+      if (!pinInput) return;
+      const enteredPin = pinInput.value.trim();
+      if (!enteredPin) {
+        showError("Please enter your PIN.");
+        return;
+      }
+
+      if (enteredPin === MASTER_PIN) {
+        setStoredPin(MASTER_PIN);
+        applyGuestModeRestrictions(false);
+        hideOverlay();
+        if (typeof onAuthenticated === "function") {
+          onAuthenticated(MASTER_PIN, "master");
+        }
+      } else if (enteredPin === GUEST_PIN) {
+        setStoredPin(GUEST_PIN);
+        applyGuestModeRestrictions(true);
+        hideOverlay();
+        if (typeof onAuthenticated === "function") {
+          onAuthenticated(GUEST_PIN, "guest");
+        }
+      } else {
+        showError("Invalid PIN. Please try again.");
+        pinInput.value = "";
+        pinInput.focus();
+      }
+    }
+
+    if (submitBtn) {
+      submitBtn.addEventListener("click", handlePinSubmit);
+    }
+    if (pinInput) {
+      pinInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handlePinSubmit();
+        }
+      });
+      pinInput.addEventListener("input", clearError);
+    }
+
+    const storedPin = getStoredPin();
+    if (storedPin === MASTER_PIN) {
+      applyGuestModeRestrictions(false);
+      hideOverlay();
+      if (typeof onAuthenticated === "function") {
+        onAuthenticated(MASTER_PIN, "master");
+      }
+    } else if (storedPin === GUEST_PIN) {
+      applyGuestModeRestrictions(true);
+      hideOverlay();
+      if (typeof onAuthenticated === "function") {
+        onAuthenticated(GUEST_PIN, "guest");
+      }
+    } else {
+      showOverlay();
+    }
+  }
+
   let showDeviceSetupScreenFn = null;
   let hideAuthGateFn = null;
 
@@ -467,31 +719,34 @@
     const signOutButtons = document.querySelectorAll(".sign-out-button, .remove-device-button");
 
     function showLoading(text) {
-      if (authGate) authGate.classList.remove("hidden");
-      if (authLoadingState) authLoadingState.classList.remove("hidden");
+      if (authGate) authGate.classList.add("hidden");
       if (deviceSetupState) deviceSetupState.classList.add("hidden");
-      const loadingText = document.querySelector(".auth-loading-text");
-      if (loadingText && text) loadingText.textContent = text;
+      const loadingState = document.getElementById("loadingState");
+      if (loadingState) loadingState.classList.remove("hidden");
     }
 
     function showSetup(statusText, state) {
-      if (authGate) authGate.classList.remove("hidden");
-      if (authLoadingState) authLoadingState.classList.add("hidden");
-      if (deviceSetupState) deviceSetupState.classList.remove("hidden");
-      if (deviceKeyInput) deviceKeyInput.value = "";
-      if (saveDeviceKeyButton) saveDeviceKeyButton.disabled = true;
-      if (deviceSetupStatus) {
-        deviceSetupStatus.textContent = statusText || "Enter your private key once to link this device.";
-        deviceSetupStatus.dataset.state = state || "waiting";
-      }
+      hideAuthGate();
+      clearStoredPin();
+      setupPinAuth(function() {
+        setupAuthGate();
+      });
     }
 
     function hideAuthGate() {
-      if (authGate) authGate.classList.add("hidden");
+      if (authGate) {
+        authGate.classList.add("hidden");
+        authGate.style.display = "none";
+      }
+      if (deviceSetupState) {
+        deviceSetupState.classList.add("hidden");
+        deviceSetupState.style.display = "none";
+      }
     }
 
     showDeviceSetupScreenFn = showSetup;
     hideAuthGateFn = hideAuthGate;
+    hideAuthGate();
 
     function validateInputKey() {
       if (!deviceKeyInput) return;
@@ -585,12 +840,17 @@
 
     function executeRemoveDevice() {
       closeRemoveDeviceModal();
+      clearStoredPin();
       financeApi.clearDeviceKey();
       removeExpenseCache();
       removeWealthCache();
       currentWealthData = null;
       clearAuthorizedSession();
-      showSetup("Device access removed. Paste your key to set up again.", "waiting");
+      applyGuestModeRestrictions(false);
+      hideAuthGate();
+      setupPinAuth(function() {
+        setupAuthGate();
+      });
       showToast("Device access removed.");
     }
 
@@ -619,25 +879,20 @@
       });
     });
 
-    if (financeApi.hasDeviceKey()) {
-      restoreSpendingBucketsFromCache();
-      const hasCache = restoreExpensesFromCache();
-      if (hasCache) {
-        hideAuthGate();
-        updateSyncStatus("updating");
-        startAuthorizedSession({ backgroundOnly: true });
-      } else {
-        if (typeof document !== "undefined" && document.documentElement) {
-          document.documentElement.classList.remove("fast-start");
-        }
-        showLoading("Loading your finances…");
-        startAuthorizedSession({ backgroundOnly: false });
-      }
+    hideAuthGate();
+
+    restoreSpendingBucketsFromCache();
+    const hasCache = restoreExpensesFromCache();
+    if (hasCache) {
+      hideAuthGate();
+      updateSyncStatus("updating");
+      startAuthorizedSession({ backgroundOnly: true });
     } else {
       if (typeof document !== "undefined" && document.documentElement) {
         document.documentElement.classList.remove("fast-start");
       }
-      showSetup();
+      showLoading("Loading your finances…");
+      startAuthorizedSession({ backgroundOnly: false });
     }
   }
 
@@ -874,6 +1129,11 @@
     if (elGiving) {
       elGiving.textContent = formatBucketCurrency(data.giving);
     }
+    if (typeof isGuestMode === "function" && isGuestMode()) {
+      if (typeof applyGuestModeRestrictions === "function") {
+        applyGuestModeRestrictions(true);
+      }
+    }
   }
 
   function restoreSpendingBucketsFromCache() {
@@ -946,6 +1206,7 @@
 
   function openAllocationsModal() {
     if (typeof document === "undefined") return;
+    if ((typeof isGuestMode === "function" && isGuestMode()) || (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))) return;
 
     const modal = document.getElementById("manageAllocationsModal");
     const backdrop = document.getElementById("manageAllocationsBackdrop");
@@ -997,6 +1258,7 @@
 
   async function saveAllocations() {
     if (typeof document === "undefined") return;
+    if ((typeof isGuestMode === "function" && isGuestMode()) || (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))) return;
 
     const playInput = document.getElementById("allocPlayInput");
     const bizInput = document.getElementById("allocBusinessInput");
@@ -1073,6 +1335,7 @@
 
   function openSingleBucketModal(bucketKey) {
     if (typeof document === "undefined") return;
+    if ((typeof isGuestMode === "function" && isGuestMode()) || (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))) return;
     if (!BUCKET_METADATA[bucketKey]) return;
 
     activeSingleBucketKey = bucketKey;
@@ -1138,6 +1401,7 @@
 
   async function saveSingleBucketAllocation() {
     if (typeof document === "undefined" || !activeSingleBucketKey) return;
+    if ((typeof isGuestMode === "function" && isGuestMode()) || (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))) return;
 
     const input = document.getElementById("singleBucketAmountInput");
     const saveBtn = document.getElementById("saveSingleBucketButton");
@@ -1330,6 +1594,11 @@
     }
 
     setupWealthAccountsDelegation();
+    if (typeof isGuestMode === "function" && isGuestMode()) {
+      if (typeof applyGuestModeRestrictions === "function") {
+        applyGuestModeRestrictions(true);
+      }
+    }
   }
 
   let editingWealthAccountId = null;
@@ -1379,6 +1648,7 @@
 
   function openWealthBalanceEditor(accountId) {
     if (typeof document === "undefined") return;
+    if ((typeof isGuestMode === "function" && isGuestMode()) || (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))) return;
 
     let account = null;
     if (accountId === "crypto") {
@@ -1545,7 +1815,7 @@
   }
 
   async function handleSaveWealthBalance() {
-    if (isSavingWealthBalance || !editingWealthAccountId || typeof document === "undefined") return;
+    if ((typeof isGuestMode === "function" && isGuestMode()) || isSavingWealthBalance || !editingWealthAccountId || typeof document === "undefined") return;
 
     const elInput = document.getElementById("wealthEditInput");
     const elError = document.getElementById("wealthEditError");
@@ -1735,6 +2005,7 @@
 
   function openWealthReserveManager() {
     if (typeof document === "undefined" || !currentWealthData || !currentWealthData.reserveManagement) return;
+    if ((typeof isGuestMode === "function" && isGuestMode()) || (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))) return;
 
     selectedReserveMode = "add";
     const management = currentWealthData.reserveManagement;
@@ -1768,6 +2039,7 @@
 
   async function handleSaveWealthReserve() {
     if (isSavingWealthReserve || typeof document === "undefined") return;
+    if ((typeof isGuestMode === "function" && isGuestMode()) || (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))) return;
 
     const isEmergency = selectedReserveMode === "emergency";
     const reserveId = isEmergency ? "emergency_fund" : selectedReserveId;
@@ -3099,13 +3371,13 @@
             if (typeof financeApi.clearDeviceKey === "function") {
               financeApi.clearDeviceKey();
             }
+            clearStoredPin();
             removeExpenseCache();
-            if (showDeviceSetupScreenFn) {
-              showDeviceSetupScreenFn(
-                "Unauthorized: Invalid device key. Please re-enter your key.",
-                "error"
-              );
-            }
+            hideAuthGate();
+            setupPinAuth(function() {
+              setupAuthGate();
+            });
+            showToast("Session expired or invalid PIN. Please enter your PIN.");
             return;
           }
 
@@ -4096,6 +4368,11 @@
 
 
     scheduleProgressiveExpenseCheck();
+    if (typeof isGuestMode === "function" && isGuestMode()) {
+      if (typeof applyGuestModeRestrictions === "function") {
+        applyGuestModeRestrictions(true);
+      }
+    }
 
   }
 
@@ -7150,6 +7427,13 @@
   function openAddExpense() {
 
     if (
+      (typeof isGuestMode === "function" && isGuestMode()) ||
+      (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))
+    ) {
+      return;
+    }
+
+    if (
       blockWhileSaving()
     ) {
 
@@ -7234,6 +7518,13 @@
   function openEditExpense(
     id
   ) {
+
+    if (
+      (typeof isGuestMode === "function" && isGuestMode()) ||
+      (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))
+    ) {
+      return;
+    }
 
     if (
       blockWhileSaving()
@@ -7697,6 +7988,15 @@
 
     event.preventDefault();
 
+    if (
+      (typeof isGuestMode === "function" && isGuestMode()) ||
+      (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))
+    ) {
+      showFormError(
+        "Read-only access"
+      );
+      return;
+    }
 
     if (
       hasPendingWrite()
@@ -8329,6 +8629,13 @@
 
 
   function deleteExpenseFromEditor() {
+
+    if (
+      (typeof isGuestMode === "function" && isGuestMode()) ||
+      (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))
+    ) {
+      return;
+    }
 
     if (
       blockWhileSaving()

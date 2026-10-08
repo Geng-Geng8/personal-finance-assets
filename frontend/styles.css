@@ -4878,10 +4878,206 @@
 
 
 /* =========================================
+   TWO-PIN AUTHENTICATION OVERLAY & GUEST MODE
+========================================= */
+
+.pin-login-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100000;
+  text-align: center;
+}
+
+.pin-login-overlay.hidden {
+  display: none !important;
+}
+
+.pin-login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 32px 24px 28px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pin-login-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(40, 100, 220, 0.2);
+}
+
+.pin-login-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.pin-login-subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 0 0 20px 0;
+}
+
+.pin-input-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.pin-input {
+  width: 100%;
+  height: 52px;
+  padding: 0 52px 0 16px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  text-align: center;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.pin-input:focus {
+  border-color: var(--primary, #2864dc);
+  box-shadow: 0 0 0 3px rgba(40, 100, 220, 0.15);
+}
+
+.pin-input-wrap .key-toggle-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary, #2864dc);
+  cursor: pointer;
+  padding: 6px 4px;
+}
+
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 260px;
+  margin-bottom: 20px;
+}
+
+.pin-key {
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s, transform 0.1s, border-color 0.15s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pin-key:hover {
+  background: var(--hover-bg, rgba(0, 0, 0, 0.04));
+  border-color: var(--border-hover, var(--border));
+}
+
+.pin-key:active {
+  transform: scale(0.95);
+  background: var(--active-bg, rgba(0, 0, 0, 0.08));
+}
+
+.pin-key-action {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pin-submit-btn {
+  width: 100%;
+  max-width: 260px;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 14px;
+}
+
+.pin-login-error {
+  color: var(--danger, #dc2626);
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 14px;
+  min-height: 18px;
+}
+
+.pin-login-error.hidden {
+  display: none !important;
+}
+
+/* =========================================
+   GUEST READ-ONLY MODE
+========================================= */
+
+body.guest-mode #addExpenseButton,
+body.guest-mode #editAllocationsBtn,
+body.guest-mode #saveButton,
+body.guest-mode #deleteEditorButton,
+body.guest-mode #saveWealthEditButton,
+body.guest-mode #saveWealthReserveButton,
+body.guest-mode #saveAllocationsButton,
+body.guest-mode #saveSingleBucketButton,
+body.guest-mode .wealth-row-edit-action,
+body.guest-mode .reserve-manage-button,
+body.guest-mode .available-spend-edit-btn,
+body.guest-mode [data-guest-hidden="true"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.guest-mode .wealth-account-row.clickable,
+body.guest-mode .expense-card,
+body.guest-mode .clickable-bucket {
+  cursor: default !important;
+}
+
+/* =========================================
    STAGE 2B AUTH GATE
 ========================================= */
 
 html.fast-start #authGate {
+  display: none !important;
+}
+
+#authGate,
+.auth-gate,
+#deviceSetupState {
   display: none !important;
 }
 

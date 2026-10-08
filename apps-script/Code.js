@@ -5,6 +5,17 @@
 
 
 /* =========================================
+   TWO-PIN AUTHENTICATION (MASTER VS. GUEST)
+========================================= */
+
+const MASTER_PIN =
+  '1234';
+
+const GUEST_PIN =
+  '8888';
+
+
+/* =========================================
    SHEET
 ========================================= */
 
@@ -109,9 +120,58 @@ const EXPENSE_SERVER_CACHE_MAX_BYTES =
    WEB APP
 ========================================= */
 
-function doGet() {
-  // The GitHub Pages PWA uses authenticated doPost only. Never serve the
-  // legacy HTML UI here: its google.script.run calls bypass device-key auth.
+function doGet(e) {
+  const pin = (e && e.parameter && e.parameter.pin) ? String(e.parameter.pin).trim() : "";
+
+  // If action, function, or pin is supplied, treat as authenticated API query
+  if (e && e.parameter && (e.parameter.action || e.parameter.function || e.parameter.pin)) {
+    if (!pin || (pin !== MASTER_PIN && pin !== GUEST_PIN)) {
+      return jsonResponse_({
+        ok: false,
+        error: "Unauthorized"
+      });
+    }
+
+    const action = String(e.parameter.action || e.parameter.function || "");
+
+    if (action === "getExpenses") {
+      const forceRefresh = e.parameter.forceRefresh === "true" || e.parameter.forceRefresh === true;
+      return jsonResponse_({
+        ok: true,
+        expenses: getExpenses(forceRefresh)
+      });
+    }
+
+    if (action === "getWealth") {
+      return jsonResponse_({
+        ok: true,
+        wealth: getWealth()
+      });
+    }
+
+    if (action === "getSpendingBuckets") {
+      return jsonResponse_({
+        ok: true,
+        buckets: getSpendingBuckets()
+      });
+    }
+
+    if (!action || action === "verifyPin") {
+      return jsonResponse_({
+        ok: true,
+        status: "authenticated",
+        role: pin === MASTER_PIN ? "master" : "guest"
+      });
+    }
+
+    return jsonResponse_({
+      ok: false,
+      error: "Unauthorized"
+    });
+  }
+
+  // The GitHub Pages PWA uses authenticated doPost / Two-PIN query.
+  // Never serve the legacy HTML UI: its google.script.run calls bypass auth.
   return jsonResponse_({
     ok: false,
     error: "Unauthorized"
@@ -498,6 +558,10 @@ function addExpense(expense) {
 
   }
 
+  if (expense && String(expense.pin || "").trim() === GUEST_PIN) {
+    throw new Error("Read-only access");
+  }
+
 
   validateExpense(
     expense
@@ -608,6 +672,10 @@ function updateExpense(expense) {
       'Expense ID is missing.'
     );
 
+  }
+
+  if (expense && String(expense.pin || "").trim() === GUEST_PIN) {
+    throw new Error("Read-only access");
   }
 
 
@@ -728,6 +796,10 @@ function deleteExpense(id) {
       'Expense ID is missing.'
     );
 
+  }
+
+  if (typeof id === "object" && id !== null && String(id.pin || "").trim() === GUEST_PIN) {
+    throw new Error("Read-only access");
   }
 
 
@@ -1938,10 +2010,15 @@ function updateWealthReserve(payload) {
     throw new Error("Payload must be an object.");
   }
 
+  if (payload && String(payload.pin || "").trim() === GUEST_PIN) {
+    throw new Error("Read-only access");
+  }
+
   const allowedPayloadFields = Object.freeze({
     reserveId: true,
     operation: true,
-    amount: true
+    amount: true,
+    pin: true
   });
   const unexpectedField = Object.keys(payload).find(function(key) {
     return !allowedPayloadFields[key];
@@ -2090,6 +2167,10 @@ function updateWealthAccountBalance(payload) {
     throw new Error("Payload must be an object.");
   }
 
+  if (payload && String(payload.pin || "").trim() === GUEST_PIN) {
+    throw new Error("Read-only access");
+  }
+
   if (
     payload.sheet !== undefined ||
     payload.spreadsheetId !== undefined ||
@@ -2232,6 +2313,10 @@ function updateSpendingBuckets(payload) {
     throw new Error("Payload must be an object.");
   }
 
+  if (payload && String(payload.pin || "").trim() === GUEST_PIN) {
+    throw new Error("Read-only access");
+  }
+
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) {
     throw new Error("Server is busy. Please try again.");
@@ -2286,6 +2371,14 @@ function apiRequest(request) {
 
   const action = String(request.action || "");
   const payload = request.payload == null ? {} : request.payload;
+  const pin = String(request.pin || (payload && payload.pin) || "").trim();
+
+  if (pin === GUEST_PIN && action !== "getExpenses" && action !== "getWealth" && action !== "getSpendingBuckets") {
+    return {
+      ok: false,
+      error: "Read-only access"
+    };
+  }
 
   switch (action) {
     case "getExpenses":
@@ -2361,6 +2454,29 @@ function doPost(e) {
       return jsonResponse_({ ok: false, error: "Request body must be an object" });
     }
 
+    const action = String(body.action || "");
+    const payload = body.payload == null ? {} : body.payload;
+    const pin = String(body.pin || (payload && payload.pin) || (e && e.parameter && e.parameter.pin) || "").trim();
+
+    // Two-PIN Check:
+    if (pin === GUEST_PIN) {
+      // Guest PIN strictly blocks execution of update/mutating endpoints
+      if (action !== "getExpenses" && action !== "getWealth" && action !== "getSpendingBuckets") {
+        return jsonResponse_({ ok: false, error: "Read-only access" });
+      }
+      const result = apiRequest({ action, payload, pin });
+      return jsonResponse_(result);
+    }
+
+    if (pin === MASTER_PIN) {
+      const result = apiRequest({ action, payload, pin });
+      return jsonResponse_(result);
+    }
+
+    if (pin && pin !== MASTER_PIN && pin !== GUEST_PIN) {
+      return jsonResponse_({ ok: false, error: "Unauthorized" });
+    }
+
     const suppliedKey = String(body.deviceKey || "").trim();
     if (!suppliedKey || suppliedKey.length !== 64) {
       return jsonResponse_({ ok: false, error: "Unauthorized" });
@@ -2374,9 +2490,6 @@ function doPost(e) {
     if (suppliedKey.toLowerCase() !== configuredKey.trim().toLowerCase()) {
       return jsonResponse_({ ok: false, error: "Unauthorized" });
     }
-
-    const action = String(body.action || "");
-    const payload = body.payload == null ? {} : body.payload;
 
     const result = apiRequest({ action, payload });
     return jsonResponse_(result);

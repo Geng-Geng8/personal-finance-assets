@@ -2,6 +2,7 @@ const financeApi = (() => {
   "use strict";
 
   const STORAGE_KEY = "personalFinance.deviceKey";
+  const PIN_STORAGE_KEY = "personalFinance.pin";
   const KEY_REGEX = /^[a-f0-9]{64}$/i;
   const ALLOWED_ACTIONS = Object.freeze(["getExpenses", "addExpense", "updateExpense", "deleteExpense", "getWealth", "updateWealthAccountBalance", "updateWealthReserve", "getSpendingBuckets", "updateSpendingBuckets"]);
 
@@ -71,14 +72,91 @@ const financeApi = (() => {
     }
   }
 
+  function getPin() {
+    const storage = getStorage();
+    if (!storage) return null;
+    try {
+      const stored = storage.getItem(PIN_STORAGE_KEY);
+      if (stored && typeof stored === "string" && stored.trim().length > 0) {
+        return stored.trim();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function hasPin() {
+    return Boolean(getPin());
+  }
+
+  function setPin(rawPin) {
+    if (!rawPin) return false;
+    const storage = getStorage();
+    if (!storage) {
+      throw new Error("Local storage is not available on this device.");
+    }
+    const normalized = String(rawPin).trim();
+    storage.setItem(PIN_STORAGE_KEY, normalized);
+    return true;
+  }
+
+  function clearPin() {
+    const storage = getStorage();
+    if (storage) {
+      try {
+        storage.removeItem(PIN_STORAGE_KEY);
+      } catch (_) {}
+    }
+  }
+
+  function isGuest() {
+    return getPin() === "8888";
+  }
+
+  function isMaster() {
+    return getPin() === "1234";
+  }
+
+  async function fetchViaGet(action, params) {
+    const pin = getPin();
+    const config = getConfig();
+    const endpoint = config.webAppEndpointUrl;
+    let url;
+    try {
+      const urlObj = new URL(endpoint);
+      urlObj.searchParams.set("action", action);
+      if (pin) urlObj.searchParams.set("pin", pin);
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          urlObj.searchParams.set(k, String(v));
+        }
+      }
+      url = urlObj.toString();
+    } catch (_) {
+      url = endpoint + (endpoint.indexOf("?") === -1 ? "?" : "&") + "action=" + encodeURIComponent(action);
+      if (pin) url += "&pin=" + encodeURIComponent(pin);
+    }
+    const fetchFn = (typeof window !== "undefined" && window.fetch) ? window.fetch : (typeof fetch !== "undefined" ? fetch : null);
+    const response = await fetchFn(url, { method: "GET" });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) {
+      throw new Error(result.error || "GET request failed");
+    }
+    return result;
+  }
+
   async function runApi(action, payload) {
     if (!ALLOWED_ACTIONS.includes(action)) {
       throw new Error("Unsupported API action: " + action);
     }
 
     const deviceKey = getDeviceKey();
-    if (!deviceKey) {
+    const pin = getPin();
+    if (!deviceKey && !pin) {
       throw new Error("Device is not configured (Authorization is missing or expired). Please enter your device key.");
+    }
+
+    if (pin === "8888" && action !== "getExpenses" && action !== "getWealth" && action !== "getSpendingBuckets") {
+      throw new Error("Read-only access");
     }
 
     const config = getConfig();
@@ -94,17 +172,40 @@ const financeApi = (() => {
       throw new Error("fetch is not available in current environment.");
     }
 
+    let fetchUrl = endpoint;
+    if (pin) {
+      try {
+        const urlObj = new URL(endpoint);
+        urlObj.searchParams.set("pin", pin);
+        fetchUrl = urlObj.toString();
+      } catch (_) {
+        fetchUrl = endpoint + (endpoint.indexOf("?") === -1 ? "?" : "&") + "pin=" + encodeURIComponent(pin);
+      }
+    }
+
+    const payloadWithPin = Object.assign({}, payload || {});
+    if (pin) {
+      payloadWithPin.pin = pin;
+    }
+
+    const requestBody = {
+      action,
+      payload: payloadWithPin
+    };
+    if (deviceKey) {
+      requestBody.deviceKey = deviceKey;
+    }
+    if (pin) {
+      requestBody.pin = pin;
+    }
+
     const tFetchStart = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
-    const response = await fetchFn(endpoint, {
+    const response = await fetchFn(fetchUrl, {
       method: "POST",
       headers: {
         "Content-Type": "text/plain;charset=utf-8"
       },
-      body: JSON.stringify({
-        deviceKey,
-        action,
-        payload: payload || {}
-      })
+      body: JSON.stringify(requestBody)
     });
     const tFetchEnd = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
 
@@ -214,7 +315,17 @@ const financeApi = (() => {
     isAuthorized,
     onAuthStateChanged,
     getLastTimings,
-    signOut: clearDeviceKey
+    getPin,
+    setPin,
+    clearPin,
+    hasPin,
+    isGuest,
+    isMaster,
+    fetchViaGet,
+    signOut: function() {
+      clearDeviceKey();
+      clearPin();
+    }
   });
 })();
 
