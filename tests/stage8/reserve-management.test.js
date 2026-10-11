@@ -646,3 +646,142 @@ test("38. Emergency Fund remains unaffected by month row identity or month bound
   assert.equal(ctx._getCellValues().P14, 8200);
   assert.deepEqual(ctx._getWrittenCells(), ["P14"]);
 });
+
+test("39. Reserve Management action button labels and subtitles render dynamically based on active month and period", () => {
+  const html = read("index.html");
+  assert.match(html, /id="wealthReserveAddSubtitle"/);
+  assert.match(html, /id="wealthReservePaySubtitle"/);
+  assert.match(html, /id="wealthReserveReplaceTitle"/);
+  assert.match(html, /id="wealthReserveReplaceSubtitle"/);
+
+  const app = read("app.js");
+  const start = app.indexOf("  function getReserveManagementEntry(");
+  const end = app.indexOf("  function openWealthReserveManager()", start);
+  assert.ok(start > 0 && end > start);
+
+  function createMockElement(id, initialText = "", attributes = {}) {
+    const el = {
+      id,
+      textContent: initialText,
+      attributes: { ...attributes },
+      classList: {
+        toggle: () => {},
+        add: () => {},
+        remove: () => {}
+      },
+      getAttribute(k) { return el.attributes[k] || null; },
+      setAttribute(k, v) { el.attributes[k] = String(v); },
+      querySelector(selector) {
+        if (selector === "strong") return el.strong || null;
+        if (selector === "span") return el.span || null;
+        if (selector.startsWith("#")) {
+          const sid = selector.slice(1);
+          if (el.strong && el.strong.id === sid) return el.strong;
+          if (el.span && el.span.id === sid) return el.span;
+        }
+        return null;
+      }
+    };
+    return el;
+  }
+
+  function setupTestHarness(monthName, periodLabel) {
+    const elements = {};
+    const addSpan = createMockElement("wealthReserveAddSubtitle", "Add to September");
+    const addBtn = createMockElement("addBtn", "", { "data-reserve-mode": "add" });
+    addBtn.span = addSpan;
+
+    const paySpan = createMockElement("wealthReservePaySubtitle", "Subtract from September");
+    const payBtn = createMockElement("payBtn", "", { "data-reserve-mode": "pay" });
+    payBtn.span = paySpan;
+
+    const replaceTitle = createMockElement("wealthReserveReplaceTitle", "Correct September Total");
+    const replaceSpan = createMockElement("wealthReserveReplaceSubtitle", "Replace September's net value");
+    const replaceBtn = createMockElement("replaceBtn", "", { "data-reserve-mode": "replace" });
+    replaceBtn.strong = replaceTitle;
+    replaceBtn.span = replaceSpan;
+
+    const emergencyBtn = createMockElement("emergencyBtn", "", { "data-reserve-mode": "emergency" });
+
+    elements.wealthReservePeriod = createMockElement("wealthReservePeriod", "September 2026");
+    elements.wealthReserveCurrentLabel = createMockElement("wealthReserveCurrentLabel");
+    elements.wealthReserveCurrentValue = createMockElement("wealthReserveCurrentValue");
+    elements.wealthReserveOperationHelp = createMockElement("wealthReserveOperationHelp");
+    elements.wealthReserveInputLabel = createMockElement("wealthReserveInputLabel");
+    elements.wealthReserveInput = createMockElement("wealthReserveInput");
+    elements.saveWealthReserveButton = createMockElement("saveWealthReserveButton");
+    elements.wealthReserveAddSubtitle = addSpan;
+    elements.wealthReservePaySubtitle = paySpan;
+    elements.wealthReserveReplaceTitle = replaceTitle;
+    elements.wealthReserveReplaceSubtitle = replaceSpan;
+
+    const buttons = [addBtn, payBtn, replaceBtn, emergencyBtn];
+    const targetButtons = [
+      createMockElement("target1", "Tax Reserve", { "data-reserve-id": "tax_reserve_2026_09" }),
+      createMockElement("target2", "Income Tax / CPP", { "data-reserve-id": "income_tax_cpp_reserve_2026_09" })
+    ];
+
+    const doc = {
+      getElementById(id) { return elements[id] || null; },
+      querySelectorAll(selector) {
+        if (selector === "[data-reserve-mode]") return buttons;
+        if (selector === "[data-reserve-id]") return targetButtons;
+        return [];
+      },
+      querySelector() { return null; }
+    };
+
+    const periodId = "2026-" + (monthName === "October" ? "10" : monthName === "November" ? "11" : monthName === "December" ? "12" : "09");
+    const taxId = "tax_reserve_" + periodId.replace("-", "_");
+    const incomeId = "income_tax_cpp_reserve_" + periodId.replace("-", "_");
+
+    const context = vm.createContext({
+      document: doc,
+      selectedReserveMode: "add",
+      selectedReserveId: taxId,
+      formatCurrency: v => "$" + Number(v).toFixed(2),
+      currentWealthData: {
+        reserveManagement: {
+          periodId,
+          periodLabel,
+          monthName,
+          reserves: [
+            { reserveId: taxId, name: "Tax Reserve", currentValue: 100, isEditable: true },
+            { reserveId: incomeId, name: "Income Tax / CPP", currentValue: 200, isEditable: true },
+            { reserveId: "emergency_fund", name: "Emergency Fund", currentValue: 6000, isEditable: true }
+          ]
+        }
+      }
+    });
+
+    vm.runInContext(app.slice(start, end), context);
+    context.renderReserveManagerSelection(true);
+
+    return { elements, addSpan, paySpan, replaceTitle, replaceSpan };
+  }
+
+  // October 2026 check
+  const oct = setupTestHarness("October", "October 2026");
+  assert.equal(oct.addSpan.textContent, "Add to October");
+  assert.equal(oct.paySpan.textContent, "Subtract from October");
+  assert.equal(oct.replaceTitle.textContent, "Correct October Total");
+  assert.equal(oct.replaceSpan.textContent, "Replace October's net value");
+  assert.equal(oct.elements.wealthReservePeriod.textContent, "October 2026");
+  assert.equal(oct.elements.wealthReserveCurrentLabel.textContent, "Current October movement");
+
+  // November 2026 check
+  const nov = setupTestHarness("November", "November 2026");
+  assert.equal(nov.addSpan.textContent, "Add to November");
+  assert.equal(nov.paySpan.textContent, "Subtract from November");
+  assert.equal(nov.replaceTitle.textContent, "Correct November Total");
+  assert.equal(nov.replaceSpan.textContent, "Replace November's net value");
+  assert.equal(nov.elements.wealthReservePeriod.textContent, "November 2026");
+
+  // September 2026 check
+  const sep = setupTestHarness("September", "September 2026");
+  assert.equal(sep.addSpan.textContent, "Add to September");
+  assert.equal(sep.paySpan.textContent, "Subtract from September");
+  assert.equal(sep.replaceTitle.textContent, "Correct September Total");
+  assert.equal(sep.replaceSpan.textContent, "Replace September's net value");
+  assert.equal(sep.elements.wealthReservePeriod.textContent, "September 2026");
+});

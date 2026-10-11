@@ -1989,8 +1989,14 @@
     const activeReserveId = isEmergency ? "emergency_fund" : selectedReserveId;
     const activeReserve = getReserveManagementEntry(activeReserveId);
 
-    const periodLabel = management && management.periodLabel ? management.periodLabel : "September 2026";
-    const monthName = management && management.monthName ? management.monthName : periodLabel.split(" ")[0];
+    const now = new Date();
+    const fallbackMonthName = now.toLocaleDateString("en-CA", { month: "long" });
+    const fallbackPeriodLabel = fallbackMonthName + " " + now.getFullYear();
+
+    const periodLabel = management && management.periodLabel ? management.periodLabel : fallbackPeriodLabel;
+    const monthName = management && management.monthName
+      ? management.monthName
+      : (periodLabel ? periodLabel.split(" ")[0] : fallbackMonthName);
 
     const elPeriod = document.getElementById("wealthReservePeriod");
     if (elPeriod) {
@@ -1998,10 +2004,33 @@
     }
 
     document.querySelectorAll("[data-reserve-mode]").forEach(function(button) {
-      const selected = button.getAttribute("data-reserve-mode") === selectedReserveMode;
+      const mode = button.getAttribute("data-reserve-mode");
+      const selected = mode === selectedReserveMode;
       button.classList.toggle("is-selected", selected);
       button.setAttribute("aria-pressed", selected ? "true" : "false");
+
+      if (mode === "add") {
+        const sub = button.querySelector("#wealthReserveAddSubtitle") || button.querySelector("span");
+        if (sub) sub.textContent = "Add to " + monthName;
+      } else if (mode === "pay") {
+        const sub = button.querySelector("#wealthReservePaySubtitle") || button.querySelector("span");
+        if (sub) sub.textContent = "Subtract from " + monthName;
+      } else if (mode === "replace") {
+        const title = button.querySelector("#wealthReserveReplaceTitle") || button.querySelector("strong");
+        if (title) title.textContent = "Correct " + monthName + " Total";
+        const sub = button.querySelector("#wealthReserveReplaceSubtitle") || button.querySelector("span");
+        if (sub) sub.textContent = "Replace " + monthName + "'s net value";
+      }
     });
+
+    const elAddSub = document.getElementById("wealthReserveAddSubtitle");
+    if (elAddSub) elAddSub.textContent = "Add to " + monthName;
+    const elPaySub = document.getElementById("wealthReservePaySubtitle");
+    if (elPaySub) elPaySub.textContent = "Subtract from " + monthName;
+    const elReplaceTitle = document.getElementById("wealthReserveReplaceTitle");
+    if (elReplaceTitle) elReplaceTitle.textContent = "Correct " + monthName + " Total";
+    const elReplaceSub = document.getElementById("wealthReserveReplaceSubtitle");
+    if (elReplaceSub) elReplaceSub.textContent = "Replace " + monthName + "'s net value";
 
     const taxEntry = (management && management.reserves || []).find(function(r) {
       return r && (r.reserveId && r.reserveId.startsWith("tax_reserve"));
@@ -2097,7 +2126,10 @@
     const activeTax = (management.reserves || []).find(function(r) {
       return r && (r.reserveId && r.reserveId.startsWith("tax_reserve"));
     });
-    selectedReserveId = activeTax ? activeTax.reserveId : "tax_reserve_2026_09";
+    const fallbackTaxId = management && management.periodId
+      ? "tax_reserve_" + management.periodId.replace(/-/g, "_")
+      : "tax_reserve_2026_09";
+    selectedReserveId = activeTax ? activeTax.reserveId : fallbackTaxId;
     renderReserveManagerSelection(true);
 
     const elBackdrop = document.getElementById("wealthReserveBackdrop");
@@ -2994,7 +3026,11 @@
       wealthReserveTargets.addEventListener("click", function(e) {
         const button = e.target.closest("[data-reserve-id]");
         if (!button || isSavingWealthReserve) return;
-        selectedReserveId = button.getAttribute("data-reserve-id") || "tax_reserve_2026_09";
+        const management = currentWealthData && currentWealthData.reserveManagement;
+        const fallbackTarget = management && management.periodId
+          ? "tax_reserve_" + management.periodId.replace(/-/g, "_")
+          : "tax_reserve_2026_09";
+        selectedReserveId = button.getAttribute("data-reserve-id") || fallbackTarget;
         renderReserveManagerSelection(true);
       });
     }
