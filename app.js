@@ -7828,6 +7828,7 @@
 
     selectedGrantTag =
       expense.bucket === "Small Business" &&
+      expense.category === "Business" &&
       expense.grantTag
         ? String(expense.grantTag).trim()
         : "";
@@ -8009,9 +8010,8 @@
                 "";
 
 
-              if (selectedBucket !== "Small Business") {
-                selectedGrantTag = "";
-              }
+              selectedGrantTag =
+                "";
 
 
               renderBucketChoices();
@@ -8043,8 +8043,12 @@
         "categoryChoices"
       );
 
+    if (!container) return;
 
     container.innerHTML = "";
+    if (Array.isArray(container.children)) {
+      container.children = [];
+    }
 
 
     const categories =
@@ -8104,7 +8108,19 @@
               name;
 
 
+            if (
+              selectedBucket !== "Small Business" ||
+              selectedCategory !== "Business"
+            ) {
+              selectedGrantTag = "";
+            }
+
+
             renderCategoryChoices();
+
+            renderGrantTagChoices();
+
+            updateGrantTagSectionVisibility();
 
           }
         );
@@ -8207,6 +8223,7 @@
 
     const shouldShow =
       selectedBucket === "Small Business" &&
+      selectedCategory === "Business" &&
       !isGuestModeActive();
 
     if (shouldShow) {
@@ -8439,7 +8456,8 @@
           .trim(),
 
       grantTag:
-        selectedBucket === "Small Business"
+        selectedBucket === "Small Business" &&
+        selectedCategory === "Business"
           ? selectedGrantTag
           : ""
 

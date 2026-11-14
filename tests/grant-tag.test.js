@@ -497,10 +497,15 @@ test("API: addExpense and updateExpense forward grantTag and normalize omitted t
   assert.equal(requests[1].body.payload.grantTag, "");
 });
 
-test("Frontend UI: index.html has hidden #grantTagSection and root/frontend files are synced", () => {
+test("Frontend UI: index.html has hidden #grantTagSection below Category and root/frontend files are synced", () => {
   const html = fs.readFileSync(path.join(repositoryRoot, "frontend", "index.html"), "utf8");
   assert.match(html, /class="[^"]*\bhidden\b[^"]*"[\s\S]*?id="grantTagSection"/);
   assert.match(html, /id="grantTagChoices"/);
+
+  const categoryChoicesPos = html.indexOf('id="categoryChoices"');
+  const grantTagSectionPos = html.indexOf('id="grantTagSection"');
+  assert.ok(categoryChoicesPos !== -1 && grantTagSectionPos !== -1);
+  assert.ok(grantTagSectionPos > categoryChoicesPos, "#grantTagSection must render below Category selector");
 
   const css = fs.readFileSync(path.join(repositoryRoot, "frontend", "styles.css"), "utf8");
   assert.match(css, /body\.guest-mode\s+#grantTagSection/);
@@ -513,17 +518,19 @@ test("Frontend UI: index.html has hidden #grantTagSection and root/frontend file
   }
 });
 
-test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-only visibility, toggle deselect, bucket switch reset", () => {
+test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-category-only visibility, toggle deselect, category & bucket switch reset", () => {
   const dom = createInteractiveMockDom();
   const ctx = loadFrontendApp(dom);
 
   ctx.renderBucketChoices();
+  ctx.renderCategoryChoices();
   ctx.renderGrantTagChoices();
   ctx.updateGrantTagSectionVisibility();
 
   const grantTagSection = dom.getElementById("grantTagSection");
   const grantTagChoices = dom.getElementById("grantTagChoices");
   const bucketChoices = dom.getElementById("bucketChoices");
+  const categoryChoices = dom.getElementById("categoryChoices");
 
   // Hidden by default (Play is default bucket)
   assert.ok(grantTagSection.classList.contains("hidden"));
@@ -553,12 +560,26 @@ test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-only visibili
     expectedTags
   );
 
-  // Switch to Small Business -> #grantTagSection becomes visible
-  const businessBtn = bucketChoices.querySelectorAll(".bucket-choice-btn")
+  // Selecting Small Business Bucket alone keeps #grantTagSection hidden
+  const smallBusinessBucketBtn = bucketChoices.querySelectorAll(".bucket-choice-btn")
     .find(b => b.innerHTML.includes("Small Business"));
-  assert.ok(businessBtn);
-  businessBtn.click();
-  assert.equal(grantTagSection.classList.contains("hidden"), false);
+  assert.ok(smallBusinessBucketBtn);
+  smallBusinessBucketBtn.click();
+  assert.ok(grantTagSection.classList.contains("hidden"), "#grantTagSection must stay hidden when only Small Business bucket is selected");
+
+  // Selecting a non-Business Category under Small Business keeps #grantTagSection hidden
+  const websitesCatBtn = categoryChoices.querySelectorAll(".category-choice-tile")
+    .find(b => b.innerHTML.includes("Websites"));
+  assert.ok(websitesCatBtn);
+  websitesCatBtn.click();
+  assert.ok(grantTagSection.classList.contains("hidden"), "#grantTagSection must stay hidden for non-Business categories");
+
+  // Selecting Business Category reveals #grantTagSection
+  const businessCatBtn = categoryChoices.querySelectorAll(".category-choice-tile")
+    .find(b => b.innerHTML.includes(">Business<"));
+  assert.ok(businessCatBtn);
+  businessCatBtn.click();
+  assert.equal(grantTagSection.classList.contains("hidden"), false, "#grantTagSection must show when Business category is selected");
 
   // Tap OAC-Art-DKM/Switch -> selected
   const dkmBtn = grantTagChoices.querySelectorAll(".grant-tag-btn")
@@ -576,7 +597,7 @@ test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-only visibili
   assert.equal(dkmBtnAfterDeselect.classList.contains("selected"), false);
   assert.equal(dkmBtnAfterDeselect.getAttribute("aria-pressed"), "false");
 
-  // Select OAC-Prod-Tech, then switch away to Play -> hides and clears selection
+  // Select OAC-Prod-Tech, then switch Category from Business to Websites -> hides and clears selection
   const techBtn = grantTagChoices.querySelectorAll(".grant-tag-btn")
     .find(b => b.getAttribute("data-grant-tag") === "OAC-Prod-Tech");
   techBtn.click();
@@ -586,22 +607,50 @@ test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-only visibili
       .classList.contains("selected")
   );
 
+  categoryChoices.querySelectorAll(".category-choice-tile")
+    .find(b => b.innerHTML.includes("Websites"))
+    .click();
+  assert.ok(grantTagSection.classList.contains("hidden"));
+
+  // Switch back to Business Category -> previously selected tag was cleared
+  categoryChoices.querySelectorAll(".category-choice-tile")
+    .find(b => b.innerHTML.includes(">Business<"))
+    .click();
+  assert.equal(grantTagSection.classList.contains("hidden"), false);
+  assert.equal(
+    grantTagChoices.querySelectorAll(".grant-tag-btn").filter(b => b.classList.contains("selected")).length,
+    0
+  );
+
+  // Select tag again, then switch Bucket away to Play -> hides and clears selection
+  grantTagChoices.querySelectorAll(".grant-tag-btn")
+    .find(b => b.getAttribute("data-grant-tag") === "OAC-Art-Glen")
+    .click();
+  assert.equal(
+    grantTagChoices.querySelectorAll(".grant-tag-btn").filter(b => b.classList.contains("selected")).length,
+    1
+  );
+
   const playBtn = bucketChoices.querySelectorAll(".bucket-choice-btn")
     .find(b => b.innerHTML.includes("Play"));
   playBtn.click();
   assert.ok(grantTagSection.classList.contains("hidden"));
 
-  // Switch back to Small Business -> previously selected tag was cleared
-  const businessBtn2 = bucketChoices.querySelectorAll(".bucket-choice-btn")
-    .find(b => b.innerHTML.includes("Small Business"));
-  businessBtn2.click();
+  // Switch back to Small Business -> Business -> previously selected tag was cleared
+  bucketChoices.querySelectorAll(".bucket-choice-btn")
+    .find(b => b.innerHTML.includes("Small Business"))
+    .click();
+  assert.ok(grantTagSection.classList.contains("hidden"));
+  categoryChoices.querySelectorAll(".category-choice-tile")
+    .find(b => b.innerHTML.includes(">Business<"))
+    .click();
   assert.equal(grantTagSection.classList.contains("hidden"), false);
   const selectedAfterSwitch = grantTagChoices.querySelectorAll(".grant-tag-btn")
     .filter(b => b.classList.contains("selected"));
   assert.equal(selectedAfterSwitch.length, 0);
 });
 
-test("Frontend Behavior: saveExpense allows optional blank grantTag and sends selected grantTag; openEditExpense pre-selects tag", async () => {
+test("Frontend Behavior: saveExpense allows optional blank grantTag and sends selected grantTag; openEditExpense checks Business category", async () => {
   const dom = createInteractiveMockDom();
   const addedPayloads = [];
   const mockApi = {
@@ -618,22 +667,35 @@ test("Frontend Behavior: saveExpense allows optional blank grantTag and sends se
     globals: { financeApi: mockApi }
   });
 
-  // Seed one existing Business expense with a Grant Tag
+  // Seed Business-category expense with Grant Tag AND non-Business category expense under Small Business
   vm.runInContext(`
-    currentExpenses = [{
-      id: "exp-biz-1",
-      date: "2026-10-15",
-      cost: 88.5,
-      bucket: "Small Business",
-      category: "Websites",
-      item: "Hosting",
-      notes: "Annual",
-      paymentMethod: "Credit Card",
-      grantTag: "OAC-Mentor-Avery"
-    }];
+    currentExpenses = [
+      {
+        id: "exp-biz-1",
+        date: "2026-10-15",
+        cost: 88.5,
+        bucket: "Small Business",
+        category: "Business",
+        item: "Printing",
+        notes: "Program cards",
+        paymentMethod: "Credit Card",
+        grantTag: "OAC-Mentor-Avery"
+      },
+      {
+        id: "exp-biz-noncat",
+        date: "2026-10-15",
+        cost: 20.0,
+        bucket: "Small Business",
+        category: "Websites",
+        item: "Hosting",
+        notes: "Monthly",
+        paymentMethod: "Credit Card",
+        grantTag: "OAC-Art-Glen"
+      }
+    ];
   `, ctx);
 
-  // 1. Editing pre-selects OAC-Mentor-Avery and shows #grantTagSection
+  // 1. Editing Business-category expense pre-selects OAC-Mentor-Avery and shows #grantTagSection
   ctx.openEditExpense("exp-biz-1");
   const grantTagSection = dom.getElementById("grantTagSection");
   const grantTagChoices = dom.getElementById("grantTagChoices");
@@ -644,14 +706,25 @@ test("Frontend Behavior: saveExpense allows optional blank grantTag and sends se
   assert.equal(preselected[0].getAttribute("data-grant-tag"), "OAC-Mentor-Avery");
   ctx.closeEditor();
 
-  // 2. Adding a Small Business expense WITHOUT selecting a grantTag saves without validation error
+  // 1b. Editing non-Business category expense under Small Business keeps #grantTagSection hidden
+  ctx.openEditExpense("exp-biz-noncat");
+  assert.ok(grantTagSection.classList.contains("hidden"));
+  assert.equal(
+    grantTagChoices.querySelectorAll(".grant-tag-btn").filter(b => b.classList.contains("selected")).length,
+    0
+  );
+  ctx.closeEditor();
+
+  // 2. Adding a Small Business -> Business expense WITHOUT selecting a grantTag saves without validation error
   ctx.openAddExpense();
   const businessBtn = dom.getElementById("bucketChoices").querySelectorAll(".bucket-choice-btn")
     .find(b => b.innerHTML.includes("Small Business"));
   businessBtn.click();
 
-  const catBtn = dom.getElementById("categoryChoices").querySelectorAll(".category-choice-tile")[0];
+  const catBtn = dom.getElementById("categoryChoices").querySelectorAll(".category-choice-tile")
+    .find(b => b.innerHTML.includes(">Business<"));
   catBtn.click();
+  assert.equal(grantTagSection.classList.contains("hidden"), false);
   const payBtn = dom.getElementById("paymentChoices").querySelectorAll(".payment-button")[0];
   payBtn.click();
   dom.getElementById("date").value = "2026-10-16";
@@ -663,15 +736,18 @@ test("Frontend Behavior: saveExpense allows optional blank grantTag and sends se
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(addedPayloads.length, 1);
   assert.equal(addedPayloads[0].bucket, "Small Business");
+  assert.equal(addedPayloads[0].category, "Business");
   assert.equal(addedPayloads[0].grantTag, "");
   assert.equal(dom.getElementById("formError").textContent, "");
 
-  // 3. Adding a Small Business expense WITH a grantTag sends it
+  // 3. Adding a Small Business -> Business expense WITH a grantTag sends it
   ctx.openAddExpense();
   dom.getElementById("bucketChoices").querySelectorAll(".bucket-choice-btn")
     .find(b => b.innerHTML.includes("Small Business"))
     .click();
-  dom.getElementById("categoryChoices").querySelectorAll(".category-choice-tile")[0].click();
+  dom.getElementById("categoryChoices").querySelectorAll(".category-choice-tile")
+    .find(b => b.innerHTML.includes(">Business<"))
+    .click();
   dom.getElementById("paymentChoices").querySelectorAll(".payment-button")[0].click();
   grantTagChoices.querySelectorAll(".grant-tag-btn")
     .find(b => b.getAttribute("data-grant-tag") === "OAC-Art-Judges")
