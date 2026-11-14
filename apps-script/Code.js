@@ -89,7 +89,7 @@ const PAYMENT_METHODS = [
 ========================================= */
 
 const EXPENSE_SERVER_CACHE_VERSION =
-  1;
+  2;
 
 
 const EXPENSE_SERVER_CACHE_KEY =
@@ -271,7 +271,7 @@ function readExpensesFromSheet_() {
 
 
   /*
-   * Read columns A:H in one batch.
+   * Read columns A:I in one batch.
    *
    * A = ID
    * B = Date
@@ -281,6 +281,7 @@ function readExpensesFromSheet_() {
    * F = Item
    * G = Notes
    * H = Payment Method
+   * I = Grant Tag
    */
 
   const rows =
@@ -289,7 +290,7 @@ function readExpensesFromSheet_() {
         2,
         1,
         lastRow - 1,
-        8
+        9
       )
       .getValues();
 
@@ -371,6 +372,11 @@ function readExpensesFromSheet_() {
         paymentMethod:
           String(
             row[7] || ''
+          ).trim(),
+
+        grantTag:
+          String(
+            row[8] || ''
           ).trim()
 
       })
@@ -624,7 +630,13 @@ function addExpense(expense) {
           ).trim()
         : '',
 
-      expense.paymentMethod
+      expense.paymentMethod,
+
+      expense.grantTag
+        ? String(
+            expense.grantTag
+          ).trim()
+        : ''
 
     ]);
 
@@ -733,7 +745,7 @@ function updateExpense(expense) {
     /*
      * ID stays in column A.
      *
-     * Replace columns B:H.
+     * Replace columns B:I.
      */
 
     sheet
@@ -741,7 +753,7 @@ function updateExpense(expense) {
         rowNumber,
         2,
         1,
-        7
+        8
       )
       .setValues([[
         date,
@@ -756,7 +768,12 @@ function updateExpense(expense) {
               expense.notes
             ).trim()
           : '',
-        expense.paymentMethod
+        expense.paymentMethod,
+        expense.grantTag
+          ? String(
+              expense.grantTag
+            ).trim()
+          : ''
       ]]);
 
 

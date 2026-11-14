@@ -263,12 +263,18 @@ const financeApi = (() => {
     return runApi("updateSpendingBuckets", payload);
   }
 
+  function normalizeExpensePayload(expense) {
+    const normalized = Object.assign({}, expense || {});
+    normalized.grantTag = normalized.grantTag ? String(normalized.grantTag).trim() : "";
+    return normalized;
+  }
+
   async function addExpense(expense) {
-    return runApi("addExpense", expense);
+    return runApi("addExpense", normalizeExpensePayload(expense));
   }
 
   async function updateExpense(expense) {
-    return runApi("updateExpense", expense);
+    return runApi("updateExpense", normalizeExpensePayload(expense));
   }
 
   async function deleteExpense(id) {

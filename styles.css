@@ -4356,6 +4356,224 @@
   }
 
 
+  /* OAC GRANT TAG SELECTOR (SMALL BUSINESS ONLY) */
+
+  .grant-tag-section {
+
+    border-color: var(--bucket-business-border);
+
+    background: linear-gradient(180deg, #fffdf7 0%, var(--surface) 100%);
+
+  }
+
+  .entry-step-optional {
+
+    width: auto;
+
+    min-width: 28px;
+
+    padding: 0 6px;
+
+    background: var(--bucket-business-bg);
+
+    color: #b45309;
+
+    font-size: 9.5px;
+
+    letter-spacing: 0.03em;
+
+  }
+
+  .grant-tag-heading {
+
+    color: var(--text);
+
+    font-size: 12.5px;
+
+    font-weight: 750;
+
+    letter-spacing: -0.01em;
+
+  }
+
+  .optional-label {
+
+    color: var(--text-soft);
+
+    font-size: 9.5px;
+
+    font-weight: 650;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.05em;
+
+  }
+
+  .grant-tag-groups {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+  }
+
+  .grant-tag-row {
+
+    display: grid;
+
+    grid-template-columns: 50px minmax(0, 1fr);
+
+    align-items: center;
+
+    gap: 8px;
+
+  }
+
+  .grant-tag-group-label {
+
+    color: var(--text-secondary);
+
+    font-size: 10.5px;
+
+    font-weight: 750;
+
+    letter-spacing: 0.02em;
+
+    text-transform: uppercase;
+
+  }
+
+  .grant-tag-row-buttons {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 5px;
+
+    min-width: 0;
+
+  }
+
+  .grant-tag-btn {
+
+    min-height: 34px;
+
+    padding: 6px 10px;
+
+    border: 1px solid #d4dae5;
+
+    border-radius: 10px;
+
+    background: var(--surface);
+
+    color: var(--text-secondary);
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 4px;
+
+    cursor: pointer;
+
+    font: inherit;
+
+    font-size: 11.5px;
+
+    font-weight: 650;
+
+    line-height: 1.15;
+
+    white-space: nowrap;
+
+    transition:
+      transform 120ms ease,
+      border-color 150ms ease,
+      background-color 150ms ease,
+      color 150ms ease,
+      box-shadow 150ms ease;
+
+  }
+
+  .grant-tag-btn:active {
+
+    transform: scale(0.96);
+
+  }
+
+  .grant-tag-btn:focus-visible {
+
+    outline: 3px solid var(--bucket-business);
+
+    outline-offset: 2px;
+
+  }
+
+  .grant-tag-btn.selected {
+
+    background: var(--bucket-business-bg);
+
+    border-color: var(--bucket-business);
+
+    color: #b45309;
+
+    font-weight: 750;
+
+    box-shadow: 0 0 0 1px var(--bucket-business);
+
+  }
+
+  .grant-tag-check {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: currentColor;
+
+  }
+
+  @media (pointer: coarse) {
+
+    .grant-tag-btn {
+
+      min-height: 38px;
+
+      padding: 7px 11px;
+
+    }
+
+  }
+
+  @media (max-width: 370px) {
+
+    .grant-tag-row {
+
+      grid-template-columns: 44px minmax(0, 1fr);
+
+      gap: 6px;
+
+    }
+
+    .grant-tag-btn {
+
+      font-size: 11px;
+
+      padding: 6px 8px;
+
+    }
+
+  }
+
+
   /* CATEGORY TILES GRID - COMPACT 64-72px WITH GLYPHS */
 
   .editor-sheet .premium-category-grid {
@@ -5073,6 +5291,9 @@ body.guest-mode #saveSingleBucketButton,
 body.guest-mode .wealth-row-edit-action,
 body.guest-mode .reserve-manage-button,
 body.guest-mode .available-spend-edit-btn,
+body.guest-mode #grantTagSection,
+body.guest-mode #grantTagChoices,
+body.guest-mode .grant-tag-btn,
 body.guest-mode [data-guest-hidden="true"] {
   display: none !important;
   visibility: hidden !important;

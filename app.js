@@ -55,6 +55,35 @@
   ];
 
 
+  const GRANT_TAG_GROUPS = [
+    {
+      group: "Art",
+      tags: [
+        { label: "Glen", value: "OAC-Art-Glen" },
+        { label: "Avery", value: "OAC-Art-Avery" },
+        { label: "DKM/Switch", value: "OAC-Art-DKM/Switch" },
+        { label: "Buffer", value: "OAC-Art-Buffer" },
+        { label: "Judges", value: "OAC-Art-Judges" }
+      ]
+    },
+    {
+      group: "Prod",
+      tags: [
+        { label: "Tech", value: "OAC-Prod-Tech" },
+        { label: "Equip", value: "OAC-Prod-Equip" }
+      ]
+    },
+    {
+      group: "Mentor",
+      tags: [
+        { label: "Avery", value: "OAC-Mentor-Avery" },
+        { label: "DKM/Switch", value: "OAC-Mentor-DKM/Switch" },
+        { label: "Glen", value: "OAC-Mentor-Glen" }
+      ]
+    }
+  ];
+
+
   const CHART_COLORS = [
     "#2864dc",
     "#7557d8",
@@ -144,6 +173,8 @@
   let selectedCategory = "";
 
   let selectedPaymentMethod = "";
+
+  let selectedGrantTag = "";
 
   let editingExpenseId = null;
 
@@ -343,6 +374,10 @@
 
     renderBucketChoices();
 
+    renderGrantTagChoices();
+
+    updateGrantTagSectionVisibility();
+
     renderCategoryChoices();
 
     renderPaymentChoices();
@@ -502,6 +537,13 @@
     return getStoredPin() === GUEST_PIN;
   }
 
+  function isGuestModeActive() {
+    return (
+      (typeof isGuestMode === "function" && isGuestMode()) ||
+      (typeof document !== "undefined" && document.body && document.body.classList.contains("guest-mode"))
+    );
+  }
+
   function applyGuestModeRestrictions(isGuest) {
     if (typeof document === "undefined" || !document.body) return;
 
@@ -518,6 +560,8 @@
         "#saveWealthReserveButton",
         "#saveAllocationsButton",
         "#saveSingleBucketButton",
+        "#grantTagSection",
+        ".grant-tag-btn",
         ".wealth-row-edit-action",
         ".reserve-manage-button",
         ".available-spend-edit-btn"
@@ -561,6 +605,8 @@
         "#saveWealthReserveButton",
         "#saveAllocationsButton",
         "#saveSingleBucketButton",
+        "#grantTagSection",
+        ".grant-tag-btn",
         ".available-spend-edit-btn"
       ];
       unhideSelectors.forEach(function(sel) {
@@ -570,6 +616,12 @@
           el.removeAttribute("aria-hidden");
         });
       });
+      if (typeof renderGrantTagChoices === "function") {
+        renderGrantTagChoices();
+      }
+      if (typeof updateGrantTagSectionVisibility === "function") {
+        updateGrantTagSectionVisibility();
+      }
     }
   }
 
@@ -2872,7 +2924,12 @@
         expense.notes || "",
 
       paymentMethod:
-        expense.paymentMethod
+        expense.paymentMethod,
+
+      grantTag:
+        expense.grantTag
+          ? String(expense.grantTag).trim()
+          : ""
 
     };
 
@@ -7620,7 +7677,15 @@
       "";
 
 
+    selectedGrantTag =
+      "";
+
+
     renderBucketChoices();
+
+    renderGrantTagChoices();
+
+    updateGrantTagSectionVisibility();
 
     renderCategoryChoices();
 
@@ -7761,7 +7826,18 @@
       "";
 
 
+    selectedGrantTag =
+      expense.bucket === "Small Business" &&
+      expense.grantTag
+        ? String(expense.grantTag).trim()
+        : "";
+
+
     renderBucketChoices();
+
+    renderGrantTagChoices();
+
+    updateGrantTagSectionVisibility();
 
     renderCategoryChoices();
 
@@ -7840,6 +7916,15 @@
       null;
 
 
+    selectedGrantTag =
+      "";
+
+
+    renderGrantTagChoices();
+
+    updateGrantTagSectionVisibility();
+
+
     setSavingState(
       false
     );
@@ -7864,8 +7949,12 @@
         "bucketChoices"
       );
 
+    if (!container) return;
 
     container.innerHTML = "";
+    if (Array.isArray(container.children)) {
+      container.children = [];
+    }
 
 
     Object
@@ -7920,7 +8009,16 @@
                 "";
 
 
+              if (selectedBucket !== "Small Business") {
+                selectedGrantTag = "";
+              }
+
+
               renderBucketChoices();
+
+              renderGrantTagChoices();
+
+              updateGrantTagSectionVisibility();
 
               renderCategoryChoices();
 
@@ -8098,6 +8196,166 @@
   }
 
 
+  function updateGrantTagSectionVisibility() {
+
+    const section =
+      document.getElementById(
+        "grantTagSection"
+      );
+
+    if (!section) return;
+
+    const shouldShow =
+      selectedBucket === "Small Business" &&
+      !isGuestModeActive();
+
+    if (shouldShow) {
+      section.classList.remove("hidden");
+      if (typeof section.removeAttribute === "function") {
+        section.removeAttribute("aria-hidden");
+      } else {
+        section.setAttribute("aria-hidden", "false");
+      }
+    } else {
+      section.classList.add("hidden");
+      section.setAttribute("aria-hidden", "true");
+    }
+
+  }
+
+
+  function renderGrantTagChoices() {
+
+    const container =
+      document.getElementById(
+        "grantTagChoices"
+      );
+
+    if (!container) return;
+
+    container.innerHTML = "";
+    if (Array.isArray(container.children)) {
+      container.children = [];
+    }
+
+    const guest =
+      isGuestModeActive();
+
+    GRANT_TAG_GROUPS.forEach(
+      function(groupItem) {
+
+        const row =
+          document.createElement("div");
+
+        row.className =
+          "grant-tag-row";
+
+        row.setAttribute(
+          "data-grant-group",
+          groupItem.group
+        );
+
+        const groupLabel =
+          document.createElement("span");
+
+        groupLabel.className =
+          "grant-tag-group-label";
+
+        groupLabel.textContent =
+          groupItem.group;
+
+        row.appendChild(groupLabel);
+
+        const buttonsWrap =
+          document.createElement("div");
+
+        buttonsWrap.className =
+          "grant-tag-row-buttons";
+
+        buttonsWrap.setAttribute(
+          "role",
+          "group"
+        );
+
+        buttonsWrap.setAttribute(
+          "aria-label",
+          groupItem.group + " grant tags"
+        );
+
+        groupItem.tags.forEach(
+          function(tag) {
+
+            const button =
+              document.createElement("button");
+
+            button.type =
+              "button";
+
+            const isSelected =
+              selectedGrantTag === tag.value;
+
+            button.className =
+              "grant-tag-btn" +
+              (isSelected ? " selected" : "");
+
+            button.setAttribute(
+              "data-grant-tag",
+              tag.value
+            );
+
+            button.setAttribute(
+              "aria-pressed",
+              isSelected ? "true" : "false"
+            );
+
+            button.setAttribute(
+              "title",
+              tag.value
+            );
+
+            if (guest) {
+              button.disabled = true;
+              button.setAttribute("disabled", "true");
+              button.setAttribute("aria-hidden", "true");
+            }
+
+            button.innerHTML =
+              (isSelected
+                ? '<span class="grant-tag-check" aria-hidden="true"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></svg></span>'
+                : '') +
+              '<span class="grant-tag-label">' +
+              tag.label +
+              '</span>';
+
+            button.addEventListener(
+              "click",
+              function() {
+                if (isGuestModeActive()) {
+                  return;
+                }
+                selectedGrantTag =
+                  selectedGrantTag === tag.value
+                    ? ""
+                    : tag.value;
+                renderGrantTagChoices();
+              }
+            );
+
+            buttonsWrap.appendChild(button);
+
+          }
+        );
+
+        row.appendChild(buttonsWrap);
+
+        container.appendChild(row);
+
+      }
+    );
+
+  }
+
+
   /* =========================================
      OPTIMISTIC ADD / EDIT
   ========================================= */
@@ -8178,7 +8436,12 @@
             "notes"
           )
           .value
-          .trim()
+          .trim(),
+
+      grantTag:
+        selectedBucket === "Small Business"
+          ? selectedGrantTag
+          : ""
 
     };
 
