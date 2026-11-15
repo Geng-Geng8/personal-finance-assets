@@ -18,7 +18,7 @@ This document describes structure, formulas, editability, and server mappings. I
 
 ## `Spending_Master2026`
 
-Header row is row 1; transactions begin at row 2.
+Header row is row 1; transactions begin at row 2 (`A2:I`).
 
 | Column | Meaning | Write rule |
 | --- | --- | --- |
@@ -30,8 +30,9 @@ Header row is row 1; transactions begin at row 2.
 | F | Item | Required trimmed text |
 | G | Notes | Optional trimmed text |
 | H | Payment Method | Backend allowlist |
+| I | Grant Tag | Optional (`""` allowed) or backend 13-tag allowlist: `OAC-Art-Glen`, `OAC-Art-Avery`, `OAC-Art-DKM/Switch`, `OAC-Art-Buffer`, `OAC-Art-Judges`, `OAC-Prod-Tech`, `OAC-Prod-Equip`, `OAC-Mentor-Avery`, `OAC-Mentor-DKM/Switch`, `OAC-Mentor-Glen`, `H4-CWS`, `H4-Filipino`, `H4-Ops` |
 
-Updates/deletes resolve the current row from the immutable ID. Expense mutations use `LockService` and invalidate the short-lived server cache.
+`getExpenses` reads `A2:I`. `addExpense` writes `A:I`. `updateExpense` resolves the current row from the immutable Column A ID and writes `B:I` (preserving Column A ID and Column I `Grant Tag`). Expense mutations use `LockService` and invalidate the short-lived server cache.
 
 ## `2026-Budgets` Wealth summary
 

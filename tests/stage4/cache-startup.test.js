@@ -94,9 +94,9 @@ test("11. existing finance calculations remain unchanged", () => {
 });
 
 // 12. new shell version invalidates old cache
-test("12. new shell version is finance-shell-v2 and cleans old cache versions", () => {
+test("12. new shell version is finance-shell-v3 and cleans old cache versions", () => {
   const swCode = read("sw.js");
-  assert.match(swCode, /const CACHE_NAME = "finance-shell-v2";/);
+  assert.match(swCode, /const CACHE_NAME = "finance-shell-v3";/);
   assert.match(swCode, /self\.skipWaiting\(\)/);
   assert.match(swCode, /caches\.delete\(key\)/);
   assert.match(swCode, /self\.clients\.claim\(\)/);

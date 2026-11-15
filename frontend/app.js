@@ -80,6 +80,14 @@
         { label: "DKM/Switch", value: "OAC-Mentor-DKM/Switch" },
         { label: "Glen", value: "OAC-Mentor-Glen" }
       ]
+    },
+    {
+      group: "H4",
+      tags: [
+        { label: "CWS", value: "H4-CWS" },
+        { label: "Filipino", value: "H4-Filipino" },
+        { label: "Ops", value: "H4-Ops" }
+      ]
     }
   ];
 
@@ -7597,6 +7605,15 @@
         "submit",
         saveExpense
       );
+
+    if (!expenseForm._hasGrantTagResetListener) {
+      expenseForm._hasGrantTagResetListener = true;
+      expenseForm.addEventListener("reset", function() {
+        selectedGrantTag = "";
+        renderGrantTagChoices();
+        updateGrantTagSectionVisibility();
+      });
+    }
 
   }
 

@@ -54,13 +54,23 @@ Normal runtime does **not** use Google OAuth. Financial reads and writes use aut
 
 | Action | Method | Current behavior |
 | --- | --- | --- |
-| `getExpenses` | Authenticated POST | Reads authoritative expenses, optionally bypassing short server cache |
-| `addExpense` | Authenticated POST | Validates and appends one expense |
-| `updateExpense` | Authenticated POST | Resolves immutable expense ID and updates the matching record |
+| `getExpenses` | Authenticated POST | Reads authoritative expenses (`A2:I`, including optional `grantTag`), optionally bypassing short server cache |
+| `addExpense` | Authenticated POST | Validates (including 13-tag `grantTag` allowlist) and appends all 9 columns (`A:I`) |
+| `updateExpense` | Authenticated POST | Resolves immutable expense ID, validates (including `grantTag`), and writes columns `B:I` |
 | `deleteExpense` | Authenticated POST | Resolves immutable expense ID and deletes the matching record |
 | `getWealth` | Authenticated POST | Returns summaries, Canadian accounts, Philippines accounts, and reserve state |
 | `updateWealthAccountBalance` | Authenticated POST | Writes one allowlisted native balance, flushes Sheets, rereads full Wealth state |
 | `updateWealthReserve` | Authenticated POST | Applies one allowlisted reserve operation and rereads full Wealth state |
+
+### `Spending_Master2026` Column I (`Grant Tag`) contract
+
+- `Spending_Master2026` uses columns `A:I` (9 columns).
+- Column I (`Grant Tag`) is optional (`""` / omitted allowed) or must match the server-side 13-tag `ALLOWED_GRANT_TAGS` allowlist in `apps-script/Code.js`:
+  - **OAC Art:** `OAC-Art-Glen`, `OAC-Art-Avery`, `OAC-Art-DKM/Switch`, `OAC-Art-Buffer`, `OAC-Art-Judges`
+  - **OAC Prod:** `OAC-Prod-Tech`, `OAC-Prod-Equip`
+  - **OAC Mentor:** `OAC-Mentor-Avery`, `OAC-Mentor-DKM/Switch`, `OAC-Mentor-Glen`
+  - **H4:** `H4-CWS`, `H4-Filipino`, `H4-Ops`
+- In the Add/Edit Expense modal, `#grantTagSection` reveals only when `Small Business` Bucket → `Business` Category is selected, rendering the 4 groups (`Art`, `Prod`, `Mentor`, `H4`). Single-select toggles off back to `""`, form reset/switch clears `grantTag`, and guest mode hides/disables grant tags.
 
 For Wealth account writes the browser sends only:
 
@@ -183,7 +193,8 @@ Tax and Income Tax / CPP reserves support `add`, `pay`, and `replace`; Emergency
 
 - GitHub Pages serves the production frontend.
 - Manifest uses standalone, portrait-first mobile behavior.
-- Service worker caches static shell assets only; it does not cache financial API traffic.
+- Service worker (`sw.js`, current static shell cache `finance-shell-v3`) caches static shell assets only; it does not cache financial API traffic.
+- Root and `/frontend/` maintain byte-identical parity across the 7 static frontend files (`index.html`, `app.js`, `styles.css`, `api.js`, `config.js`, `sw.js`, `manifest.webmanifest`).
 - Expense and Wealth snapshots in `localStorage` are convenience copies, never authority.
 - Removing the device clears authorization plus cached financial state.
 - Installed-PWA cache/state issues can be resolved by reinstalling when the browser instance itself is stale; backend state should not be changed merely to work around a stale installed shell.

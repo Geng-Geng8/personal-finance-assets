@@ -470,6 +470,148 @@ test("Backend: updateExpense updates Column I in B:I and clears to '' when empty
   assert.equal(expenses[0].grantTag, "");
 });
 
+test("Backend: 13-tag allowlist accepts '', all 10 OAC- tags, and H4-CWS/H4-Filipino/H4-Ops while rejecting unknown/malformed tags", () => {
+  const validTags = [
+    "",
+    "OAC-Art-Glen",
+    "OAC-Art-Avery",
+    "OAC-Art-DKM/Switch",
+    "OAC-Art-Buffer",
+    "OAC-Art-Judges",
+    "OAC-Prod-Tech",
+    "OAC-Prod-Equip",
+    "OAC-Mentor-Avery",
+    "OAC-Mentor-DKM/Switch",
+    "OAC-Mentor-Glen",
+    "H4-CWS",
+    "H4-Filipino",
+    "H4-Ops"
+  ];
+
+  const { context, rows } = createFakeSheetHarness();
+  const createdIds = [];
+
+  for (const tag of validTags) {
+    const res = context.addExpense({
+      date: "2026-11-10",
+      cost: "42.00",
+      bucket: "Small Business",
+      category: "Business",
+      item: `Test ${tag || "blank"}`,
+      notes: "",
+      paymentMethod: "Credit Card",
+      grantTag: tag
+    });
+    assert.equal(res.success, true);
+    createdIds.push([res.id, tag]);
+  }
+
+  const readBack = JSON.parse(JSON.stringify(context.getExpenses(true)));
+  const byId = Object.fromEntries(readBack.map(e => [e.id, e]));
+  for (const [id, tag] of createdIds) {
+    assert.equal(byId[id].grantTag, tag);
+  }
+
+  const rowCountBeforeInvalid = rows.length;
+  const invalidTags = [
+    "H4-Unknown",
+    "H4-cws",
+    "OAC-Invalid",
+    "OAC-Art-Unknown",
+    "random-tag",
+    "H4-Ops-Extra"
+  ];
+
+  for (const badTag of invalidTags) {
+    assert.throws(
+      () =>
+        context.addExpense({
+          date: "2026-11-10",
+          cost: "10.00",
+          bucket: "Small Business",
+          category: "Business",
+          item: "Invalid tag add",
+          paymentMethod: "Cash",
+          grantTag: badTag
+        }),
+      /grant tag/i
+    );
+    assert.throws(
+      () =>
+        context.updateExpense({
+          id: createdIds[0][0],
+          date: "2026-11-10",
+          cost: "10.00",
+          bucket: "Small Business",
+          category: "Business",
+          item: "Invalid tag update",
+          paymentMethod: "Cash",
+          grantTag: badTag
+        }),
+      /grant tag/i
+    );
+  }
+
+  assert.equal(rows.length, rowCountBeforeInvalid);
+  assert.equal(rows[1][8], "");
+});
+
+test("Backend: updateExpense resolves by immutable ID and writes B:I preserving H4-CWS, H4-Filipino, and H4-Ops", () => {
+  const { context, rows } = createFakeSheetHarness([
+    ["exp-h4-1", "2026-11-01", 30, "Small Business", "Business", "CWS Supplies", "Init", "Credit Card", "H4-CWS"],
+    ["exp-h4-2", "2026-11-02", 45, "Small Business", "Business", "Event Snacks", "Init", "E-Transfer", "H4-Filipino"],
+    ["exp-h4-3", "2026-11-03", 60, "Small Business", "Business", "Admin Tool", "Init", "Cash", "H4-Ops"]
+  ]);
+
+  context.updateExpense({
+    id: "exp-h4-1",
+    date: "2026-11-04",
+    cost: "35.25",
+    bucket: "Small Business",
+    category: "Business",
+    item: "CWS Supplies Updated",
+    notes: "Edited notes",
+    paymentMethod: "E-Transfer",
+    grantTag: "H4-CWS"
+  });
+  context.updateExpense({
+    id: "exp-h4-2",
+    date: "2026-11-05",
+    cost: "50.00",
+    bucket: "Small Business",
+    category: "Business",
+    item: "Event Snacks Updated",
+    notes: "Edited",
+    paymentMethod: "Credit Card",
+    grantTag: "H4-Filipino"
+  });
+  context.updateExpense({
+    id: "exp-h4-3",
+    date: "2026-11-06",
+    cost: "65.00",
+    bucket: "Small Business",
+    category: "Business",
+    item: "Admin Tool Updated",
+    notes: "Edited",
+    paymentMethod: "Other",
+    grantTag: "H4-Ops"
+  });
+
+  assert.equal(rows[1][0], "exp-h4-1");
+  assert.equal(rows[1][8], "H4-CWS");
+  assert.equal(rows[2][0], "exp-h4-2");
+  assert.equal(rows[2][8], "H4-Filipino");
+  assert.equal(rows[3][0], "exp-h4-3");
+  assert.equal(rows[3][8], "H4-Ops");
+
+  const expenses = JSON.parse(JSON.stringify(context.getExpenses(true)));
+  const byId = Object.fromEntries(expenses.map(e => [e.id, e]));
+  assert.equal(byId["exp-h4-1"].grantTag, "H4-CWS");
+  assert.equal(byId["exp-h4-1"].cost, 35.25);
+  assert.equal(byId["exp-h4-2"].grantTag, "H4-Filipino");
+  assert.equal(byId["exp-h4-3"].grantTag, "H4-Ops");
+});
+
 test("API: addExpense and updateExpense forward grantTag and normalize omitted to ''", async () => {
   const { financeApi, requests } = loadFrontendApi();
 
@@ -511,14 +653,17 @@ test("Frontend UI: index.html has hidden #grantTagSection below Category and roo
   assert.match(css, /body\.guest-mode\s+#grantTagSection/);
   assert.match(css, /body\.guest-mode\s+\.grant-tag-btn/);
 
-  for (const file of ["index.html", "styles.css", "api.js", "app.js"]) {
+  for (const file of ["index.html", "app.js", "styles.css", "api.js", "config.js", "sw.js", "manifest.webmanifest"]) {
     const rootContent = fs.readFileSync(path.join(repositoryRoot, file), "utf8");
     const frontendContent = fs.readFileSync(path.join(repositoryRoot, "frontend", file), "utf8");
     assert.equal(rootContent, frontendContent, `${file} must match frontend/${file}`);
   }
+
+  const swCode = fs.readFileSync(path.join(repositoryRoot, "sw.js"), "utf8");
+  assert.match(swCode, /const CACHE_NAME = "finance-shell-v3";/);
 });
 
-test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-category-only visibility, toggle deselect, category & bucket switch reset", () => {
+test("Frontend Behavior: renders 13 grant tags in 4 rows including H4, Business-category-only visibility, toggle deselect, reset & switch reset", () => {
   const dom = createInteractiveMockDom();
   const ctx = loadFrontendApp(dom);
 
@@ -535,10 +680,16 @@ test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-category-only
   // Hidden by default (Play is default bucket)
   assert.ok(grantTagSection.classList.contains("hidden"));
 
-  // Verify 3 groups and 10 exact tags
-  assert.equal(grantTagChoices.children.length, 3);
+  // Verify 4 groups (Art, Prod, Mentor, H4) and 13 exact tags
+  assert.equal(grantTagChoices.children.length, 4);
+  const h4Row = grantTagChoices.children[3];
+  assert.equal(h4Row.className, "grant-tag-row");
+  assert.equal(h4Row.getAttribute("data-grant-group"), "H4");
+  assert.equal(h4Row.children[0].className, "grant-tag-group-label");
+  assert.equal(h4Row.children[0].textContent, "H4");
+
   const tagButtons = grantTagChoices.querySelectorAll(".grant-tag-btn");
-  assert.equal(tagButtons.length, 10);
+  assert.equal(tagButtons.length, 13);
 
   const expectedTags = [
     ["Glen", "OAC-Art-Glen"],
@@ -550,7 +701,10 @@ test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-category-only
     ["Equip", "OAC-Prod-Equip"],
     ["Avery", "OAC-Mentor-Avery"],
     ["DKM/Switch", "OAC-Mentor-DKM/Switch"],
-    ["Glen", "OAC-Mentor-Glen"]
+    ["Glen", "OAC-Mentor-Glen"],
+    ["CWS", "H4-CWS"],
+    ["Filipino", "H4-Filipino"],
+    ["Ops", "H4-Ops"]
   ];
   assert.deepEqual(
     tagButtons.map(b => [
@@ -581,21 +735,36 @@ test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-category-only
   businessCatBtn.click();
   assert.equal(grantTagSection.classList.contains("hidden"), false, "#grantTagSection must show when Business category is selected");
 
-  // Tap OAC-Art-DKM/Switch -> selected
-  const dkmBtn = grantTagChoices.querySelectorAll(".grant-tag-btn")
-    .find(b => b.getAttribute("data-grant-tag") === "OAC-Art-DKM/Switch");
-  dkmBtn.click();
-  const dkmBtnAfterSelect = grantTagChoices.querySelectorAll(".grant-tag-btn")
-    .find(b => b.getAttribute("data-grant-tag") === "OAC-Art-DKM/Switch");
-  assert.ok(dkmBtnAfterSelect.classList.contains("selected"));
-  assert.equal(dkmBtnAfterSelect.getAttribute("aria-pressed"), "true");
+  // Tap H4-CWS -> selected
+  const cwsBtn = grantTagChoices.querySelectorAll(".grant-tag-btn")
+    .find(b => b.getAttribute("data-grant-tag") === "H4-CWS");
+  cwsBtn.click();
+  const cwsBtnAfterSelect = grantTagChoices.querySelectorAll(".grant-tag-btn")
+    .find(b => b.getAttribute("data-grant-tag") === "H4-CWS");
+  assert.ok(cwsBtnAfterSelect.classList.contains("selected"));
+  assert.equal(cwsBtnAfterSelect.getAttribute("aria-pressed"), "true");
 
   // Tap active tag again -> deselects (resets to "")
-  dkmBtnAfterSelect.click();
-  const dkmBtnAfterDeselect = grantTagChoices.querySelectorAll(".grant-tag-btn")
-    .find(b => b.getAttribute("data-grant-tag") === "OAC-Art-DKM/Switch");
-  assert.equal(dkmBtnAfterDeselect.classList.contains("selected"), false);
-  assert.equal(dkmBtnAfterDeselect.getAttribute("aria-pressed"), "false");
+  cwsBtnAfterSelect.click();
+  const cwsBtnAfterDeselect = grantTagChoices.querySelectorAll(".grant-tag-btn")
+    .find(b => b.getAttribute("data-grant-tag") === "H4-CWS");
+  assert.equal(cwsBtnAfterDeselect.classList.contains("selected"), false);
+  assert.equal(cwsBtnAfterDeselect.getAttribute("aria-pressed"), "false");
+
+  // Select H4-Ops, then reset form -> clears selection
+  grantTagChoices.querySelectorAll(".grant-tag-btn")
+    .find(b => b.getAttribute("data-grant-tag") === "H4-Ops")
+    .click();
+  assert.equal(
+    grantTagChoices.querySelectorAll(".grant-tag-btn").filter(b => b.classList.contains("selected")).length,
+    1
+  );
+  ctx.setupExpenseEditor();
+  dom.getElementById("expenseForm").dispatchEvent({ type: "reset" });
+  assert.equal(
+    grantTagChoices.querySelectorAll(".grant-tag-btn").filter(b => b.classList.contains("selected")).length,
+    0
+  );
 
   // Select OAC-Prod-Tech, then switch Category from Business to Websites -> hides and clears selection
   const techBtn = grantTagChoices.querySelectorAll(".grant-tag-btn")
@@ -624,7 +793,7 @@ test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-category-only
 
   // Select tag again, then switch Bucket away to Play -> hides and clears selection
   grantTagChoices.querySelectorAll(".grant-tag-btn")
-    .find(b => b.getAttribute("data-grant-tag") === "OAC-Art-Glen")
+    .find(b => b.getAttribute("data-grant-tag") === "H4-Filipino")
     .click();
   assert.equal(
     grantTagChoices.querySelectorAll(".grant-tag-btn").filter(b => b.classList.contains("selected")).length,
@@ -650,7 +819,7 @@ test("Frontend Behavior: renders 10 grant tags in 3 rows, Business-category-only
   assert.equal(selectedAfterSwitch.length, 0);
 });
 
-test("Frontend Behavior: saveExpense allows optional blank grantTag and sends selected grantTag; openEditExpense checks Business category", async () => {
+test("Frontend Behavior: saveExpense allows optional blank grantTag and sends H4/OAC tags; openEditExpense hydrates H4-CWS, H4-Filipino, H4-Ops", async () => {
   const dom = createInteractiveMockDom();
   const addedPayloads = [];
   const mockApi = {
@@ -667,7 +836,7 @@ test("Frontend Behavior: saveExpense allows optional blank grantTag and sends se
     globals: { financeApi: mockApi }
   });
 
-  // Seed Business-category expense with Grant Tag AND non-Business category expense under Small Business
+  // Seed Business-category expenses with OAC & H4 Grant Tags AND non-Business category expense
   vm.runInContext(`
     currentExpenses = [
       {
@@ -680,6 +849,39 @@ test("Frontend Behavior: saveExpense allows optional blank grantTag and sends se
         notes: "Program cards",
         paymentMethod: "Credit Card",
         grantTag: "OAC-Mentor-Avery"
+      },
+      {
+        id: "exp-h4-cws",
+        date: "2026-11-10",
+        cost: 30,
+        bucket: "Small Business",
+        category: "Business",
+        item: "Workshop",
+        notes: "",
+        paymentMethod: "Credit Card",
+        grantTag: "H4-CWS"
+      },
+      {
+        id: "exp-h4-fil",
+        date: "2026-11-11",
+        cost: 40,
+        bucket: "Small Business",
+        category: "Business",
+        item: "Community Meal",
+        notes: "",
+        paymentMethod: "E-Transfer",
+        grantTag: "H4-Filipino"
+      },
+      {
+        id: "exp-h4-ops",
+        date: "2026-11-12",
+        cost: 55,
+        bucket: "Small Business",
+        category: "Business",
+        item: "Software",
+        notes: "",
+        paymentMethod: "Credit Card",
+        grantTag: "H4-Ops"
       },
       {
         id: "exp-biz-noncat",
@@ -695,16 +897,24 @@ test("Frontend Behavior: saveExpense allows optional blank grantTag and sends se
     ];
   `, ctx);
 
-  // 1. Editing Business-category expense pre-selects OAC-Mentor-Avery and shows #grantTagSection
-  ctx.openEditExpense("exp-biz-1");
+  // 1. Editing Business-category expenses pre-selects OAC and all 3 H4 tags
   const grantTagSection = dom.getElementById("grantTagSection");
   const grantTagChoices = dom.getElementById("grantTagChoices");
-  assert.equal(grantTagSection.classList.contains("hidden"), false);
-  const preselected = grantTagChoices.querySelectorAll(".grant-tag-btn")
-    .filter(b => b.classList.contains("selected"));
-  assert.equal(preselected.length, 1);
-  assert.equal(preselected[0].getAttribute("data-grant-tag"), "OAC-Mentor-Avery");
-  ctx.closeEditor();
+  for (const [expId, expectedTag] of [
+    ["exp-biz-1", "OAC-Mentor-Avery"],
+    ["exp-h4-cws", "H4-CWS"],
+    ["exp-h4-fil", "H4-Filipino"],
+    ["exp-h4-ops", "H4-Ops"]
+  ]) {
+    ctx.openEditExpense(expId);
+    assert.equal(grantTagSection.classList.contains("hidden"), false);
+    const preselected = grantTagChoices.querySelectorAll(".grant-tag-btn")
+      .filter(b => b.classList.contains("selected"));
+    assert.equal(preselected.length, 1);
+    assert.equal(preselected[0].getAttribute("data-grant-tag"), expectedTag);
+    assert.equal(preselected[0].getAttribute("aria-pressed"), "true");
+    ctx.closeEditor();
+  }
 
   // 1b. Editing non-Business category expense under Small Business keeps #grantTagSection hidden
   ctx.openEditExpense("exp-biz-noncat");
@@ -740,7 +950,7 @@ test("Frontend Behavior: saveExpense allows optional blank grantTag and sends se
   assert.equal(addedPayloads[0].grantTag, "");
   assert.equal(dom.getElementById("formError").textContent, "");
 
-  // 3. Adding a Small Business -> Business expense WITH a grantTag sends it
+  // 3. Adding a Small Business -> Business expense WITH H4-Filipino sends it
   ctx.openAddExpense();
   dom.getElementById("bucketChoices").querySelectorAll(".bucket-choice-btn")
     .find(b => b.innerHTML.includes("Small Business"))
@@ -750,17 +960,17 @@ test("Frontend Behavior: saveExpense allows optional blank grantTag and sends se
     .click();
   dom.getElementById("paymentChoices").querySelectorAll(".payment-button")[0].click();
   grantTagChoices.querySelectorAll(".grant-tag-btn")
-    .find(b => b.getAttribute("data-grant-tag") === "OAC-Art-Judges")
+    .find(b => b.getAttribute("data-grant-tag") === "H4-Filipino")
     .click();
   dom.getElementById("date").value = "2026-10-17";
   dom.getElementById("cost").value = "150.00";
-  dom.getElementById("item").value = "Honorarium";
+  dom.getElementById("item").value = "Community Workshop";
   dom.getElementById("notes").value = "";
 
   ctx.saveExpense({ preventDefault() {} });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(addedPayloads.length, 2);
-  assert.equal(addedPayloads[1].grantTag, "OAC-Art-Judges");
+  assert.equal(addedPayloads[1].grantTag, "H4-Filipino");
 });
 
 test("Frontend Behavior: guest-mode hides #grantTagSection and disables grant tag editing", () => {
@@ -781,7 +991,7 @@ test("Frontend Behavior: guest-mode hides #grantTagSection and disables grant ta
   assert.equal(grantTagSection.style.display, "none");
 
   const buttons = grantTagChoices.querySelectorAll(".grant-tag-btn");
-  assert.equal(buttons.length, 10);
+  assert.equal(buttons.length, 13);
   for (const btn of buttons) {
     assert.equal(btn.disabled, true);
     assert.equal(btn.getAttribute("aria-hidden"), "true");

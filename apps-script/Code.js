@@ -84,6 +84,27 @@ const PAYMENT_METHODS = [
 
 
 /* =========================================
+   GRANT TAGS
+========================================= */
+
+const ALLOWED_GRANT_TAGS = [
+  'OAC-Art-Glen',
+  'OAC-Art-Avery',
+  'OAC-Art-DKM/Switch',
+  'OAC-Art-Buffer',
+  'OAC-Art-Judges',
+  'OAC-Prod-Tech',
+  'OAC-Prod-Equip',
+  'OAC-Mentor-Avery',
+  'OAC-Mentor-DKM/Switch',
+  'OAC-Mentor-Glen',
+  'H4-CWS',
+  'H4-Filipino',
+  'H4-Ops'
+];
+
+
+/* =========================================
    V2 BRICK 4
    SERVER CACHE
 ========================================= */
@@ -1031,6 +1052,27 @@ function validateExpense(expense) {
 
     throw new Error(
       'Item is required.'
+    );
+
+  }
+
+  const normalizedGrantTag =
+    expense.grantTag !== undefined &&
+    expense.grantTag !== null
+      ? String(
+          expense.grantTag
+        ).trim()
+      : '';
+
+  if (
+    normalizedGrantTag &&
+    !ALLOWED_GRANT_TAGS.includes(
+      normalizedGrantTag
+    )
+  ) {
+
+    throw new Error(
+      'Select a valid grant tag.'
     );
 
   }
